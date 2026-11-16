@@ -25,14 +25,15 @@ package actor RawImageRenderer {
         let colorSpaceP3 = CGColorSpace(name: CGColorSpace.displayP3) ?? CGColorSpaceCreateDeviceRGB()
         let linearP3 = CGColorSpace(name: CGColorSpace.extendedLinearDisplayP3) ?? colorSpaceP3
 
+        let mtlDevice = MTLCreateSystemDefaultDevice()
         let contextOptions: [CIContextOption: Any] = [
             .workingColorSpace: linearP3,
             .outputColorSpace: colorSpaceP3,
             .cacheIntermediates: false,
-            .useSoftwareRenderer: false
+            .useSoftwareRenderer: (mtlDevice == nil)
         ]
 
-        if let mtlDevice = MTLCreateSystemDefaultDevice() {
+        if let mtlDevice {
             self.ciContext = CIContext(mtlDevice: mtlDevice, options: contextOptions)
         } else {
             self.ciContext = CIContext(options: contextOptions)

@@ -10,10 +10,11 @@ private func runVerification() async {
         try await CorePipelineVerification.runAll()
         try await HardwareAndArchiveDeleteVerification.runAll()
 
-        let snapshotDir = URL(
-            fileURLWithPath: "/Users/stevensb/Documents/Kairos Visuals/PhotoSelect/assets/screenshots",
-            isDirectory: true
-        )
+        let repoRoot = URL(fileURLWithPath: #filePath)
+            .deletingLastPathComponent()
+            .deletingLastPathComponent()
+            .deletingLastPathComponent()
+        let snapshotDir = repoRoot.appendingPathComponent("assets/screenshots", isDirectory: true)
         try await UISnapshotVerification.renderAllSnapshots(to: snapshotDir)
         exit(0)
     } catch {
