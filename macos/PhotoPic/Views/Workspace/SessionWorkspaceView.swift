@@ -89,43 +89,46 @@ package struct SessionWorkspaceView: View {
     private func installKeyMonitor() {
         removeKeyMonitor()
         keyMonitor = NSEvent.addLocalMonitorForEvents(matching: .keyDown) { event in
-            guard !appState.isPresentingSettings,
-                  viewModel.activeTab == .cullPending,
-                  NSApp.keyWindow?.sheets.isEmpty != false,
-                  !(NSApp.keyWindow?.firstResponder is NSTextView) else {
-                return event
-            }
-
             let blockedModifiers: NSEvent.ModifierFlags = [.command, .control, .option]
-            if !event.modifierFlags.intersection(blockedModifiers).isEmpty {
+            guard event.modifierFlags.intersection(blockedModifiers).isEmpty else {
                 return event
             }
-
-            switch event.keyCode {
-            case 123: // Left Arrow -> Archivar
-                viewModel.archiveCurrent()
-                return nil
-            case 124: // Right Arrow -> Para Edición
-                viewModel.approveCurrentToEditing()
-                return nil
-            case 126: // Up Arrow -> Anterior
-                viewModel.navigatePrevious()
-                return nil
-            case 125: // Down Arrow -> Siguiente
-                viewModel.navigateNext()
-                return nil
-            case 49:  // Space -> Zoom 1:1
-                viewModel.toggleLockedOneToOneZoom()
-                return nil
-            case 53:  // Escape -> Salir de Zoom 1:1
-                if viewModel.isAnyZoomActive {
-                    viewModel.resetZoomState()
-                    return nil
+            let keyCode = event.keyCode
+            let handled = MainActor.assumeIsolated {
+                guard !appState.isPresentingSettings,
+                      viewModel.activeTab == .cullPending,
+                      NSApp.keyWindow?.sheets.isEmpty != false,
+                      !(NSApp.keyWindow?.firstResponder is NSTextView) else {
+                    return false
                 }
-                return event
-            default:
-                return event
+
+                switch keyCode {
+                case 123: // Left Arrow -> Archivar
+                    viewModel.archiveCurrent()
+                    return true
+                case 124: // Right Arrow -> Para Edición
+                    viewModel.approveCurrentToEditing()
+                    return true
+                case 126: // Up Arrow -> Anterior
+                    viewModel.navigatePrevious()
+                    return true
+                case 125: // Down Arrow -> Siguiente
+                    viewModel.navigateNext()
+                    return true
+                case 49:  // Space -> Zoom 1:1
+                    viewModel.toggleLockedOneToOneZoom()
+                    return true
+                case 53:  // Escape -> Salir de Zoom 1:1
+                    if viewModel.isAnyZoomActive {
+                        viewModel.resetZoomState()
+                        return true
+                    }
+                    return false
+                default:
+                    return false
+                }
             }
+            return handled ? nil : event
         }
     }
 

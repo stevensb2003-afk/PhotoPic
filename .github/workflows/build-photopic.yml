@@ -16,8 +16,24 @@ jobs:
 
       - name: Compile macOS Swift Targets
         run: |
+          xcodebuild -version || true
           swift --version
-          swift build
+          set -o pipefail
+          swift build 2>&1 | tee /tmp/swift_build.log || {
+            python3 - <<'PY'
+          import re
+          with open("/tmp/swift_build.log", "r", encoding="utf-8", errors="replace") as f:
+              for raw in f:
+                  line = raw.rstrip("\n")
+                  m = re.match(r"^(.*?):(\d+):(\d+):\s+error:\s+(.*)$", line)
+                  if m:
+                      path, ln, col, msg = m.groups()
+                      print(f"::error file={path},line={ln},col={col}::{msg}")
+                  elif "error:" in line.lower():
+                      print(f"::error::{line}")
+          PY
+            exit 1
+          }
 
       - name: Run PhotoPicVerify
         run: swift run --skip-build PhotoPicVerify
