@@ -14,10 +14,13 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - name: Verify Swift & Run PhotoPicVerify
+      - name: Compile macOS Swift Targets
         run: |
+          swift --version
           swift build
-          swift run PhotoPicVerify
+
+      - name: Run PhotoPicVerify
+        run: swift run --skip-build PhotoPicVerify
 
       - name: Build & Package PhotoPic.dmg
         run: |

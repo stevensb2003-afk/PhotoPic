@@ -27,7 +27,9 @@ let package = Package(
             path: "macos/PhotoPic",
             linkerSettings: [
                 .linkedFramework("AppKit"),
+                .linkedFramework("AVFoundation"),
                 .linkedFramework("CoreImage"),
+                .linkedFramework("CoreMedia"),
                 .linkedFramework("ImageCaptureCore"),
                 .linkedFramework("ImageIO"),
                 .linkedFramework("Metal"),
