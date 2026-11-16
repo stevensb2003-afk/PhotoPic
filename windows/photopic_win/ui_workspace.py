@@ -24,6 +24,7 @@ from .raw_renderer import RawImageRendererWin
 from .session_manager import MoveRecord, SessionFileManager
 from .tag_store import PhotoTagStore
 from .ui_archived_tab import ArchivedTabWidget
+from .ui_live_view import LiveViewTabWidget
 from .ui_workspace_bars import build_workspace_bottom_controls, build_workspace_topbar
 from .vision_autotagger import VisionAutoTaggerWin
 
@@ -74,6 +75,9 @@ class SessionWorkspaceWidget(QWidget):
         self._stage_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
         self._stage_label.setStyleSheet(f"background: {AppColors.STAGE_BG};")
         self._stack.addWidget(self._stage_label)
+
+        self._live_tab = LiveViewTabWidget(on_reference_saved=self.handle_staged_file)
+        self._stack.addWidget(self._live_tab)
 
         self._archived_tab = ArchivedTabWidget(self.session, on_items_changed=self._on_archived_changed)
         self._stack.addWidget(self._archived_tab)
@@ -286,5 +290,7 @@ class SessionWorkspaceWidget(QWidget):
         HelpCenterDialog(parent=self).exec()
 
     def _switch_tab(self, idx: int) -> None:
+        if idx != 1:
+            self._live_tab.stop_stream()
         self._stack.setCurrentIndex(idx)
         self._refresh_counters_and_stage()

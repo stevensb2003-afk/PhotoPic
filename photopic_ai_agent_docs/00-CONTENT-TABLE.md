@@ -10,10 +10,10 @@
 | # | Sección / Subtema / Proceso | Nivel de Rol | Líneas |
 | :--- | :--- | :--- | :--- |
 | 1 | 1. Protocolo de Lectura Eficiente por Perfil | `REFERENCIA-RBAC` | `L019-L024` |
-| 2 | 2. Matriz Rápida de Módulos y Perfiles del Sistema | `REFERENCIA-RBAC` | `L025-L035` |
-| 3 | 3. Directorio Global de Archivos y Coordenadas de Línea | `TODOS` | `L036-L072` |
-| 4 | ↳ Catálogo Maestro de Archivos de Documentación | `TODOS` | `L039-L049` |
-| 5 | ↳ Mapa Directo de Secciones `H2` y Coordenadas de Línea por Archivo | `TODOS` | `L050-L072` |
+| 2 | 2. Matriz Rápida de Módulos y Perfiles del Sistema | `REFERENCIA-RBAC` | `L025-L036` |
+| 3 | 3. Directorio Global de Archivos y Coordenadas de Línea | `TODOS` | `L037-L077` |
+| 4 | ↳ Catálogo Maestro de Archivos de Documentación | `TODOS` | `L040-L051` |
+| 5 | ↳ Mapa Directo de Secciones `H2` y Coordenadas de Línea por Archivo | `TODOS` | `L052-L077` |
 <!-- TOC:END -->
 
 ## 1. Protocolo de Lectura Eficiente por Perfil [ROL: REFERENCIA-RBAC]
@@ -31,7 +31,8 @@
 | `tether` | Captura USB, Wi-Fi y Watchfolder | Píldora USB / `Vincular Carpeta / Wi-Fi...` | Ver estado en vivo y recibir disparos | Guardar alias, liberar `PTPCamera`, activar JPG fallback | `03-modulo-captura-usb-wifi-y-watchfolder.md` |
 | `culling` | Culling RAW, IA y Archivadas | Pestañas `Filtrar` y `Archivadas` | Navegar, Zoom 1:1, aprobar, archivar, deshacer y recuperar | Eliminar definitivamente o vaciar `Archivadas/` | `04-modulo-culling-raw-ia-y-archivadas.md` |
 | `auto` | Automatizaciones y Pares RAW+JPG | Segundo plano | N/A (automático al ingerir y clasificar) | N/A (reglas inmutables de disco y XMP) | `05-automatizaciones-flujos-y-carpetas.md` |
-| `egm-map` | Mapa de Capas EGM | Referencia técnica | N/A | N/A | `06-mapa-capas-egm-referencia.md` |
+| `live-view` | Vista en Vivo (Live View) y Límites | Pestaña `Vista en Vivo` | Encuadre 3×3, espejo, guías, disparo PTP y cuadro ref. | Configurar modo `gphoto2` (`brew install gphoto2`) | `06-modulo-vista-en-vivo-y-limitaciones.md` |
+| `egm-map` | Mapa de Capas EGM | Referencia técnica | N/A | N/A | `07-mapa-capas-egm-referencia.md` |
 
 ## 3. Directorio Global de Archivos y Coordenadas de Línea [ROL: TODOS]
 
@@ -45,7 +46,8 @@
 | `03-modulo-captura-usb-wifi-y-watchfolder.md` | `DOC-03` | `tether-discovery` | `46` | Guía paso a paso para conectar cámaras DSLR/Mirrorless, smartphones Android/iPhone, transmisores Wi-Fi y Watchfolders. |
 | `04-modulo-culling-raw-ia-y-archivadas.md` | `DOC-04` | `culling-workspace` | `55` | Explica paso a paso el visor RAW GPU, Zoom 1:1, filtros IA, movimiento sincronizado RAW+JPG y borrado definitivo. |
 | `05-automatizaciones-flujos-y-carpetas.md` | `DOC-05` | `automations` | `36` | Documenta las reglas automáticas en segundo plano y el flujo completo End-to-End desde la captura hasta la entrega. |
-| `06-mapa-capas-egm-referencia.md` | `DOC-06` | `egm-reference` | `30` | Vincula cada documento funcional `DOC-XX` con las rutas exactas de modelos, servicios, ViewModels y vistas en disco. |
+| `06-modulo-vista-en-vivo-y-limitaciones.md` | `DOC-07` | `live-view` | `46` | Documenta paso a paso la pestaña Vista en Vivo en macOS y Windows, el disparo remoto PTP/gphoto2 y todas las limitaciones reales por sistema operativo. |
+| `07-mapa-capas-egm-referencia.md` | `DOC-08` | `egm-reference` | `31` | Vincula cada documento funcional `DOC-XX` con las rutas exactas de código en `macos/` y `windows/`. |
 
 ### Mapa Directo de Secciones `H2` y Coordenadas de Línea por Archivo
 
@@ -67,6 +69,9 @@
 | `04-modulo-culling-raw-ia-y-archivadas.md` | 3. Gestión de `Archivadas`: Recuperar o Eliminar Definitivamente | `ADMIN-EQUIPO` | `L044-L055` |
 | `05-automatizaciones-flujos-y-carpetas.md` | 1. Automatizaciones en Segundo Plano | `SISTEMA-AUTO` | `L016-L029` |
 | `05-automatizaciones-flujos-y-carpetas.md` | 2. Flujo End-to-End (E2E) Completo en Estudio | `TODOS` | `L030-L036` |
-| `06-mapa-capas-egm-referencia.md` | 1. Mapa de Correspondencia `DOC-XX` vs Código Fuente | `REFERENCIA-RBAC` | `L016-L025` |
-| `06-mapa-capas-egm-referencia.md` | 2. Invariantes de Arquitectura y Verificación | `SISTEMA-AUTO` | `L026-L030` |
+| `06-modulo-vista-en-vivo-y-limitaciones.md` | 1. Propósito de Negocio y Selección de Motor por Sistema Operativo | `TODOS` | `L019-L022` |
+| `06-modulo-vista-en-vivo-y-limitaciones.md` | 2. Procesos Operativos Paso a Paso | `FOTOGRAFO` | `L023-L036` |
+| `06-modulo-vista-en-vivo-y-limitaciones.md` | 3. Matriz Honesta de Capacidades y Limitaciones Reales | `TODOS` | `L037-L046` |
+| `07-mapa-capas-egm-referencia.md` | 1. Mapa de Correspondencia Documentos vs Código Fuente | `REFERENCIA-RBAC` | `L016-L026` |
+| `07-mapa-capas-egm-referencia.md` | 2. Invariantes de Arquitectura y Empaquetado | `SISTEMA-AUTO` | `L027-L031` |
 <!-- MASTER-INDEX:END -->

@@ -5,11 +5,13 @@ import Observation
 /// Tabs available inside the active photo culling workspace.
 package enum WorkspaceTab: String, CaseIterable, Sendable {
     case cullPending
+    case liveView
     case archived
 
     package var title: String {
         switch self {
         case .cullPending: return "Filtrar (Pendientes)"
+        case .liveView: return "Vista en Vivo"
         case .archived: return "Archivadas"
         }
     }

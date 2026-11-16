@@ -58,13 +58,13 @@ PhotoSelect/
 │   │   ├── App/                     # PhotoPicApp, AppState
 │   │   ├── DesignSystem/            # AppColors, AppTypography, AppSpacing, AppRadius, AppMotion, PictogrammersIcons
 │   │   ├── Models/                  # PhotoItem, PhotoExifMetadata, PhotoVisionTags, PhotoSession,
-│   │   │                            # KnownDevice, ConnectedDeviceState, PerformancePreferences, HelpGuideCatalog
+│   │   │                            # KnownDevice, ConnectedDeviceState, PerformancePreferences, HelpGuideCatalog*
 │   │   ├── Services/                # BookmarkManager, KnownDevicesStore, DeviceDiscoveryService, TetherCaptureService,
-│   │   │                            # TetherBaselineGate, FolderWatchTetherService, SessionFileManager (+BucketSync),
-│   │   │                            # SessionIngestRouter, SessionArchiveCleaner, RawImageRenderer,
-│   │   │                            # ExifMetadataReader, PhotoVisionAnalyzer, PhotoTagStore, HardwareCapabilityAuditor
+│   │   │                            # TetherBaselineGate, FolderWatchTetherService, LiveViewCameraService, GPhoto2LiveBridge,
+│   │   │                            # SessionFileManager (+BucketSync), SessionIngestRouter, SessionArchiveCleaner,
+│   │   │                            # RawImageRenderer, ExifMetadataReader, PhotoVisionAnalyzer, PhotoTagStore, HardwareCapabilityAuditor
 │   │   ├── ViewModels/              # HomeViewModel, DeviceManagerViewModel, CullingSessionViewModel (+Actions/Rendering/Vision)
-│   │   └── Views/                   # Onboarding (+GuidedSetupWizardView), Home, Workspace (+ArchivedDeletePopovers),
+│   │   └── Views/                   # Onboarding (+GuidedSetupWizardView), Home, Workspace (+LiveViewWorkspacePane, ArchivedDeletePopovers),
 │   │                                # Settings, Help (+HelpCenterView), Components (+HardwareAuditSettingsBlock)
 │   ├── Resources/                   # Info.plist, PhotoPic.entitlements, AppIcon.icns
 │   ├── Scripts/                     # generate_icon.swift, generate_xcodeproj.py, package_macos_app.sh
@@ -73,7 +73,7 @@ PhotoSelect/
 └── windows/
     ├── photopic_win/                # main, design_system, hardware_auditor, models, baseline_gate, tag_store,
     │                                # session_manager, ingest_router, archive_cleaner, raw_renderer, vision_autotagger,
-    │                                # wpd_tether_service, ui_home, ui_setup_wizard, ui_archived_tab, ui_help_dialog, ui_workspace
+    │                                # wpd_tether_service, ui_home, ui_setup_wizard, ui_live_view, ui_archived_tab, ui_help_dialog, ui_workspace
     ├── scripts/                     # wpd_bridge.ps1, build_windows_exe.ps1
     └── tests/                       # test_windows_core.py
 ```

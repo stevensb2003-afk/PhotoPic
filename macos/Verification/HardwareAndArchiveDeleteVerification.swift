@@ -14,6 +14,7 @@ package enum HardwareAndArchiveDeleteVerification {
         try testHardwareAuditorAndStore()
         try await testAIDisableAndLiveToggle(rootURL: tempRoot)
         try await testPermanentArchiveDeletionAndSafetyGuard(rootURL: tempRoot)
+        try testHelpSearchAndLiveViewDefaults()
 
         print("ALL PHOTOPIC V2.1 HARDWARE & ARCHIVE DELETE VERIFICATIONS PASSED")
     }
@@ -205,5 +206,17 @@ package enum HardwareAndArchiveDeleteVerification {
         let finalCounts = SessionFileManager.readDiskCounts(for: session)
         try assertTrue(finalCounts.pending == 1 && finalCounts.forEditing == 1, "RAW/ and Para_Edicion/ intact after empty")
         print("[PASS] 11. Permanent Archive single delete, empty-all & path guard verified")
+    }
+
+    private static func testHelpSearchAndLiveViewDefaults() throws {
+        let allTopics = HelpGuideCatalog.filter(query: "", category: .all)
+        try assertTrue(allTopics.count >= 7, "Help catalog exposes all 7 topics")
+
+        let gphotoHits = HelpGuideCatalog.filter(query: "gphoto2", category: .connectionsLive)
+        try assertTrue(gphotoHits.count == 1 && gphotoHits.first?.id == "live-view-guide", "Keyword filter finds Live View limitations")
+
+        let liveService = LiveViewCameraService()
+        try assertTrue(liveService.showThirdsGrid && liveService.aspectGuide == .threeTwo, "Live View defaults configured")
+        print("[PASS] 12. Help Center search/categories & LiveViewCameraService state verified")
     }
 }

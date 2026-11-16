@@ -1,5 +1,12 @@
 # Changelog — PhotoPic
 
+## v2.3.0 — Vista en Vivo (Live View), Disparo Remoto y Centro de Ayuda Buscable con Limitaciones Reales
+- **Pestaña `Vista en Vivo` multi-plataforma:**
+  - **macOS (`LiveViewCameraService` + `GPhoto2LiveBridge`):** Motor nativo `AVFoundation` para UVC / HDMI-USB / Continuity Camera (0 dependencias externas en el `.dmg`), cuadrícula `3×3`, espejo horizontal, guías `3:2` / `4:5` / `16:9` / `1:1`, disparo remoto PTP (`requestTakePicture`) y soporte opcional por 1 cable USB para DSLRs clásicas si el usuario instala `gphoto2` vía Homebrew.
+  - **Windows (`LiveViewTabWidget`):** Streaming `OpenCV DirectShow` para UVC / HDMI-USB preservando intacto el driver WPD de fotos.
+- **Centro de Ayuda estructurado y buscable (`?` / `⌘?`):** Mini buscador instantáneo por palabras clave, filtro por categorías, guía paso a paso y secciones explícitas **"Qué SÍ podés hacer"** vs **"Limitaciones reales · Qué NO hace"** (`DOC-01`..`DOC-07`).
+- **Documentación BRD y técnica actualizada:** Nuevo `DOC-07` en `photopic_ai_agent_docs/06-modulo-vista-en-vivo-y-limitaciones.md` y guía técnica en `docs/06-vista-en-vivo-y-limitaciones.md`.
+
 ## v2.2.0 — Sincronización RAW+JPG en Destinos, Wi-Fi/Watchfolder macOS, Ayuda Interna y BRD Docs
 - **Clasificación separada `RAW/` y `JPG/` dentro de `Para_Edicion/` y `Archivadas/`:** Tanto en macOS como en Windows, aprobar (`→`), archivar (`←`), deshacer (`⌘Z`/`Ctrl+Z`), recuperar o eliminar mueve automáticamente el par completo (`RAW` + `.xmp` + `JPG` asociado) a sus subcarpetas respectivas, incluyendo enrutamiento directo si el `.JPG` llega tarde por USB.
 - **Tethering Inalámbrico + Watchfolder en macOS:** `DeviceDiscoveryService` escucha ahora también cámaras Wi-Fi PTP/IP (`Bonjour`), y `FolderWatchTetherService` permite vincular carpetas de transmisores Wi-Fi (Air Direct, CamRanger, FTP, EOS Utility/NX Tether) o lectores SD usando el escudo `TetherBaselineGate` + verificación de estabilidad de archivo.

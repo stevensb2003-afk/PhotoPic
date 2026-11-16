@@ -53,6 +53,8 @@ package struct SessionWorkspaceView: View {
                         TinderCardStackView(viewModel: viewModel)
                         CullingControlsBar(viewModel: viewModel)
                     }
+                case .liveView:
+                    LiveViewWorkspacePane(appState: appState, viewModel: viewModel)
                 case .archived:
                     ArchivedPhotosView(viewModel: viewModel)
                 }
@@ -143,6 +145,12 @@ package struct SessionWorkspaceView: View {
                     badgeColor: AppColors.warningAmber
                 )
                 tabButton(
+                    tab: .liveView,
+                    count: nil,
+                    badgeColor: AppColors.approveGreen,
+                    liveActive: appState.liveViewService.isRunning || appState.gphotoBridge.isStreaming
+                )
+                tabButton(
                     tab: .archived,
                     count: viewModel.session.counts.archived,
                     badgeColor: AppColors.archiveRed
@@ -199,23 +207,28 @@ package struct SessionWorkspaceView: View {
         )
     }
 
-    private func tabButton(tab: WorkspaceTab, count: Int, badgeColor: Color) -> some View {
+    private func tabButton(tab: WorkspaceTab, count: Int?, badgeColor: Color, liveActive: Bool = false) -> some View {
         let isActive = viewModel.activeTab == tab
         return Button {
             viewModel.activeTab = tab
         } label: {
             HStack(spacing: AppSpacing.sm) {
+                if tab == .liveView {
+                    PulsingStatusDot(color: liveActive ? AppColors.approveGreen : AppColors.textTertiary, isActive: liveActive)
+                }
                 Text(tab.title)
                     .font(AppTypography.bodyMedium)
                     .foregroundStyle(isActive ? AppColors.textPrimary : AppColors.textSecondary)
 
-                Text("\(count)")
-                    .font(AppTypography.monoMicro)
-                    .foregroundStyle(isActive ? badgeColor : AppColors.textTertiary)
-                    .padding(.horizontal, AppSpacing.xs)
-                    .padding(.vertical, 2)
-                    .background(AppColors.stageBackground)
-                    .clipShape(Capsule())
+                if let count {
+                    Text("\(count)")
+                        .font(AppTypography.monoMicro)
+                        .foregroundStyle(isActive ? badgeColor : AppColors.textTertiary)
+                        .padding(.horizontal, AppSpacing.xs)
+                        .padding(.vertical, 2)
+                        .background(AppColors.stageBackground)
+                        .clipShape(Capsule())
+                }
             }
             .padding(.horizontal, AppSpacing.md)
             .padding(.vertical, AppSpacing.xs)

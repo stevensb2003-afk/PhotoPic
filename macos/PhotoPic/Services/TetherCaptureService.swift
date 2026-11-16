@@ -52,6 +52,21 @@ package final class TetherCaptureService: NSObject {
         contexts[profile.fingerprint]?.profile = profile
     }
 
+    package func canTriggerRemoteShutter(for fingerprint: String) -> Bool {
+        guard let camera = contexts[fingerprint]?.camera, camera.hasOpenSession else { return false }
+        return camera.capabilities.contains(ICDeviceCapability.cameraDeviceCanTakePicture.rawValue)
+    }
+
+    package func triggerRemoteShutter(for fingerprint: String) -> Bool {
+        guard let camera = contexts[fingerprint]?.camera,
+              camera.hasOpenSession,
+              camera.capabilities.contains(ICDeviceCapability.cameraDeviceCanTakePicture.rawValue) else {
+            return false
+        }
+        camera.requestTakePicture()
+        return true
+    }
+
     // MARK: - Baseline Indexing & Smart Delta Watcher
 
     func indexExistingCatalog(for fingerprint: String, camera: ICCameraDevice) {

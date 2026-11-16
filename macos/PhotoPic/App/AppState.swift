@@ -23,6 +23,8 @@ package final class AppState {
     package let knownDevicesStore: KnownDevicesStore
     package let discoveryService: DeviceDiscoveryService
     package let folderWatchService: FolderWatchTetherService
+    package let liveViewService: LiveViewCameraService
+    package let gphotoBridge: GPhoto2LiveBridge
     package let rawRenderer: RawImageRenderer
     package let visionAnalyzer: PhotoVisionAnalyzer
     package let homeViewModel: HomeViewModel
@@ -63,6 +65,8 @@ package final class AppState {
         let discovery = DeviceDiscoveryService(knownStore: knownDevicesStore, captureService: capture)
         self.discoveryService = discovery
         self.folderWatchService = FolderWatchTetherService()
+        self.liveViewService = LiveViewCameraService()
+        self.gphotoBridge = GPhoto2LiveBridge()
         self.rawRenderer = RawImageRenderer()
         self.visionAnalyzer = PhotoVisionAnalyzer()
         self.homeViewModel = HomeViewModel()
@@ -135,11 +139,20 @@ package final class AppState {
     }
 
     package func closeActiveSession() {
+        stopAllLiveView()
         if let activeSessionViewModel {
             homeViewModel.updateSessionCounts(activeSessionViewModel.session)
         }
         activeSessionViewModel = nil
         homeViewModel.reloadSessions(in: rootFolderURL)
+    }
+
+    package func stopAllLiveView() {
+        liveViewService.stop()
+        if gphotoBridge.isStreaming {
+            gphotoBridge.stopPreviewStream()
+            discoveryService.resumeSessionsAfterExternalBridge()
+        }
     }
 
     package func openSettings(tab: SettingsTab = .devices) {

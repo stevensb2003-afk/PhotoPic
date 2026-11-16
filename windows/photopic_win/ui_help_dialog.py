@@ -1,11 +1,11 @@
-"""Built-in offline Help Center dialog for PhotoPic Windows."""
+"""Built-in searchable Help Center dialog with categories, capabilities, and limitations."""
 
 from __future__ import annotations
 
 from PySide6.QtWidgets import (
+    QComboBox,
     QDialog,
     QHBoxLayout,
-    QLabel,
     QLineEdit,
     QListWidget,
     QListWidgetItem,
@@ -16,68 +16,130 @@ from PySide6.QtWidgets import (
 
 from .design_system import AppColors, AppSpacing
 
-_HELP_TOPICS: list[tuple[str, str, str]] = [
-    (
-        "DOC-01 · Flujo Completo de Estudio (E2E)",
-        "Flujo de trabajo de principio a fin",
-        "<p><b>PhotoPic</b> lee tus carpetas directamente en disco y nunca encierra tus fotos en un catálogo interno.</p>"
-        "<ol>"
-        "<li>En el <b>Asistente Inicial</b>, revisá la auditoría de CPU/RAM y elegí tu perfil IA (o Modo Ligero sin IA).</li>"
-        "<li>Elegí tu <b>Carpeta Raíz Global</b>.</li>"
-        "<li>Creá una sesión nueva: se generan <code>RAW/</code>, <code>JPG/</code>, <code>Para_Edicion/{RAW,JPG}</code> y <code>Archivadas/{RAW,JPG}</code>.</li>"
-        "<li>Conectá tu cámara/celular USB (WPD) o vinculá una carpeta Wi-Fi/SD con <b>Vincular Carpeta/SD USB...</b>.</li>"
-        "<li>Clasificá con <b>→</b> (Aprobar) o <b>←</b> (Archivar) y verificá foco 1:1 con <b>Espacio</b>.</li>"
-        "</ol>",
-    ),
-    (
-        "DOC-02 · Auditor de Hardware y Modo Sin IA",
-        "Perfiles y desactivación de IA",
-        "<p>En Windows, la IA corre en CPU mediante MediaPipe/OpenCV. Podés cambiar de perfil en cualquier momento desde <b>Rendimiento e IA...</b>.</p>"
-        "<ul>"
-        "<li><b>Estudio Completo:</b> rostros, ojos y poses corporales.</li>"
-        "<li><b>Equilibrado:</b> solo rostros/ojos rápidos.</li>"
-        "<li><b>Modo Ligero (Sin IA):</b> apaga la IA por completo para PCs modestas.</li>"
-        "</ul>",
-    ),
-    (
-        "DOC-03 · Tethering USB WPD y Watchfolder Wi-Fi",
-        "Conexión de cámaras y transmisores inalámbricos",
-        "<p>Windows soporta teléfonos Android (MTP/PTP), iPhone y cámaras PTP mediante WPD, además de monitoreo en vivo de carpetas (Watchfolder).</p>"
-        "<p>Para transmisores Wi-Fi (Air Direct, CamRanger, FTP local o EOS Utility/NX Tether), pulsá <b>Vincular Carpeta/SD USB...</b> y elegí la carpeta de destino.</p>",
-    ),
-    (
-        "DOC-04 · Pares RAW + JPG y Atajos de Estudio",
-        "Clasificación sincronizada RAW + JPG",
-        "<p>Cuando aprobás (<b>→</b>) o archivás (<b>←</b>), PhotoPic mueve el <b>RAW</b> (y su <code>.xmp</code>) a <code>RAW/</code> dentro de la carpeta destino y también mueve automáticamente su copia <b>JPG</b> a <code>JPG/</code> dentro de esa misma carpeta.</p>"
-        "<p><b>Atajos:</b> <code>↑/↓</code> navegar · <code>→</code> Para Edición · <code>←</code> Archivar · <code>Espacio</code> Zoom 1:1 · <code>Ctrl+Z</code> Deshacer.</p>",
-    ),
-    (
-        "DOC-05 · Limpieza Segura en Archivadas",
-        "Recuperar o eliminar archivos definitivamente",
-        "<p>En la pestaña <b>Archivadas</b> podés rescatar una foto con <b>Recuperar para Edición</b> o liberar espacio en disco con <b>Eliminar archivo...</b> y <b>Vaciar Archivadas...</b> mediante un Popover de confirmación.</p>",
-    ),
+_HELP_TOPICS: list[dict] = [
+    {
+        "code": "DOC-01",
+        "cat": "Inicio y Hardware",
+        "title": "Flujo Completo de Estudio (E2E)",
+        "kw": "inicio e2e sesion carpeta raiz flujo lightroom exe",
+        "summary": "PhotoPic lee y ordena directamente tus carpetas del disco sin encerrar tus fotos en un catálogo interno.",
+        "can_do": [
+            "Abrir cualquier carpeta de sesión en Lightroom, Capture One o Affinity.",
+            "Trabajar 100% offline sin internet ni servidores localhost.",
+        ],
+        "limits": [
+            "No aplica edición de color destructiva: su objetivo es captura, revisión 1:1, etiquetado y clasificación física.",
+        ],
+        "steps": [
+            "Completá la auditoría de hardware en el Asistente Inicial y elegí tu Carpeta Raíz Global.",
+            "Creá una sesión con '+ Nueva Sesión de Filtrado' para generar RAW/, JPG/, Para_Edicion/{RAW,JPG} y Archivadas/{RAW,JPG}.",
+            "Conectá tu cámara/celular o vinculá un Watchfolder Wi-Fi/SD.",
+            "Clasificá con → (Aprobar) o ← (Archivar) y validá foco 1:1 con Espacio.",
+        ],
+    },
+    {
+        "code": "DOC-02",
+        "cat": "Inicio y Hardware",
+        "title": "Auditor de Hardware y Modo Sin IA",
+        "kw": "cpu ram mediapipe opencv lento apagar ia modo ligero equilibrado",
+        "summary": "En Windows la IA ejecuta sobre CPU con MediaPipe/OpenCV. El auditor evalúa núcleos y RAM para elegir el mejor perfil.",
+        "can_do": [
+            "Activar o apagar auto-etiquetado facial y poses desde 'Rendimiento e IA...'.",
+            "Cambiar a Modo Ligero (Sin IA) en PCs modestas para priorizar tethering y revelado LibRaw.",
+        ],
+        "limits": [
+            "Windows no dispone de Apple Neural Engine físico: activar poses en PCs <= 4 núcleos consumirá más CPU.",
+        ],
+        "steps": [
+            "Abrí 'Rendimiento e IA...' en la barra superior de Inicio.",
+            "Elegí entre Estudio Completo, Equilibrado (solo rostros) o Modo Ligero (Sin IA).",
+        ],
+    },
+    {
+        "code": "DOC-03",
+        "cat": "Conexión y Vivo",
+        "title": "Tethering USB WPD y Watchfolder Wi-Fi",
+        "kw": "usb wpd mtp ptp android iphone wifi watchfolder ftp",
+        "summary": "Windows recibe capturas vía WPD (MTP/PTP) y monitoreo en vivo de carpetas (Watchfolder).",
+        "can_do": [
+            "Soporta Android tanto en MTP como en PTP, iPhone y lectores SD/CFexpress.",
+            "Protege carretes y tarjetas SD llenas con el Escudo Anti-Galería Vieja.",
+        ],
+        "limits": [
+            "Bluetooth no soporta transferencia RAW en vivo; para transmisores inalámbricos usá Watchfolder.",
+        ],
+        "steps": [
+            "Conectá el cable USB o pulsá 'Vincular Carpeta/SD USB...' para vigilar la salida de tu transmisor Wi-Fi/FTP.",
+        ],
+    },
+    {
+        "code": "DOC-07",
+        "cat": "Conexión y Vivo",
+        "title": "Vista en Vivo (Live View) DirectShow",
+        "kw": "live view vista en vivo hdmi uvc directshow zadig winusb disparar",
+        "summary": "Muestra encuadre en tiempo real desde cámaras UVC / HDMI-USB usando OpenCV DirectShow sin tocar el driver USB WPD.",
+        "can_do": [
+            "Ver video en vivo con cuadrícula 3×3, espejo y captura de cuadro de referencia a la sesión.",
+            "Trabajar en paralelo con la entrada de RAWs sin reemplazar drivers de Windows.",
+        ],
+        "limits": [
+            "DSLRs clásicas sin UVC ni capturadora HDMI-USB no envían Live View en Windows sin reemplazar el driver por WinUSB (Zadig), lo cual rompería WPD.",
+        ],
+        "steps": [
+            "Abrí la pestaña 'Vista en Vivo', elegí tu Entrada Video / HDMI y pulsá 'Iniciar Vista en Vivo'.",
+        ],
+    },
+    {
+        "code": "DOC-04",
+        "cat": "Carpetas y Límites",
+        "title": "Pares RAW + JPG, Atajos y Archivadas",
+        "kw": "raw jpg para_edicion archivadas eliminar popover vaciar zoom undo",
+        "summary": "Aprobar o archivar mueve juntos el RAW (+ .xmp) y su JPG asociado a Para_Edicion/{RAW,JPG} o Archivadas/{RAW,JPG}.",
+        "can_do": [
+            "Recuperar descartes hacia Para_Edicion o borrarlos definitivamente con Popover de confirmación.",
+        ],
+        "limits": [
+            "El borrado definitivo en Archivadas no va a la Papelera ni se deshace con Ctrl+Z.",
+        ],
+        "steps": [
+            "Usá ↑/↓ para navegar, → aprobar, ← archivar, Espacio para Zoom 1:1 y Ctrl+Z para deshacer.",
+            "En Archivadas usá 'Eliminar archivo...' o 'Vaciar Archivadas...' cuando necesités liberar disco.",
+        ],
+    },
 ]
 
 
 class HelpCenterDialog(QDialog):
-    """Offline searchable Help Center modal for Windows."""
+    """Offline searchable Help Center modal with categories and honest limitations."""
 
     def __init__(self, parent=None) -> None:
         super().__init__(parent)
-        self.setWindowTitle("Centro de Ayuda de PhotoPic")
-        self.resize(780, 520)
+        self.setWindowTitle("Centro de Ayuda y Limitaciones — PhotoPic")
+        self.resize(840, 560)
 
         root = QVBoxLayout(self)
         root.setSpacing(AppSpacing.MD)
 
+        search_row = QHBoxLayout()
+        self._category = QComboBox()
+        for cat in ("Todos", "Inicio y Hardware", "Conexión y Vivo", "Carpetas y Límites"):
+            self._category.addItem(cat, cat)
+        self._category.currentIndexChanged.connect(self._refresh_list)
+        search_row.addWidget(self._category)
+
         self._search = QLineEdit()
-        self._search.setPlaceholderText("Buscar tema o atajo...")
-        self._search.textChanged.connect(self._populate_list)
-        root.addWidget(self._search)
+        self._search.setPlaceholderText("Buscar tema, atajo o limitación (ej. hdmi, gphoto2, raw, ptpcamera)...")
+        self._search.textChanged.connect(self._refresh_list)
+        search_row.addWidget(self._search, stretch=1)
+
+        clear_btn = QPushButton("Limpiar")
+        clear_btn.clicked.connect(lambda: (self._search.clear(), self._category.setCurrentIndex(0)))
+        search_row.addWidget(clear_btn)
+        root.addLayout(search_row)
 
         split = QHBoxLayout()
         self._list = QListWidget()
-        self._list.setFixedWidth(280)
+        self._list.setFixedWidth(290)
         self._list.currentRowChanged.connect(self._show_selected)
         split.addWidget(self._list)
 
@@ -98,20 +160,41 @@ class HelpCenterDialog(QDialog):
         root.addLayout(close_row)
 
         self._filtered = list(_HELP_TOPICS)
-        self._populate_list("")
+        self._refresh_list()
 
-    def _populate_list(self, query: str) -> None:
-        q = query.strip().lower()
-        self._filtered = [t for t in _HELP_TOPICS if not q or q in t[0].lower() or q in t[2].lower()]
+    def _refresh_list(self) -> None:
+        cat = self._category.currentData() or "Todos"
+        q = self._search.text().strip().lower()
+        self._filtered = [
+            t for t in _HELP_TOPICS
+            if (cat == "Todos" or t["cat"] == cat)
+            and (
+                not q
+                or q in t["title"].lower()
+                or q in t["kw"]
+                or q in t["summary"].lower()
+                or any(q in s.lower() for s in t["can_do"] + t["limits"] + t["steps"])
+            )
+        ]
         self._list.clear()
-        for title, _, _ in self._filtered:
-            QListWidgetItem(title, self._list)
+        for t in self._filtered:
+            QListWidgetItem(f"{t['code']} · {t['title']}", self._list)
         if self._filtered:
             self._list.setCurrentRow(0)
         else:
-            self._viewer.setHtml("<p>Sin resultados.</p>")
+            self._viewer.setHtml("<p>No hay temas coincidentes con tu búsqueda.</p>")
 
     def _show_selected(self, row: int) -> None:
-        if 0 <= row < len(self._filtered):
-            title, subtitle, body = self._filtered[row]
-            self._viewer.setHtml(f"<h2>{title}</h2><p style='color:{AppColors.TEXT_SECONDARY};'>{subtitle}</p>{body}")
+        if not (0 <= row < len(self._filtered)):
+            return
+        t = self._filtered[row]
+        can_html = "".join(f"<li>{x}</li>" for x in t["can_do"])
+        lim_html = "".join(f"<li>{x}</li>" for x in t["limits"])
+        step_html = "".join(f"<li>{x}</li>" for x in t["steps"])
+        self._viewer.setHtml(
+            f"<h2>{t['title']}</h2>"
+            f"<p style='color:{AppColors.TEXT_SECONDARY};'>{t['summary']}</p>"
+            f"<h4 style='color:{AppColors.APPROVE_GREEN};'>Qué SÍ podés hacer</h4><ul>{can_html}</ul>"
+            f"<h4 style='color:{AppColors.WARNING_AMBER};'>Limitaciones reales · Qué NO hace</h4><ul>{lim_html}</ul>"
+            f"<h4>Guía Paso a Paso</h4><ol>{step_html}</ol>"
+        )

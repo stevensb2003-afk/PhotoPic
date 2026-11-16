@@ -20,4 +20,4 @@ PhotoPic es una aplicación de escritorio 100% offline, sin servidores web local
 
 1. Consulta primero `00-CONTENT-TABLE.md` para localizar el documento exacto y el rango de líneas `Lxxx-Lyyy` correspondiente a tu consulta.
 2. Verifica la etiqueta `[ROL: ...]` de cada sección para responder acorde al perfil del usuario (`FOTOGRAFO`, `ASISTENTE`, `ADMIN-EQUIPO`, `SISTEMA-AUTO` o `TODOS`).
-3. Para el mapa exacto hacia archivos fuente Swift y Python (`<= 300` líneas por archivo), revisa `06-mapa-capas-egm-referencia.md`.
+3. Para el mapa exacto hacia archivos fuente Swift y Python (`<= 300` líneas por archivo), revisa `07-mapa-capas-egm-referencia.md`.

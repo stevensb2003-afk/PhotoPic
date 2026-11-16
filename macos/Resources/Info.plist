@@ -19,15 +19,15 @@
 	<key>CFBundlePackageType</key>
 	<string>APPL</string>
 	<key>CFBundleShortVersionString</key>
-	<string>2.0.0</string>
+	<string>2.3.0</string>
 	<key>CFBundleVersion</key>
-	<string>2</string>
+	<string>4</string>
 	<key>LSApplicationCategoryType</key>
 	<string>public.app-category.photography</string>
 	<key>LSMinimumSystemVersion</key>
 	<string>14.0</string>
 	<key>NSCameraUsageDescription</key>
-	<string>PhotoPic necesita acceso a cámaras y teléfonos USB en modo PTP para recibir y revelar tus capturas RAW y JPG en tiempo real.</string>
+	<string>PhotoPic necesita acceso a cámaras UVC, capturadoras HDMI-USB y dispositivos USB PTP para Vista en Vivo y revelado RAW en tiempo real.</string>
 	<key>NSDesktopFolderUsageDescription</key>
 	<string>Permite seleccionar carpetas de sesiones fotográficas si guardás sesiones en el Escritorio.</string>
 	<key>NSDocumentsFolderUsageDescription</key>

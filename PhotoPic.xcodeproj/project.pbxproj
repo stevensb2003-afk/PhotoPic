@@ -15,6 +15,7 @@
 		1F4B0E7D3C89D56C7FBCD090 = {isa = PBXBuildFile; fileRef = 06D4574BD465483DBE9AA8F6; };
 		953B02CD8DD2DDA2D089965D = {isa = PBXBuildFile; fileRef = 53B1273A205AB209DA55BDA7; };
 		A62EA8C6C5C5DC39B82D02C0 = {isa = PBXBuildFile; fileRef = BD7B8B99A44F72C1F26F03EB; };
+		87F0BFAF1C3494AD06D3FD7E = {isa = PBXBuildFile; fileRef = 82CC7F3BF278D9DB5ABABE8F; };
 		D9B4488C49B941FA141CFDCD = {isa = PBXBuildFile; fileRef = 8C721DCCF30773DD1CB5AAF7; };
 		30A29850E543E71ED11ED6AC = {isa = PBXBuildFile; fileRef = D146EAE04CDAA06DF7B767F0; };
 		98D90F3260F89A8FA928DB0E = {isa = PBXBuildFile; fileRef = 5DFBC2845756F08C56B4A3FD; };
@@ -28,8 +29,10 @@
 		74D95543104C96135EFD5764 = {isa = PBXBuildFile; fileRef = 1906D3B4DDE63186E90DEF85; };
 		1530452D060A4B177CF913E2 = {isa = PBXBuildFile; fileRef = B5D87AE32398932B5C777098; };
 		09E6F3F9720A6D2CA0770F68 = {isa = PBXBuildFile; fileRef = 627B0326BEB1A0537EF94E7A; };
+		F5F7FA3256002DC144CE56E7 = {isa = PBXBuildFile; fileRef = 244136FECAB29959893549BD; };
 		DB9F925532BD8881E1A9305B = {isa = PBXBuildFile; fileRef = 4FE4A7777E2325DFB6EF62F1; };
 		5C10C44E7A0B9F65156B0195 = {isa = PBXBuildFile; fileRef = 2CB282E099000A84D66D230E; };
+		56870038CB102244450F8396 = {isa = PBXBuildFile; fileRef = B54FF802DCA2C62D0581378B; };
 		FC2E29F01D223E4E1FAB1CFF = {isa = PBXBuildFile; fileRef = F7E693B853B4CE2C537B2D77; };
 		3C3F414171842DD7202E05F2 = {isa = PBXBuildFile; fileRef = 2E39806B1C1FAAF28A2588E6; };
 		268D2BC7DDCD8C0705D8C28C = {isa = PBXBuildFile; fileRef = C360E583E2FE4ADBF7E3FC1D; };
@@ -63,6 +66,7 @@
 		EEE050A6D2789A216ABD0747 = {isa = PBXBuildFile; fileRef = 4034B8B9FCBEAE513176CE60; };
 		A62DDD012753E6F6652303DF = {isa = PBXBuildFile; fileRef = E3FF098F82F8CF8E5CB82E85; };
 		0D4502C0C9F6A3C0F7418BBF = {isa = PBXBuildFile; fileRef = 4F46B8B8C6E8E759B1574F6A; };
+		198E29D3EAF996B2D0040E33 = {isa = PBXBuildFile; fileRef = A507C3EDDE985B32CF8391E7; };
 		06C6AB1EBAB0B652DFDBCFB9 = {isa = PBXBuildFile; fileRef = DB0673973EDFACEB6B99D15D; };
 		A2AC169CE752A44D45BED10D = {isa = PBXBuildFile; fileRef = 4F4AE5391A71FC7BF1F2D449; };
 		B3ADC962E8E139213E64F278 = {isa = PBXBuildFile; fileRef = 2D905F685D63EB6DFFD568D8; };
@@ -84,6 +88,7 @@
 		06D4574BD465483DBE9AA8F6 = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = "AppTypography.swift"; path = "macos/PhotoPic/DesignSystem/AppTypography.swift"; sourceTree = "<group>"; };
 		53B1273A205AB209DA55BDA7 = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = "PictogrammersIcons.swift"; path = "macos/PhotoPic/DesignSystem/PictogrammersIcons.swift"; sourceTree = "<group>"; };
 		BD7B8B99A44F72C1F26F03EB = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = "ConnectedDeviceState.swift"; path = "macos/PhotoPic/Models/ConnectedDeviceState.swift"; sourceTree = "<group>"; };
+		82CC7F3BF278D9DB5ABABE8F = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = "HelpGuideCatalog+Topics.swift"; path = "macos/PhotoPic/Models/HelpGuideCatalog+Topics.swift"; sourceTree = "<group>"; };
 		8C721DCCF30773DD1CB5AAF7 = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = "HelpGuideCatalog.swift"; path = "macos/PhotoPic/Models/HelpGuideCatalog.swift"; sourceTree = "<group>"; };
 		D146EAE04CDAA06DF7B767F0 = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = "KnownDevice.swift"; path = "macos/PhotoPic/Models/KnownDevice.swift"; sourceTree = "<group>"; };
 		5DFBC2845756F08C56B4A3FD = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = "PerformancePreferences.swift"; path = "macos/PhotoPic/Models/PerformancePreferences.swift"; sourceTree = "<group>"; };
@@ -97,8 +102,10 @@
 		1906D3B4DDE63186E90DEF85 = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = "DeviceFingerprintMatcher.swift"; path = "macos/PhotoPic/Services/DeviceFingerprintMatcher.swift"; sourceTree = "<group>"; };
 		B5D87AE32398932B5C777098 = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = "ExifMetadataReader.swift"; path = "macos/PhotoPic/Services/ExifMetadataReader.swift"; sourceTree = "<group>"; };
 		627B0326BEB1A0537EF94E7A = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = "FolderWatchTetherService.swift"; path = "macos/PhotoPic/Services/FolderWatchTetherService.swift"; sourceTree = "<group>"; };
+		244136FECAB29959893549BD = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = "GPhoto2LiveBridge.swift"; path = "macos/PhotoPic/Services/GPhoto2LiveBridge.swift"; sourceTree = "<group>"; };
 		4FE4A7777E2325DFB6EF62F1 = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = "HardwareCapabilityAuditor.swift"; path = "macos/PhotoPic/Services/HardwareCapabilityAuditor.swift"; sourceTree = "<group>"; };
 		2CB282E099000A84D66D230E = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = "KnownDevicesStore.swift"; path = "macos/PhotoPic/Services/KnownDevicesStore.swift"; sourceTree = "<group>"; };
+		B54FF802DCA2C62D0581378B = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = "LiveViewCameraService.swift"; path = "macos/PhotoPic/Services/LiveViewCameraService.swift"; sourceTree = "<group>"; };
 		F7E693B853B4CE2C537B2D77 = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = "PhotoTagStore.swift"; path = "macos/PhotoPic/Services/PhotoTagStore.swift"; sourceTree = "<group>"; };
 		2E39806B1C1FAAF28A2588E6 = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = "PhotoVisionAnalyzer.swift"; path = "macos/PhotoPic/Services/PhotoVisionAnalyzer.swift"; sourceTree = "<group>"; };
 		C360E583E2FE4ADBF7E3FC1D = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = "RawImageRenderer.swift"; path = "macos/PhotoPic/Services/RawImageRenderer.swift"; sourceTree = "<group>"; };
@@ -132,6 +139,7 @@
 		4034B8B9FCBEAE513176CE60 = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = "ArchivedDeletePopovers.swift"; path = "macos/PhotoPic/Views/Workspace/ArchivedDeletePopovers.swift"; sourceTree = "<group>"; };
 		E3FF098F82F8CF8E5CB82E85 = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = "ArchivedPhotosView.swift"; path = "macos/PhotoPic/Views/Workspace/ArchivedPhotosView.swift"; sourceTree = "<group>"; };
 		4F46B8B8C6E8E759B1574F6A = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = "CullingControlsBar.swift"; path = "macos/PhotoPic/Views/Workspace/CullingControlsBar.swift"; sourceTree = "<group>"; };
+		A507C3EDDE985B32CF8391E7 = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = "LiveViewWorkspacePane.swift"; path = "macos/PhotoPic/Views/Workspace/LiveViewWorkspacePane.swift"; sourceTree = "<group>"; };
 		DB0673973EDFACEB6B99D15D = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = "RawZoomableImageView.swift"; path = "macos/PhotoPic/Views/Workspace/RawZoomableImageView.swift"; sourceTree = "<group>"; };
 		4F4AE5391A71FC7BF1F2D449 = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = "SessionWorkspaceView.swift"; path = "macos/PhotoPic/Views/Workspace/SessionWorkspaceView.swift"; sourceTree = "<group>"; };
 		2D905F685D63EB6DFFD568D8 = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = "TinderCardStackView.swift"; path = "macos/PhotoPic/Views/Workspace/TinderCardStackView.swift"; sourceTree = "<group>"; };
@@ -173,6 +181,7 @@
 				06D4574BD465483DBE9AA8F6,
 				53B1273A205AB209DA55BDA7,
 				BD7B8B99A44F72C1F26F03EB,
+				82CC7F3BF278D9DB5ABABE8F,
 				8C721DCCF30773DD1CB5AAF7,
 				D146EAE04CDAA06DF7B767F0,
 				5DFBC2845756F08C56B4A3FD,
@@ -186,8 +195,10 @@
 				1906D3B4DDE63186E90DEF85,
 				B5D87AE32398932B5C777098,
 				627B0326BEB1A0537EF94E7A,
+				244136FECAB29959893549BD,
 				4FE4A7777E2325DFB6EF62F1,
 				2CB282E099000A84D66D230E,
+				B54FF802DCA2C62D0581378B,
 				F7E693B853B4CE2C537B2D77,
 				2E39806B1C1FAAF28A2588E6,
 				C360E583E2FE4ADBF7E3FC1D,
@@ -221,6 +232,7 @@
 				4034B8B9FCBEAE513176CE60,
 				E3FF098F82F8CF8E5CB82E85,
 				4F46B8B8C6E8E759B1574F6A,
+				A507C3EDDE985B32CF8391E7,
 				DB0673973EDFACEB6B99D15D,
 				4F4AE5391A71FC7BF1F2D449,
 				2D905F685D63EB6DFFD568D8,
@@ -255,6 +267,7 @@
 				1F4B0E7D3C89D56C7FBCD090,
 				953B02CD8DD2DDA2D089965D,
 				A62EA8C6C5C5DC39B82D02C0,
+				87F0BFAF1C3494AD06D3FD7E,
 				D9B4488C49B941FA141CFDCD,
 				30A29850E543E71ED11ED6AC,
 				98D90F3260F89A8FA928DB0E,
@@ -268,8 +281,10 @@
 				74D95543104C96135EFD5764,
 				1530452D060A4B177CF913E2,
 				09E6F3F9720A6D2CA0770F68,
+				F5F7FA3256002DC144CE56E7,
 				DB9F925532BD8881E1A9305B,
 				5C10C44E7A0B9F65156B0195,
+				56870038CB102244450F8396,
 				FC2E29F01D223E4E1FAB1CFF,
 				3C3F414171842DD7202E05F2,
 				268D2BC7DDCD8C0705D8C28C,
@@ -303,6 +318,7 @@
 				EEE050A6D2789A216ABD0747,
 				A62DDD012753E6F6652303DF,
 				0D4502C0C9F6A3C0F7418BBF,
+				198E29D3EAF996B2D0040E33,
 				06C6AB1EBAB0B652DFDBCFB9,
 				A2AC169CE752A44D45BED10D,
 				B3ADC962E8E139213E64F278,

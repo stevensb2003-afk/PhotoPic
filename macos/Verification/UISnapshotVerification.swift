@@ -187,14 +187,23 @@ package enum UISnapshotVerification {
             )
         }
 
-        // 9. Built-in Offline Help Center snapshot
+        // 9. Built-in Offline Help Center snapshot (with search + categories + limitations)
         try renderSnapshot(
-            HelpCenterView(),
-            size: CGSize(width: 780, height: 560),
+            HelpCenterView(initialCategory: .connectionsLive, initialQuery: ""),
+            size: CGSize(width: 860, height: 620),
             to: outputDir.appendingPathComponent("09-help-center.png")
         )
 
-        print("[PASS] 7. Rendered 9 Retina UI snapshots to \(outputDir.path)")
+        // 10. Workspace Live View tab snapshot
+        ws.activeTab = .liveView
+        try await Task.sleep(for: .milliseconds(100))
+        try renderSnapshot(
+            RootShellView(appState: appState),
+            size: CGSize(width: 1360, height: 860),
+            to: outputDir.appendingPathComponent("10-workspace-live-view.png")
+        )
+
+        print("[PASS] 7. Rendered 10 Retina UI snapshots to \(outputDir.path)")
     }
 
     private static func waitUntil(condition: @escaping () -> Bool) async throws {

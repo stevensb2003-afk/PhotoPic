@@ -23,11 +23,14 @@ def build_workspace_topbar(session_name: str, on_back, on_tab, on_watch, on_help
     lay.addWidget(title)
 
     tab_cull = QPushButton("Filtrar (Pendientes)")
+    tab_live = QPushButton("Vista en Vivo")
     tab_arch = QPushButton("Archivadas")
     tab_cull.clicked.connect(lambda: on_tab(0))
-    tab_arch.clicked.connect(lambda: on_tab(1))
+    tab_live.clicked.connect(lambda: on_tab(1))
+    tab_arch.clicked.connect(lambda: on_tab(2))
     lay.addSpacing(AppSpacing.LG)
     lay.addWidget(tab_cull)
+    lay.addWidget(tab_live)
     lay.addWidget(tab_arch)
     lay.addStretch()
 

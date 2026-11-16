@@ -42,6 +42,7 @@
 | **Asistente Inicial · Paso 1 (Auditoría de Hardware e IA)** | ![Wizard](assets/screenshots/01-onboarding.png) |
 | **Inicio / Sesiones** | ![Home](assets/screenshots/02-home-dashboard.png) |
 | **Zoom 1:1 Píxel Real** | ![Zoom 1:1](assets/screenshots/04-workspace-zoom-1to1.png) |
+| **Vista en Vivo (Live View UVC / HDMI / gphoto2)** | ![Vista en Vivo](assets/screenshots/10-workspace-live-view.png) |
 | **Archivadas (Recuperar o Eliminar Definitivamente)** | ![Archivadas](assets/screenshots/05-workspace-archived.png) |
 | **Popover de Confirmación al Eliminar** | ![Popover](assets/screenshots/08-archived-delete-popover.png) |
 | **Centro de Ayuda Interno (`⌘?`)** | ![Ayuda](assets/screenshots/09-help-center.png) |
@@ -95,6 +96,20 @@ Si elegís mantener activa la IA, el analizador local genera etiquetas al ingres
 - **Centro de Ayuda Interno (`?` / `⌘?`):** Guía paso a paso 100% offline dentro de la app, sincronizada con la base documental BRD en [`photopic_ai_agent_docs/`](photopic_ai_agent_docs/docs.md).
 
 Dentro de la pestaña **`Archivadas`** podés elegir entre **`Recuperar para Edición`** o liberar espacio en disco mediante **`Eliminar archivo...`** / **`Vaciar carpeta...`**, protegidos con un **Popover nativo de confirmación** que advierte que el archivo y su `.xmp` se borrarán definitivamente (con opción extra para eliminar también la copia `.JPG` asociada en `JPG/`).
+
+### 5. Vista en Vivo (`Live View`) y Centro de Ayuda Estructurado
+- **Pestaña `Vista en Vivo`:** Combina lo mejor de cada plataforma:
+  - **macOS:** `AVFoundation` nativo para cámaras **UVC USB Streaming**, **Continuity Camera** y **capturadoras HDMI→USB** (30–60 fps sin cortar el tether RAW) + bridge opcional **`gphoto2`** (`brew install gphoto2`) para DSLRs clásicas por un solo cable USB + disparo remoto **`Disparar Cámara (PTP)`**.
+  - **Windows:** `OpenCV DirectShow` para UVC / HDMI-USB sin reemplazar drivers WPD nativos de Windows.
+  - Incluye **cuadrícula 3×3**, **espejo**, **máscaras de aspecto (`3:2`, `4:5`, `16:9`, `1:1`)** y captura de fotograma de referencia directo a `RAW/`.
+- **Centro de Ayuda con Buscador y Categorías (`?` / `⌘?`):** Filtrado instantáneo por palabras clave y categorías, explicando paso a paso qué sí soporta la app y sus limitaciones reales por sistema operativo.
+
+### 6. Limitaciones Reales Conocidas
+| Escenario | Qué soporta PhotoPic | Limitación real / Requisito |
+| :--- | :--- | :--- |
+| **Live View USB en DSLRs antiguas (sin HDMI/UVC)** | macOS vía `brew install gphoto2` (opcional) | Apple `ImageCaptureCore` no transmite video Live View; en Windows no se fuerza `WinUSB` (Zadig) para no romper WPD. |
+| **Cámaras inalámbricas** | Bonjour Wi-Fi PTP/IP (macOS) y **Watchfolder Wi-Fi/FTP** | **Bluetooth** no mueve RAWs full quality; en macOS Android USB exige modo **PTP**. |
+| **Revelado RAW vs Edición** | Revelado puro GPU `CIRAWFilter` / `LibRaw` + `.xmp` | Es un estudio de captura y culling 1:1, no un editor de color destructivo. |
 
 ---
 

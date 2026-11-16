@@ -1,23 +1,20 @@
-import AppKit
 import SwiftUI
 
-/// Built-in offline Help Center modal synchronized with PhotoPic's BRD documentation.
+/// Structured offline Help Center with instant keyword search, category pills,
+/// step-by-step instructions, explicit capabilities, and honest system limitations.
 package struct HelpCenterView: View {
     @Environment(\.dismiss) private var dismiss
+    @State private var selectedCategory: HelpCategory = .all
     @State private var selectedTopicID: String = HelpGuideCatalog.allTopics.first?.id ?? "e2e-workflow"
     @State private var searchQuery: String = ""
 
-    package init() {}
+    package init(initialCategory: HelpCategory = .all, initialQuery: String = "") {
+        self._selectedCategory = State(initialValue: initialCategory)
+        self._searchQuery = State(initialValue: initialQuery)
+    }
 
     private var filteredTopics: [HelpTopic] {
-        let q = searchQuery.trimmingCharacters(in: .whitespacesAndNewlines)
-        guard !q.isEmpty else { return HelpGuideCatalog.allTopics }
-        return HelpGuideCatalog.allTopics.filter { topic in
-            topic.title.localizedCaseInsensitiveContains(q)
-                || topic.subtitle.localizedCaseInsensitiveContains(q)
-                || topic.summary.localizedCaseInsensitiveContains(q)
-                || topic.steps.contains { $0.localizedCaseInsensitiveContains(q) }
-        }
+        HelpGuideCatalog.filter(query: searchQuery, category: selectedCategory)
     }
 
     private var activeTopic: HelpTopic? {
@@ -27,14 +24,15 @@ package struct HelpCenterView: View {
     package var body: some View {
         VStack(spacing: 0) {
             headerBar
+            categoryStrip
             HSplitView {
                 sidebarPane
-                    .frame(minWidth: 230, maxWidth: 265)
+                    .frame(minWidth: 245, maxWidth: 275)
                 detailPane
-                    .frame(minWidth: 440, maxWidth: .infinity)
+                    .frame(minWidth: 500, maxWidth: .infinity)
             }
         }
-        .frame(width: 780, height: 560)
+        .frame(width: 860, height: 620)
         .background(AppColors.windowCanvas)
     }
 
@@ -44,74 +42,91 @@ package struct HelpCenterView: View {
                 .foregroundStyle(AppColors.textPrimary)
 
             VStack(alignment: .leading, spacing: 1) {
-                Text("Centro de Ayuda de PhotoPic")
+                Text("Centro de Ayuda y Documentación PhotoPic")
                     .font(AppTypography.sectionTitle)
                     .foregroundStyle(AppColors.textPrimary)
-                Text("Guía operativa 100% offline · Flujos, hardware, atajos y organización RAW + JPG")
+                Text("Guía 100% offline · Qué se puede hacer, limitaciones reales por SO, atajos y Live View")
                     .font(AppTypography.caption)
                     .foregroundStyle(AppColors.textSecondary)
             }
 
             Spacer()
 
-            Button("Listo") {
-                dismiss()
-            }
-            .buttonStyle(StudioButtonStyle(.primaryLight, compact: true))
-            .keyboardShortcut(.cancelAction)
+            Text("\(filteredTopics.count) tema(s)")
+                .font(AppTypography.monoMicro)
+                .foregroundStyle(AppColors.textTertiary)
+
+            Button("Listo") { dismiss() }
+                .buttonStyle(StudioButtonStyle(.primaryLight, compact: true))
+                .keyboardShortcut(.cancelAction)
         }
         .padding(.horizontal, AppSpacing.xl)
         .padding(.vertical, AppSpacing.md)
         .background(AppColors.panelSurface)
+    }
+
+    private var categoryStrip: some View {
+        ScrollView(.horizontal, showsIndicators: false) {
+            HStack(spacing: AppSpacing.xs) {
+                ForEach(HelpCategory.allCases) { category in
+                    let isSelected = selectedCategory == category
+                    Button {
+                        selectedCategory = category
+                    } label: {
+                        Text(category.rawValue)
+                            .font(AppTypography.captionMedium)
+                            .foregroundStyle(isSelected ? AppColors.textOnAccent : AppColors.textSecondary)
+                            .padding(.horizontal, AppSpacing.md)
+                            .padding(.vertical, 5)
+                            .background(isSelected ? AppColors.primaryActionFill : AppColors.elevatedSurface)
+                            .clipShape(Capsule())
+                    }
+                    .buttonStyle(.plain)
+                }
+            }
+            .padding(.horizontal, AppSpacing.xl)
+            .padding(.vertical, AppSpacing.sm)
+        }
+        .background(AppColors.windowCanvas)
         .overlay(
-            Rectangle()
-                .frame(height: AppSpacing.hairline)
-                .foregroundStyle(AppColors.borderSubtle),
+            Rectangle().frame(height: AppSpacing.hairline).foregroundStyle(AppColors.borderSubtle),
             alignment: .bottom
         )
     }
 
     private var sidebarPane: some View {
         VStack(spacing: AppSpacing.sm) {
-            TextField("Buscar tema o atajo...", text: $searchQuery)
-                .textFieldStyle(.roundedBorder)
-                .padding(.horizontal, AppSpacing.md)
-                .padding(.top, AppSpacing.md)
+            HStack(spacing: AppSpacing.xs) {
+                Image(systemName: "magnifyingglass")
+                    .font(AppTypography.caption)
+                    .foregroundStyle(AppColors.textTertiary)
+                TextField("Buscar tema, atajo o limitación...", text: $searchQuery)
+                    .textFieldStyle(.plain)
+                    .font(AppTypography.caption)
+                if !searchQuery.isEmpty {
+                    Button { searchQuery = "" } label: {
+                        Image(systemName: "xmark.circle.fill")
+                            .font(AppTypography.caption)
+                            .foregroundStyle(AppColors.textTertiary)
+                    }
+                    .buttonStyle(.plain)
+                }
+            }
+            .padding(.horizontal, AppSpacing.sm)
+            .padding(.vertical, 7)
+            .background(AppColors.stageBackground)
+            .clipShape(RoundedRectangle(cornerRadius: AppRadius.sm, style: .continuous))
+            .overlay(
+                RoundedRectangle(cornerRadius: AppRadius.sm, style: .continuous)
+                    .stroke(AppColors.borderSubtle, lineWidth: AppSpacing.hairline)
+            )
+            .padding(.horizontal, AppSpacing.md)
+            .padding(.top, AppSpacing.md)
 
             ScrollView {
                 VStack(spacing: AppSpacing.xs) {
                     ForEach(filteredTopics) { topic in
-                        let isSelected = activeTopic?.id == topic.id
-                        Button {
-                            selectedTopicID = topic.id
-                        } label: {
-                            HStack(spacing: AppSpacing.sm) {
-                                Image(systemName: topic.iconSystemName)
-                                    .font(AppTypography.captionMedium)
-                                    .foregroundStyle(isSelected ? AppColors.textPrimary : AppColors.textTertiary)
-                                    .frame(width: 18)
-
-                                VStack(alignment: .leading, spacing: 2) {
-                                    Text(topic.title)
-                                        .font(AppTypography.captionMedium)
-                                        .foregroundStyle(AppColors.textPrimary)
-                                        .lineLimit(1)
-                                    Text(topic.docCode)
-                                        .font(AppTypography.monoMicro)
-                                        .foregroundStyle(AppColors.textTertiary)
-                                }
-                                Spacer()
-                            }
-                            .padding(.horizontal, AppSpacing.sm)
-                            .padding(.vertical, AppSpacing.sm)
-                            .background(isSelected ? AppColors.elevatedSurface : Color.clear)
-                            .clipShape(RoundedRectangle(cornerRadius: AppRadius.sm, style: .continuous))
-                            .overlay(
-                                RoundedRectangle(cornerRadius: AppRadius.sm, style: .continuous)
-                                    .stroke(isSelected ? AppColors.borderStrong : Color.clear, lineWidth: AppSpacing.hairline)
-                            )
-                        }
-                        .buttonStyle(.plain)
+                        topicRow(topic)
                     }
                 }
                 .padding(.horizontal, AppSpacing.sm)
@@ -119,6 +134,40 @@ package struct HelpCenterView: View {
             }
         }
         .background(AppColors.panelSurface)
+    }
+
+    private func topicRow(_ topic: HelpTopic) -> some View {
+        let isSelected = activeTopic?.id == topic.id
+        return Button {
+            selectedTopicID = topic.id
+        } label: {
+            HStack(spacing: AppSpacing.sm) {
+                Image(systemName: topic.iconSystemName)
+                    .font(AppTypography.captionMedium)
+                    .foregroundStyle(isSelected ? AppColors.textPrimary : AppColors.textTertiary)
+                    .frame(width: 18)
+                VStack(alignment: .leading, spacing: 2) {
+                    Text(topic.title)
+                        .font(AppTypography.captionMedium)
+                        .foregroundStyle(AppColors.textPrimary)
+                        .lineLimit(1)
+                    Text("\(topic.docCode) · \(topic.category.rawValue)")
+                        .font(AppTypography.monoMicro)
+                        .foregroundStyle(AppColors.textTertiary)
+                        .lineLimit(1)
+                }
+                Spacer()
+            }
+            .padding(.horizontal, AppSpacing.sm)
+            .padding(.vertical, AppSpacing.sm)
+            .background(isSelected ? AppColors.elevatedSurface : Color.clear)
+            .clipShape(RoundedRectangle(cornerRadius: AppRadius.sm, style: .continuous))
+            .overlay(
+                RoundedRectangle(cornerRadius: AppRadius.sm, style: .continuous)
+                    .stroke(isSelected ? AppColors.borderStrong : Color.clear, lineWidth: AppSpacing.hairline)
+            )
+        }
+        .buttonStyle(.plain)
     }
 
     @ViewBuilder
@@ -148,11 +197,26 @@ package struct HelpCenterView: View {
                         .foregroundStyle(AppColors.textSecondary)
                         .fixedSize(horizontal: false, vertical: true)
 
+                    bulletSection(
+                        title: "Qué SÍ podés hacer",
+                        items: topic.canDo,
+                        icon: "checkmark.circle.fill",
+                        tint: AppColors.approveGreen,
+                        bg: AppColors.approveGreenTint
+                    )
+
+                    bulletSection(
+                        title: "Limitaciones reales · Qué NO hace",
+                        items: topic.limitations,
+                        icon: "exclamationmark.triangle.fill",
+                        tint: AppColors.warningAmber,
+                        bg: AppColors.warningAmberTint
+                    )
+
                     VStack(alignment: .leading, spacing: AppSpacing.sm) {
                         Text("Guía Paso a Paso")
                             .font(AppTypography.sectionTitle)
                             .foregroundStyle(AppColors.textPrimary)
-
                         ForEach(topic.steps, id: \.self) { step in
                             Text(step)
                                 .font(AppTypography.body)
@@ -162,37 +226,55 @@ package struct HelpCenterView: View {
                                 .frame(maxWidth: .infinity, alignment: .leading)
                                 .background(AppColors.panelSurface)
                                 .clipShape(RoundedRectangle(cornerRadius: AppRadius.md, style: .continuous))
-                                .overlay(
-                                    RoundedRectangle(cornerRadius: AppRadius.md, style: .continuous)
-                                        .stroke(AppColors.borderSubtle, lineWidth: AppSpacing.hairline)
-                                )
                         }
                     }
 
                     if !topic.tips.isEmpty {
-                        VStack(alignment: .leading, spacing: AppSpacing.xs) {
-                            ForEach(topic.tips, id: \.self) { tip in
-                                Label(tip, systemImage: "lightbulb.fill")
-                                    .font(AppTypography.caption)
-                                    .foregroundStyle(AppColors.approveGreen)
-                                    .fixedSize(horizontal: false, vertical: true)
-                            }
-                        }
-                        .padding(AppSpacing.md)
-                        .frame(maxWidth: .infinity, alignment: .leading)
-                        .background(AppColors.approveGreenTint)
-                        .clipShape(RoundedRectangle(cornerRadius: AppRadius.md, style: .continuous))
+                        bulletSection(
+                            title: "Consejos de Estudio",
+                            items: topic.tips,
+                            icon: "lightbulb.fill",
+                            tint: AppColors.infoBlue,
+                            bg: AppColors.elevatedSurface
+                        )
                     }
                 }
                 .padding(AppSpacing.xl)
             }
         } else {
-            VStack(spacing: AppSpacing.sm) {
-                Text("Sin resultados para \"\(searchQuery)\"")
+            VStack(spacing: AppSpacing.md) {
+                Text("Sin resultados para \"\(searchQuery)\" en \(selectedCategory.rawValue)")
                     .font(AppTypography.sectionTitle)
                     .foregroundStyle(AppColors.textSecondary)
+                Button("Limpiar filtros") {
+                    searchQuery = ""
+                    selectedCategory = .all
+                }
+                .buttonStyle(StudioButtonStyle(.secondaryDark, compact: true))
             }
             .frame(maxWidth: .infinity, maxHeight: .infinity)
         }
+    }
+
+    private func bulletSection(title: String, items: [String], icon: String, tint: Color, bg: Color) -> some View {
+        VStack(alignment: .leading, spacing: AppSpacing.xs) {
+            Text(title)
+                .font(AppTypography.captionMedium)
+                .foregroundStyle(tint)
+            ForEach(items, id: \.self) { entry in
+                Label(entry, systemImage: icon)
+                    .font(AppTypography.caption)
+                    .foregroundStyle(AppColors.textPrimary)
+                    .fixedSize(horizontal: false, vertical: true)
+            }
+        }
+        .padding(AppSpacing.md)
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .background(bg)
+        .clipShape(RoundedRectangle(cornerRadius: AppRadius.md, style: .continuous))
+        .overlay(
+            RoundedRectangle(cornerRadius: AppRadius.md, style: .continuous)
+                .stroke(tint.opacity(0.3), lineWidth: AppSpacing.hairline)
+        )
     }
 }

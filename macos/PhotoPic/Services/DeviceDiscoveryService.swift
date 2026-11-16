@@ -161,6 +161,40 @@ package final class DeviceDiscoveryService: NSObject {
         }
     }
 
+    package private(set) var isPausedForExternalBridge = false
+    private var pausedFingerprints: [String] = []
+
+    package var canTriggerPrimaryShutter: Bool {
+        guard let fp = primaryLiveDevice?.fingerprint else { return false }
+        return captureService.canTriggerRemoteShutter(for: fp)
+    }
+
+    @discardableResult
+    package func triggerPrimaryRemoteShutter() -> Bool {
+        guard let fp = primaryLiveDevice?.fingerprint else { return false }
+        return captureService.triggerRemoteShutter(for: fp)
+    }
+
+    /// Temporarily releases `ImageCaptureCore` USB sessions when external `gphoto2` Live View runs.
+    package func pauseSessionsForExternalBridge() {
+        pausedFingerprints = connectedDevices
+            .filter { $0.status.isLiveSessionOpen }
+            .map(\.fingerprint)
+        for fp in pausedFingerprints {
+            disconnectDevice(fingerprint: fp)
+        }
+        isPausedForExternalBridge = true
+    }
+
+    package func resumeSessionsAfterExternalBridge() {
+        isPausedForExternalBridge = false
+        let toRestore = pausedFingerprints
+        pausedFingerprints.removeAll()
+        for fp in toRestore {
+            connectDevice(fingerprint: fp)
+        }
+    }
+
     package func dismissToast() { statusToastMessage = nil }
     package func dismissUnknownBanner() { unknownDeviceBanner = nil }
 
