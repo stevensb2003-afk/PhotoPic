@@ -16,21 +16,29 @@ jobs:
 
       - name: Compile macOS Swift Targets
         run: |
-          xcodebuild -version || true
-          swift --version
+          BEST_XCODE=$(ls -d /Applications/Xcode*.app 2>/dev/null | grep -v -i beta | sort -V | tail -n 1 || true)
+          if [ -n "$BEST_XCODE" ] && [ -d "$BEST_XCODE/Contents/Developer" ]; then
+            sudo xcode-select -s "$BEST_XCODE/Contents/Developer"
+          fi
+          SWIFT_VER=$(swift --version | head -n 1)
+          XCODES=$(ls -d /Applications/Xcode*.app 2>/dev/null | tr '\n' ' ')
+          echo "::notice::Selected=$(xcode-select -p) | Swift=$SWIFT_VER | Available=$XCODES"
           set -o pipefail
           swift build 2>&1 | tee /tmp/swift_build.log || {
             python3 - <<'PY'
           import re
-          with open("/tmp/swift_build.log", "r", encoding="utf-8", errors="replace") as f:
-              for raw in f:
-                  line = raw.rstrip("\n")
-                  m = re.match(r"^(.*?):(\d+):(\d+):\s+error:\s+(.*)$", line)
-                  if m:
-                      path, ln, col, msg = m.groups()
-                      print(f"::error file={path},line={ln},col={col}::{msg}")
-                  elif "error:" in line.lower():
-                      print(f"::error::{line}")
+          lines = open("/tmp/swift_build.log", "r", encoding="utf-8", errors="replace").read().splitlines()
+          emitted = 0
+          for line in lines:
+              m = re.match(r"^(.*?):(\d+):(\d+):\s+error:\s+(.*)$", line)
+              if m and emitted < 12:
+                  path, ln, col, msg = m.groups()
+                  print(f"::error file={path},line={ln},col={col}::{msg}")
+                  emitted += 1
+          for line in lines[-25:]:
+              if emitted < 20 and ("While " in line or "error:" in line or "0.\t" in line or "1.\t" in line or "2.\t" in line or "3.\t" in line):
+                  print(f"::error::{line}")
+                  emitted += 1
           PY
             exit 1
           }
