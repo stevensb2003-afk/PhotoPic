@@ -123,6 +123,31 @@ package enum HardwareAndArchiveDeleteVerification {
         try assertTrue(FileManager.default.fileExists(atPath: approvedRaw.path), "DEL_1.DNG moved to Para_Edicion/RAW/")
         try assertTrue(FileManager.default.fileExists(atPath: approvedJpg.path), "DEL_1.JPG moved alongside RAW to Para_Edicion/JPG/")
 
+        // Late-arriving extra JPG for DEL_1 must route directly to Para_Edicion/JPG/
+        let lateJpg = stage.appendingPathComponent("DEL_1.HEIC")
+        try SyntheticDNGGenerator.writeSyntheticJPEGWithExif(to: lateJpg, width: 120, height: 90)
+        _ = vm.handleCapturedFileStaged(
+            stagedURL: lateJpg, originalFilename: "DEL_1.HEIC",
+            deviceProfile: KnownDevice(id: "cam", displayName: "Sony", alias: "Sony", category: .dslrMirrorless)
+        )
+        try assertTrue(
+            FileManager.default.fileExists(atPath: session.forEditingJpgFolderURL.appendingPathComponent("DEL_1.HEIC").path),
+            "Late compressed companion routes to Para_Edicion/JPG/"
+        )
+
+        // Archive DEL_2, then Undo -> both RAW and JPG must return to Sesión/{RAW,JPG}/
+        vm.archiveCurrent()
+        try assertTrue(
+            FileManager.default.fileExists(atPath: session.archivedJpgFolderURL.appendingPathComponent("DEL_2.JPG").path),
+            "DEL_2.JPG moved to Archivadas/JPG/"
+        )
+        vm.undoLastMove()
+        try assertTrue(
+            FileManager.default.fileExists(atPath: session.rawFolderURL.appendingPathComponent("DEL_2.DNG").path)
+                && FileManager.default.fileExists(atPath: session.jpgFolderURL.appendingPathComponent("DEL_2.JPG").path),
+            "Undo restores BOTH RAW and companion JPG back to RAW/ and JPG/"
+        )
+
         vm.archiveCurrent()
         vm.archiveCurrent()
 

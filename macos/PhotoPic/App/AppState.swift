@@ -155,7 +155,9 @@ package final class AppState {
     }
 
     package func attachWatchFolderFromPicker() {
-        folderWatchService.presentFolderPickerAndAttach()
+        folderWatchService.presentFolderPickerAndAttach(blockingSubtreeOf: rootFolderURL) { [weak self] blockedReason in
+            self?.showTransientNotice(blockedReason)
+        }
         if let watched = folderWatchService.watchedFolderURL {
             showTransientNotice("Watchfolder Wi-Fi/SD activo: \(watched.lastPathComponent)")
         }

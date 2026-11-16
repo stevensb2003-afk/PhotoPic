@@ -19,7 +19,10 @@ package final class FolderWatchTetherService {
 
     package init() {}
 
-    package func presentFolderPickerAndAttach() {
+    package func presentFolderPickerAndAttach(
+        blockingSubtreeOf forbiddenRoot: URL? = nil,
+        onRejected: ((String) -> Void)? = nil
+    ) {
         let panel = NSOpenPanel()
         panel.title = "Vincular Carpeta / Transmisor Wi-Fi"
         panel.message = "Elegí la carpeta donde tu transmisor Wi-Fi, FTP o lector SD/USB deposita las fotos nuevas."
@@ -28,6 +31,15 @@ package final class FolderWatchTetherService {
         panel.allowsMultipleSelection = false
         panel.canCreateDirectories = true
         guard panel.runModal() == .OK, let url = panel.url else { return }
+
+        if let forbiddenRoot {
+            let chosenPath = url.standardizedFileURL.path
+            let rootPath = forbiddenRoot.standardizedFileURL.path
+            if chosenPath == rootPath || chosenPath.hasPrefix(rootPath + "/") {
+                onRejected?("Elegí una carpeta externa (no dentro de tu Carpeta Raíz de sesiones) para evitar bucles.")
+                return
+            }
+        }
         attach(folderURL: url)
     }
 

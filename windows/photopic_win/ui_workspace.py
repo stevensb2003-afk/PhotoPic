@@ -62,7 +62,7 @@ class SessionWorkspaceWidget(QWidget):
         root.setSpacing(0)
 
         top, refs = build_workspace_topbar(
-            self.session.name, self.on_back, self._switch_tab, self._attach_watch_folder
+            self.session.name, self.on_back, self._switch_tab, self._attach_watch_folder, self._open_help
         )
         self._tab_cull_btn = refs["tab_cull"]
         self._tab_arch_btn = refs["tab_arch"]
@@ -280,6 +280,10 @@ class SessionWorkspaceWidget(QWidget):
         if folder:
             profile = KnownDevice(fingerprint=f"watch:{folder}", display_name=Path(folder).name, alias=Path(folder).name, category=DeviceCategory.DSLR_MIRRORLESS)
             self.tether_service.attach_watch_folder(Path(folder), profile)
+
+    def _open_help(self) -> None:
+        from .ui_help_dialog import HelpCenterDialog
+        HelpCenterDialog(parent=self).exec()
 
     def _switch_tab(self, idx: int) -> None:
         self._stack.setCurrentIndex(idx)

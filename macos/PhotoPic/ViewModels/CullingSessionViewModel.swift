@@ -202,6 +202,9 @@ package final class CullingSessionViewModel {
                 if let idx = pendingItems.firstIndex(where: { $0.baseFilename == matchedBase }) {
                     pendingItems[idx].pairedCompressedURL = destURL
                 }
+                if let archIdx = archivedItems.firstIndex(where: { $0.baseFilename == matchedBase }) {
+                    archivedItems[archIdx].pairedCompressedURL = destURL
+                }
 
             case .ignoredUnsupported:
                 break

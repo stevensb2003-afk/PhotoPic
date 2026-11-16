@@ -7,7 +7,7 @@ from PySide6.QtWidgets import QCheckBox, QFrame, QHBoxLayout, QLabel, QPushButto
 from .design_system import AppColors, AppSpacing
 
 
-def build_workspace_topbar(session_name: str, on_back, on_tab, on_watch) -> tuple[QFrame, dict]:
+def build_workspace_topbar(session_name: str, on_back, on_tab, on_watch, on_help=None) -> tuple[QFrame, dict]:
     top = QFrame()
     top.setObjectName("TopBar")
     top.setFixedHeight(52)
@@ -34,6 +34,11 @@ def build_workspace_topbar(session_name: str, on_back, on_tab, on_watch) -> tupl
     watch_btn = QPushButton("Vincular Carpeta/SD USB...")
     watch_btn.clicked.connect(on_watch)
     lay.addWidget(watch_btn)
+
+    if on_help is not None:
+        help_btn = QPushButton("Ayuda (?)")
+        help_btn.clicked.connect(on_help)
+        lay.addWidget(help_btn)
 
     edit_badge = QLabel("Para Edición: 0")
     edit_badge.setStyleSheet(
