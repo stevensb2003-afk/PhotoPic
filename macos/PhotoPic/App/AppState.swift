@@ -22,6 +22,7 @@ package final class AppState {
     package let bookmarkManager: BookmarkManager
     package let knownDevicesStore: KnownDevicesStore
     package let discoveryService: DeviceDiscoveryService
+    package let folderWatchService: FolderWatchTetherService
     package let rawRenderer: RawImageRenderer
     package let visionAnalyzer: PhotoVisionAnalyzer
     package let homeViewModel: HomeViewModel
@@ -38,6 +39,7 @@ package final class AppState {
     package private(set) var rootFolderURL: URL?
     package private(set) var activeSessionViewModel: CullingSessionViewModel?
     package var isPresentingSettings: Bool = false
+    package var isPresentingHelp: Bool = false
     package var settingsTab: SettingsTab = .devices
     package var globalNoticeBanner: String?
 
@@ -60,6 +62,7 @@ package final class AppState {
         let capture = TetherCaptureService()
         let discovery = DeviceDiscoveryService(knownStore: knownDevicesStore, captureService: capture)
         self.discoveryService = discovery
+        self.folderWatchService = FolderWatchTetherService()
         self.rawRenderer = RawImageRenderer()
         self.visionAnalyzer = PhotoVisionAnalyzer()
         self.homeViewModel = HomeViewModel()
@@ -147,7 +150,15 @@ package final class AppState {
 
     package func dismissAllPopups() {
         isPresentingSettings = false
+        isPresentingHelp = false
         homeViewModel.isPresentingNewSessionSheet = false
+    }
+
+    package func attachWatchFolderFromPicker() {
+        folderWatchService.presentFolderPickerAndAttach()
+        if let watched = folderWatchService.watchedFolderURL {
+            showTransientNotice("Watchfolder Wi-Fi/SD activo: \(watched.lastPathComponent)")
+        }
     }
 
     package func showTransientNotice(_ message: String) {
@@ -161,7 +172,7 @@ package final class AppState {
     }
 
     private func wireCapturePipeline() {
-        discoveryService.onCapturedFileReady = { [weak self] stagedURL, filename, profile in
+        let routeFile: @MainActor (URL, String, KnownDevice) -> Void = { [weak self] stagedURL, filename, profile in
             guard let self else { return }
             if let workspace = self.activeSessionViewModel {
                 _ = workspace.handleCapturedFileStaged(
@@ -177,5 +188,7 @@ package final class AppState {
                 )
             }
         }
+        discoveryService.onCapturedFileReady = routeFile
+        folderWatchService.onFileReady = routeFile
     }
 }

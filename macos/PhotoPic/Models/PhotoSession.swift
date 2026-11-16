@@ -68,4 +68,36 @@ package struct PhotoSession: Identifiable, Sendable, Equatable, Hashable {
     package var archivedFolderURL: URL {
         directoryURL.appendingPathComponent(SessionSubfolder.archived.rawValue, isDirectory: true)
     }
+
+    package var forEditingRawFolderURL: URL {
+        forEditingFolderURL.appendingPathComponent(SessionSubfolder.raw.rawValue, isDirectory: true)
+    }
+
+    package var forEditingJpgFolderURL: URL {
+        forEditingFolderURL.appendingPathComponent(SessionSubfolder.jpg.rawValue, isDirectory: true)
+    }
+
+    package var archivedRawFolderURL: URL {
+        archivedFolderURL.appendingPathComponent(SessionSubfolder.raw.rawValue, isDirectory: true)
+    }
+
+    package var archivedJpgFolderURL: URL {
+        archivedFolderURL.appendingPathComponent(SessionSubfolder.jpg.rawValue, isDirectory: true)
+    }
+
+    package func rawBucketURL(for subfolder: SessionSubfolder) -> URL {
+        switch subfolder {
+        case .raw, .jpg: return rawFolderURL
+        case .forEditing: return forEditingRawFolderURL
+        case .archived: return archivedRawFolderURL
+        }
+    }
+
+    package func jpgBucketURL(for subfolder: SessionSubfolder) -> URL {
+        switch subfolder {
+        case .raw, .jpg: return jpgFolderURL
+        case .forEditing: return forEditingJpgFolderURL
+        case .archived: return archivedJpgFolderURL
+        }
+    }
 }

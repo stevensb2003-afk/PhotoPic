@@ -15,7 +15,8 @@ package struct HomeDashboardView: View {
                 leadingTitle: "PhotoPic",
                 leadingSubtitle: appState.rootFolderURL?.path,
                 onTapDevicePill: { appState.openSettings(tab: .devices) },
-                onTapSettings: { appState.openSettings(tab: .general) }
+                onTapSettings: { appState.openSettings(tab: .general) },
+                onTapHelp: { appState.isPresentingHelp = true }
             )
 
             if let unknown = appState.discoveryService.unknownDeviceBanner {

@@ -104,9 +104,9 @@ package struct RootFolderOnboardingView: View {
         VStack(alignment: .leading, spacing: AppSpacing.xs) {
             folderLine(icon: "folder.fill", name: "Sesiones_Tether/", detail: "Carpeta Raíz Global", tint: AppColors.textPrimary)
             folderLine(icon: "doc.richtext", name: "  └── RAW/", detail: "Cola pendiente (.CR2, .CR3, .DNG, .ARW, .NEF, .RAF)", tint: AppColors.warningAmber)
-            folderLine(icon: "photo", name: "  └── JPG/", detail: "Copias comprimidas separadas automáticamente", tint: AppColors.textSecondary)
-            folderLine(icon: "checkmark.circle.fill", name: "  └── Para_Edicion/", detail: "Aprobadas con Swipe Derecha / →", tint: AppColors.approveGreen)
-            folderLine(icon: "archivebox", name: "  └── Archivadas/", detail: "Descartadas con Swipe Izquierda / ← (recuperables)", tint: AppColors.archiveRed)
+            folderLine(icon: "photo", name: "  └── JPG/", detail: "Copias comprimidas pendientes asociadas", tint: AppColors.textSecondary)
+            folderLine(icon: "checkmark.circle.fill", name: "  └── Para_Edicion/ (RAW + JPG)", detail: "Aprobadas con → (mueve RAW + JPG juntos)", tint: AppColors.approveGreen)
+            folderLine(icon: "archivebox", name: "  └── Archivadas/ (RAW + JPG)", detail: "Descartadas con ← (recuperables o eliminables)", tint: AppColors.archiveRed)
         }
         .padding(AppSpacing.md)
         .frame(maxWidth: .infinity, alignment: .leading)

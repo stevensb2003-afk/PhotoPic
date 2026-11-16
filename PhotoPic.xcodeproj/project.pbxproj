@@ -15,6 +15,7 @@
 		1F4B0E7D3C89D56C7FBCD090 = {isa = PBXBuildFile; fileRef = 06D4574BD465483DBE9AA8F6; };
 		953B02CD8DD2DDA2D089965D = {isa = PBXBuildFile; fileRef = 53B1273A205AB209DA55BDA7; };
 		A62EA8C6C5C5DC39B82D02C0 = {isa = PBXBuildFile; fileRef = BD7B8B99A44F72C1F26F03EB; };
+		D9B4488C49B941FA141CFDCD = {isa = PBXBuildFile; fileRef = 8C721DCCF30773DD1CB5AAF7; };
 		30A29850E543E71ED11ED6AC = {isa = PBXBuildFile; fileRef = D146EAE04CDAA06DF7B767F0; };
 		98D90F3260F89A8FA928DB0E = {isa = PBXBuildFile; fileRef = 5DFBC2845756F08C56B4A3FD; };
 		B736B2E04B0379115955710A = {isa = PBXBuildFile; fileRef = 19C72581491DA46382A3E444; };
@@ -26,12 +27,14 @@
 		F99D3D9D550ABCABBF5DECE8 = {isa = PBXBuildFile; fileRef = 4A59295FCA5F8C7493D411FB; };
 		74D95543104C96135EFD5764 = {isa = PBXBuildFile; fileRef = 1906D3B4DDE63186E90DEF85; };
 		1530452D060A4B177CF913E2 = {isa = PBXBuildFile; fileRef = B5D87AE32398932B5C777098; };
+		09E6F3F9720A6D2CA0770F68 = {isa = PBXBuildFile; fileRef = 627B0326BEB1A0537EF94E7A; };
 		DB9F925532BD8881E1A9305B = {isa = PBXBuildFile; fileRef = 4FE4A7777E2325DFB6EF62F1; };
 		5C10C44E7A0B9F65156B0195 = {isa = PBXBuildFile; fileRef = 2CB282E099000A84D66D230E; };
 		FC2E29F01D223E4E1FAB1CFF = {isa = PBXBuildFile; fileRef = F7E693B853B4CE2C537B2D77; };
 		3C3F414171842DD7202E05F2 = {isa = PBXBuildFile; fileRef = 2E39806B1C1FAAF28A2588E6; };
 		268D2BC7DDCD8C0705D8C28C = {isa = PBXBuildFile; fileRef = C360E583E2FE4ADBF7E3FC1D; };
 		90F0E614D5BF728929415794 = {isa = PBXBuildFile; fileRef = 224D93481AE544CC5D55A6C1; };
+		BE3E59C8E287DBFF245FF7CE = {isa = PBXBuildFile; fileRef = C7617A8D85FB81C02EC52A49; };
 		816722AD7E477A4BE849EB53 = {isa = PBXBuildFile; fileRef = 1416ACDEDF51223DB098A676; };
 		B942ACE53A29022DE4967441 = {isa = PBXBuildFile; fileRef = 2CC45DCDD19238BEB17B36A4; };
 		4FF3BBC330D7D16FC6EE6CD0 = {isa = PBXBuildFile; fileRef = 3B26714214F6CC205D610127; };
@@ -46,6 +49,7 @@
 		621EF53B3013CB1EA08A547A = {isa = PBXBuildFile; fileRef = AE9AA4F9E60B8654670FA92D; };
 		B88ECF05506390BE18B1C55F = {isa = PBXBuildFile; fileRef = EC54E4E3625DB5B33662029B; };
 		C10986FB1427A596CC78F55D = {isa = PBXBuildFile; fileRef = 54BA2C65F7BD620303F6BC39; };
+		D44B7CA9BFDC1519B443474E = {isa = PBXBuildFile; fileRef = 95DFB68CB1D2D81C55A55E56; };
 		DD775DA670A7C1D41BAA719B = {isa = PBXBuildFile; fileRef = 8514D213D664E212B8D37F6E; };
 		E37FBBCE1ED5816C5188511B = {isa = PBXBuildFile; fileRef = 43B75330EAE54853AA0DC2CF; };
 		0E75F0DD85B8659E26C4A341 = {isa = PBXBuildFile; fileRef = 097553DC273550BB3C75963C; };
@@ -80,6 +84,7 @@
 		06D4574BD465483DBE9AA8F6 = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = "AppTypography.swift"; path = "macos/PhotoPic/DesignSystem/AppTypography.swift"; sourceTree = "<group>"; };
 		53B1273A205AB209DA55BDA7 = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = "PictogrammersIcons.swift"; path = "macos/PhotoPic/DesignSystem/PictogrammersIcons.swift"; sourceTree = "<group>"; };
 		BD7B8B99A44F72C1F26F03EB = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = "ConnectedDeviceState.swift"; path = "macos/PhotoPic/Models/ConnectedDeviceState.swift"; sourceTree = "<group>"; };
+		8C721DCCF30773DD1CB5AAF7 = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = "HelpGuideCatalog.swift"; path = "macos/PhotoPic/Models/HelpGuideCatalog.swift"; sourceTree = "<group>"; };
 		D146EAE04CDAA06DF7B767F0 = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = "KnownDevice.swift"; path = "macos/PhotoPic/Models/KnownDevice.swift"; sourceTree = "<group>"; };
 		5DFBC2845756F08C56B4A3FD = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = "PerformancePreferences.swift"; path = "macos/PhotoPic/Models/PerformancePreferences.swift"; sourceTree = "<group>"; };
 		19C72581491DA46382A3E444 = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = "PhotoExifMetadata.swift"; path = "macos/PhotoPic/Models/PhotoExifMetadata.swift"; sourceTree = "<group>"; };
@@ -91,12 +96,14 @@
 		4A59295FCA5F8C7493D411FB = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = "DeviceDiscoveryService.swift"; path = "macos/PhotoPic/Services/DeviceDiscoveryService.swift"; sourceTree = "<group>"; };
 		1906D3B4DDE63186E90DEF85 = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = "DeviceFingerprintMatcher.swift"; path = "macos/PhotoPic/Services/DeviceFingerprintMatcher.swift"; sourceTree = "<group>"; };
 		B5D87AE32398932B5C777098 = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = "ExifMetadataReader.swift"; path = "macos/PhotoPic/Services/ExifMetadataReader.swift"; sourceTree = "<group>"; };
+		627B0326BEB1A0537EF94E7A = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = "FolderWatchTetherService.swift"; path = "macos/PhotoPic/Services/FolderWatchTetherService.swift"; sourceTree = "<group>"; };
 		4FE4A7777E2325DFB6EF62F1 = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = "HardwareCapabilityAuditor.swift"; path = "macos/PhotoPic/Services/HardwareCapabilityAuditor.swift"; sourceTree = "<group>"; };
 		2CB282E099000A84D66D230E = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = "KnownDevicesStore.swift"; path = "macos/PhotoPic/Services/KnownDevicesStore.swift"; sourceTree = "<group>"; };
 		F7E693B853B4CE2C537B2D77 = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = "PhotoTagStore.swift"; path = "macos/PhotoPic/Services/PhotoTagStore.swift"; sourceTree = "<group>"; };
 		2E39806B1C1FAAF28A2588E6 = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = "PhotoVisionAnalyzer.swift"; path = "macos/PhotoPic/Services/PhotoVisionAnalyzer.swift"; sourceTree = "<group>"; };
 		C360E583E2FE4ADBF7E3FC1D = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = "RawImageRenderer.swift"; path = "macos/PhotoPic/Services/RawImageRenderer.swift"; sourceTree = "<group>"; };
 		224D93481AE544CC5D55A6C1 = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = "SessionArchiveCleaner.swift"; path = "macos/PhotoPic/Services/SessionArchiveCleaner.swift"; sourceTree = "<group>"; };
+		C7617A8D85FB81C02EC52A49 = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = "SessionFileManager+BucketSync.swift"; path = "macos/PhotoPic/Services/SessionFileManager+BucketSync.swift"; sourceTree = "<group>"; };
 		1416ACDEDF51223DB098A676 = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = "SessionFileManager.swift"; path = "macos/PhotoPic/Services/SessionFileManager.swift"; sourceTree = "<group>"; };
 		2CC45DCDD19238BEB17B36A4 = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = "SessionIngestRouter.swift"; path = "macos/PhotoPic/Services/SessionIngestRouter.swift"; sourceTree = "<group>"; };
 		3B26714214F6CC205D610127 = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = "TetherBaselineGate.swift"; path = "macos/PhotoPic/Services/TetherBaselineGate.swift"; sourceTree = "<group>"; };
@@ -111,6 +118,7 @@
 		AE9AA4F9E60B8654670FA92D = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = "HardwareAuditSettingsBlock.swift"; path = "macos/PhotoPic/Views/Components/HardwareAuditSettingsBlock.swift"; sourceTree = "<group>"; };
 		EC54E4E3625DB5B33662029B = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = "StudioPrimitives.swift"; path = "macos/PhotoPic/Views/Components/StudioPrimitives.swift"; sourceTree = "<group>"; };
 		54BA2C65F7BD620303F6BC39 = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = "VisionTagBarView.swift"; path = "macos/PhotoPic/Views/Components/VisionTagBarView.swift"; sourceTree = "<group>"; };
+		95DFB68CB1D2D81C55A55E56 = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = "HelpCenterView.swift"; path = "macos/PhotoPic/Views/Help/HelpCenterView.swift"; sourceTree = "<group>"; };
 		8514D213D664E212B8D37F6E = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = "HomeDashboardView.swift"; path = "macos/PhotoPic/Views/Home/HomeDashboardView.swift"; sourceTree = "<group>"; };
 		43B75330EAE54853AA0DC2CF = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = "NewSessionSheet.swift"; path = "macos/PhotoPic/Views/Home/NewSessionSheet.swift"; sourceTree = "<group>"; };
 		097553DC273550BB3C75963C = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = "SessionCardView.swift"; path = "macos/PhotoPic/Views/Home/SessionCardView.swift"; sourceTree = "<group>"; };
@@ -165,6 +173,7 @@
 				06D4574BD465483DBE9AA8F6,
 				53B1273A205AB209DA55BDA7,
 				BD7B8B99A44F72C1F26F03EB,
+				8C721DCCF30773DD1CB5AAF7,
 				D146EAE04CDAA06DF7B767F0,
 				5DFBC2845756F08C56B4A3FD,
 				19C72581491DA46382A3E444,
@@ -176,12 +185,14 @@
 				4A59295FCA5F8C7493D411FB,
 				1906D3B4DDE63186E90DEF85,
 				B5D87AE32398932B5C777098,
+				627B0326BEB1A0537EF94E7A,
 				4FE4A7777E2325DFB6EF62F1,
 				2CB282E099000A84D66D230E,
 				F7E693B853B4CE2C537B2D77,
 				2E39806B1C1FAAF28A2588E6,
 				C360E583E2FE4ADBF7E3FC1D,
 				224D93481AE544CC5D55A6C1,
+				C7617A8D85FB81C02EC52A49,
 				1416ACDEDF51223DB098A676,
 				2CC45DCDD19238BEB17B36A4,
 				3B26714214F6CC205D610127,
@@ -196,6 +207,7 @@
 				AE9AA4F9E60B8654670FA92D,
 				EC54E4E3625DB5B33662029B,
 				54BA2C65F7BD620303F6BC39,
+				95DFB68CB1D2D81C55A55E56,
 				8514D213D664E212B8D37F6E,
 				43B75330EAE54853AA0DC2CF,
 				097553DC273550BB3C75963C,
@@ -243,6 +255,7 @@
 				1F4B0E7D3C89D56C7FBCD090,
 				953B02CD8DD2DDA2D089965D,
 				A62EA8C6C5C5DC39B82D02C0,
+				D9B4488C49B941FA141CFDCD,
 				30A29850E543E71ED11ED6AC,
 				98D90F3260F89A8FA928DB0E,
 				B736B2E04B0379115955710A,
@@ -254,12 +267,14 @@
 				F99D3D9D550ABCABBF5DECE8,
 				74D95543104C96135EFD5764,
 				1530452D060A4B177CF913E2,
+				09E6F3F9720A6D2CA0770F68,
 				DB9F925532BD8881E1A9305B,
 				5C10C44E7A0B9F65156B0195,
 				FC2E29F01D223E4E1FAB1CFF,
 				3C3F414171842DD7202E05F2,
 				268D2BC7DDCD8C0705D8C28C,
 				90F0E614D5BF728929415794,
+				BE3E59C8E287DBFF245FF7CE,
 				816722AD7E477A4BE849EB53,
 				B942ACE53A29022DE4967441,
 				4FF3BBC330D7D16FC6EE6CD0,
@@ -274,6 +289,7 @@
 				621EF53B3013CB1EA08A547A,
 				B88ECF05506390BE18B1C55F,
 				C10986FB1427A596CC78F55D,
+				D44B7CA9BFDC1519B443474E,
 				DD775DA670A7C1D41BAA719B,
 				E37FBBCE1ED5816C5188511B,
 				0E75F0DD85B8659E26C4A341,

@@ -49,6 +49,13 @@ package struct PhotoPicApp: App {
                 }
                 .keyboardShortcut(",", modifiers: .command)
             }
+
+            CommandGroup(replacing: .help) {
+                Button("Centro de Ayuda de PhotoPic...") {
+                    appState.isPresentingHelp = true
+                }
+                .keyboardShortcut("?", modifiers: .command)
+            }
         }
     }
 }
@@ -86,6 +93,9 @@ package struct RootShellView: View {
         .animation(AppMotion.quickEaseOut, value: activeToastMessage)
         .sheet(isPresented: $appState.isPresentingSettings) {
             SettingsContainerSheet(appState: appState)
+        }
+        .sheet(isPresented: $appState.isPresentingHelp) {
+            HelpCenterView()
         }
         .onChange(of: appState.discoveryService.statusToastMessage) { _, newValue in
             guard newValue != nil else { return }

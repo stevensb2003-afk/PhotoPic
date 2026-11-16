@@ -1,0 +1,126 @@
+import Foundation
+
+/// Synchronized RAW + JPG bucket movement, Undo, and archived loading across
+/// `Para_Edicion/{RAW,JPG}` and `Archivadas/{RAW,JPG}`.
+extension SessionFileManager {
+    package static func loadArchivedItems(
+        in session: PhotoSession,
+        cachedTagsByBase: [String: PhotoVisionTags] = [:]
+    ) -> [PhotoItem] {
+        let primary = loadPhotoItems(
+            in: session.archivedRawFolderURL,
+            jpgFolderURL: session.archivedJpgFolderURL,
+            fallbackJpgFolderURL: session.jpgFolderURL,
+            cachedTagsByBase: cachedTagsByBase
+        )
+        let legacy = loadPhotoItems(
+            in: session.archivedFolderURL,
+            jpgFolderURL: session.archivedJpgFolderURL,
+            fallbackJpgFolderURL: session.jpgFolderURL,
+            cachedTagsByBase: cachedTagsByBase
+        )
+        let rawBases = Set((primary + legacy).map(\.baseFilename))
+        let standaloneJpgs = loadPhotoItems(
+            in: session.archivedJpgFolderURL,
+            jpgFolderURL: session.archivedJpgFolderURL,
+            cachedTagsByBase: cachedTagsByBase
+        ).filter { !rawBases.contains($0.baseFilename) }
+        return (primary + legacy + standaloneJpgs).sorted {
+            $0.capturedAt == $1.capturedAt ? $0.filename < $1.filename : $0.capturedAt < $1.capturedAt
+        }
+    }
+
+    package static func moveItem(
+        _ item: PhotoItem,
+        to destinationFolder: SessionSubfolder,
+        in session: PhotoSession
+    ) throws -> MoveHistoryRecord {
+        try ensureSubfoldersExist(for: session)
+        let folderURL = item.formatKind == .raw
+            ? session.rawBucketURL(for: destinationFolder)
+            : session.jpgBucketURL(for: destinationFolder)
+        let targetURL = uniqueDestinationURL(in: folderURL, preferredFilename: item.fileURL.lastPathComponent)
+
+        do {
+            try FileManager.default.moveItem(at: item.fileURL, to: targetURL)
+            PhotoTagStore.relocateSidecarIfPresent(from: item.fileURL, to: targetURL)
+        } catch {
+            throw SessionFileError.fileMoveFailed(error.localizedDescription)
+        }
+
+        var updatedItem = item
+        updatedItem.fileURL = targetURL
+        var originalCompanion: URL?
+        var movedCompanion: URL?
+
+        if item.formatKind == .raw, let companion = resolveCompanionURL(for: item, in: session) {
+            let jpgDestDir = session.jpgBucketURL(for: destinationFolder)
+            if companion.deletingLastPathComponent().standardizedFileURL.path != jpgDestDir.standardizedFileURL.path {
+                let jpgTarget = uniqueDestinationURL(in: jpgDestDir, preferredFilename: companion.lastPathComponent)
+                try? FileManager.default.moveItem(at: companion, to: jpgTarget)
+                originalCompanion = companion
+                movedCompanion = jpgTarget
+                updatedItem.pairedCompressedURL = jpgTarget
+            }
+        }
+
+        return MoveHistoryRecord(
+            item: updatedItem,
+            originalURL: item.fileURL,
+            movedURL: targetURL,
+            destinationFolder: destinationFolder,
+            originalCompanionURL: originalCompanion,
+            movedCompanionURL: movedCompanion
+        )
+    }
+
+    package static func undoMove(_ record: MoveHistoryRecord) throws -> PhotoItem {
+        let targetURL: URL = !FileManager.default.fileExists(atPath: record.originalURL.path)
+            ? record.originalURL
+            : uniqueDestinationURL(
+                in: record.originalURL.deletingLastPathComponent(),
+                preferredFilename: record.originalURL.lastPathComponent
+            )
+
+        do {
+            try FileManager.default.moveItem(at: record.movedURL, to: targetURL)
+            PhotoTagStore.relocateSidecarIfPresent(from: record.movedURL, to: targetURL)
+        } catch {
+            throw SessionFileError.fileMoveFailed(error.localizedDescription)
+        }
+
+        var restored = record.item
+        restored.fileURL = targetURL
+
+        if let movedComp = record.movedCompanionURL,
+           let origComp = record.originalCompanionURL,
+           FileManager.default.fileExists(atPath: movedComp.path) {
+            let restoredComp = !FileManager.default.fileExists(atPath: origComp.path)
+                ? origComp
+                : uniqueDestinationURL(in: origComp.deletingLastPathComponent(), preferredFilename: origComp.lastPathComponent)
+            try? FileManager.default.moveItem(at: movedComp, to: restoredComp)
+            restored.pairedCompressedURL = restoredComp
+        }
+        return restored
+    }
+
+    static func resolveCompanionURL(for item: PhotoItem, in session: PhotoSession) -> URL? {
+        if let paired = item.pairedCompressedURL, FileManager.default.fileExists(atPath: paired.path) {
+            return paired
+        }
+        let searchFolders = [session.jpgFolderURL, session.archivedJpgFolderURL, session.forEditingJpgFolderURL]
+        for folder in searchFolders {
+            if let match = indexFilesByBaseName(in: folder)[item.baseFilename] {
+                return match
+            }
+        }
+        return nil
+    }
+
+    static func countBucketEntries(rawFolder: URL, jpgFolder: URL, legacyRoot: URL) -> Int {
+        let rawBases = Set(indexFilesByBaseName(in: rawFolder).keys)
+        let legacyCount = countSupportedImages(in: legacyRoot)
+        let standaloneJpgs = indexFilesByBaseName(in: jpgFolder).keys.filter { !rawBases.contains($0) }.count
+        return rawBases.count + legacyCount + standaloneJpgs
+    }
+}

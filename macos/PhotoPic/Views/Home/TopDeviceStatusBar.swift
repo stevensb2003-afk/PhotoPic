@@ -5,24 +5,33 @@ package struct TopDeviceStatusBar: View {
     let primaryDevice: ConnectedDeviceState?
     let leadingTitle: String
     let leadingSubtitle: String?
+    let watchedFolderName: String?
     let onBackAction: (() -> Void)?
+    let onTapWatchFolder: (() -> Void)?
     let onTapDevicePill: () -> Void
     let onTapSettings: () -> Void
+    let onTapHelp: (() -> Void)?
 
     package init(
         primaryDevice: ConnectedDeviceState?,
         leadingTitle: String,
         leadingSubtitle: String? = nil,
+        watchedFolderName: String? = nil,
         onBackAction: (() -> Void)? = nil,
+        onTapWatchFolder: (() -> Void)? = nil,
         onTapDevicePill: @escaping () -> Void,
-        onTapSettings: @escaping () -> Void
+        onTapSettings: @escaping () -> Void,
+        onTapHelp: (() -> Void)? = nil
     ) {
         self.primaryDevice = primaryDevice
         self.leadingTitle = leadingTitle
         self.leadingSubtitle = leadingSubtitle
+        self.watchedFolderName = watchedFolderName
         self.onBackAction = onBackAction
+        self.onTapWatchFolder = onTapWatchFolder
         self.onTapDevicePill = onTapDevicePill
         self.onTapSettings = onTapSettings
+        self.onTapHelp = onTapHelp
     }
 
     package var body: some View {
@@ -49,7 +58,28 @@ package struct TopDeviceStatusBar: View {
 
             Spacer()
 
+            if let onTapWatchFolder {
+                Button(action: onTapWatchFolder) {
+                    Label(
+                        watchedFolderName.map { "Wi-Fi/SD: \($0)" } ?? "Vincular Carpeta / Wi-Fi...",
+                        systemImage: watchedFolderName == nil ? "wifi" : "folder.badge.gearshape"
+                    )
+                }
+                .buttonStyle(StudioButtonStyle(.secondaryDark, compact: true))
+                .help("Monitorear carpeta de transmisor Wi-Fi, FTP o lector SD/CFexpress")
+            }
+
             liveDevicePill
+
+            if let onTapHelp {
+                Button(action: onTapHelp) {
+                    Image(systemName: "questionmark.circle")
+                        .font(AppTypography.bodyMedium)
+                }
+                .buttonStyle(StudioButtonStyle(.secondaryDark, compact: true))
+                .help("Centro de Ayuda de PhotoPic (⌘?)")
+                .accessibilityLabel("Centro de Ayuda")
+            }
 
             Button(action: onTapSettings) {
                 Image(systemName: "gearshape")

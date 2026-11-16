@@ -19,9 +19,12 @@ package struct SessionWorkspaceView: View {
                 primaryDevice: appState.discoveryService.primaryLiveDevice,
                 leadingTitle: viewModel.session.name,
                 leadingSubtitle: viewModel.session.directoryURL.path,
+                watchedFolderName: appState.folderWatchService.watchedFolderURL?.lastPathComponent,
                 onBackAction: { appState.closeActiveSession() },
+                onTapWatchFolder: { appState.attachWatchFolderFromPicker() },
                 onTapDevicePill: { appState.openSettings(tab: .devices) },
-                onTapSettings: { appState.openSettings(tab: .general) }
+                onTapSettings: { appState.openSettings(tab: .general) },
+                onTapHelp: { appState.isPresentingHelp = true }
             )
 
             if let unknown = appState.discoveryService.unknownDeviceBanner {

@@ -1,5 +1,11 @@
 # Changelog — PhotoPic
 
+## v2.2.0 — Sincronización RAW+JPG en Destinos, Wi-Fi/Watchfolder macOS, Ayuda Interna y BRD Docs
+- **Clasificación separada `RAW/` y `JPG/` dentro de `Para_Edicion/` y `Archivadas/`:** Tanto en macOS como en Windows, aprobar (`→`), archivar (`←`), deshacer (`⌘Z`/`Ctrl+Z`), recuperar o eliminar mueve automáticamente el par completo (`RAW` + `.xmp` + `JPG` asociado) a sus subcarpetas respectivas, incluyendo enrutamiento directo si el `.JPG` llega tarde por USB.
+- **Tethering Inalámbrico + Watchfolder en macOS:** `DeviceDiscoveryService` escucha ahora también cámaras Wi-Fi PTP/IP (`Bonjour`), y `FolderWatchTetherService` permite vincular carpetas de transmisores Wi-Fi (Air Direct, CamRanger, FTP, EOS Utility/NX Tether) o lectores SD usando el escudo `TetherBaselineGate` + verificación de estabilidad de archivo.
+- **Centro de Ayuda Interno (`?` / `⌘?`):** Nuevo panel buscable 100% offline en macOS (`HelpCenterView`) y Windows (`HelpCenterDialog`).
+- **Base Documental BRD Multi-Rol (`photopic_ai_agent_docs/`):** Generada con `steven-brd-docs-bootstrap` (`docs.md`, `00-CONTENT-TABLE.md`, `DOC-01`..`DOC-06`) e indexada con coordenadas `Lxxx-Lyyy`.
+
 ## v2.1.0 — Auditor de Hardware, Asistente Guiado Inicial, Modo Sin IA y Limpieza en Archivadas
 - **Auditor de Capacidad de Hardware (`HardwareCapabilityAuditor`):** En macOS y Windows inspecciona al arrancar procesador, núcleos, memoria RAM física, disponibilidad de GPU Metal, presencia física de **Apple Neural Engine** (`arm64` vs Intel) o `MediaPipe`/`OpenCV`.
 - **Asistente Guiado Inicial de Instalación (2 pasos):** Antes de empezar, muestra el diagnóstico del equipo, recomienda el perfil óptimo (`Estudio Completo`, `Equilibrado` o `Modo Ligero sin IA`), y permite activar o apagar por completo el auto-etiquetado de caras y las poses de 19 puntos desde el arranque (además de re-editarlo en **Configuración → General y Rendimiento**).

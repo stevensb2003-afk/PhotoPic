@@ -22,9 +22,13 @@ package enum SessionArchiveCleaner {
         alsoDeleteCompanionJpg: Bool,
         in session: PhotoSession
     ) throws {
-        let archivedDir = session.archivedFolderURL.standardizedFileURL.path
+        let allowedDirs: Set<String> = [
+            session.archivedFolderURL.standardizedFileURL.path,
+            session.archivedRawFolderURL.standardizedFileURL.path,
+            session.archivedJpgFolderURL.standardizedFileURL.path,
+        ]
         let fileDir = item.fileURL.standardizedFileURL.deletingLastPathComponent().path
-        guard fileDir == archivedDir else {
+        guard allowedDirs.contains(fileDir) else {
             throw ArchiveCleanError.pathOutsideArchivedFolder
         }
 
@@ -38,8 +42,12 @@ package enum SessionArchiveCleaner {
 
         PhotoTagStore.removeTagsAndSidecar(for: item, in: session)
 
-        if alsoDeleteCompanionJpg, let companion = item.pairedCompressedURL {
-            deleteCompanionJpgIfInsideSession(companion, in: session)
+        if let companion = item.pairedCompressedURL {
+            let isInArchivedJpg = companion.standardizedFileURL.deletingLastPathComponent().path
+                == session.archivedJpgFolderURL.standardizedFileURL.path
+            if isInArchivedJpg || alsoDeleteCompanionJpg {
+                deleteCompanionJpgIfInsideSession(companion, in: session)
+            }
         }
     }
 
@@ -48,10 +56,7 @@ package enum SessionArchiveCleaner {
         alsoDeleteCompanionJpgs: Bool,
         in session: PhotoSession
     ) throws -> Int {
-        let items = SessionFileManager.loadPhotoItems(
-            in: session.archivedFolderURL,
-            jpgFolderURL: session.jpgFolderURL
-        )
+        let items = SessionFileManager.loadArchivedItems(in: session)
         guard !items.isEmpty else { return 0 }
 
         var deletedURLs: [URL] = []
@@ -68,8 +73,12 @@ package enum SessionArchiveCleaner {
             deletedURLs.append(item.fileURL)
             baseNames.insert(item.baseFilename)
 
-            if alsoDeleteCompanionJpgs, let companion = item.pairedCompressedURL {
-                deleteCompanionJpgIfInsideSession(companion, in: session)
+            if let companion = item.pairedCompressedURL {
+                let isInArchivedJpg = companion.standardizedFileURL.deletingLastPathComponent().path
+                    == session.archivedJpgFolderURL.standardizedFileURL.path
+                if isInArchivedJpg || alsoDeleteCompanionJpgs {
+                    deleteCompanionJpgIfInsideSession(companion, in: session)
+                }
             }
         }
 
@@ -82,9 +91,12 @@ package enum SessionArchiveCleaner {
     }
 
     private static func deleteCompanionJpgIfInsideSession(_ companionURL: URL, in session: PhotoSession) {
-        let jpgDir = session.jpgFolderURL.standardizedFileURL.path
+        let allowedJpgDirs: Set<String> = [
+            session.jpgFolderURL.standardizedFileURL.path,
+            session.archivedJpgFolderURL.standardizedFileURL.path,
+        ]
         let companionDir = companionURL.standardizedFileURL.deletingLastPathComponent().path
-        guard companionDir == jpgDir, FileManager.default.fileExists(atPath: companionURL.path) else {
+        guard allowedJpgDirs.contains(companionDir), FileManager.default.fileExists(atPath: companionURL.path) else {
             return
         }
         try? FileManager.default.removeItem(at: companionURL)

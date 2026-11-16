@@ -116,14 +116,27 @@ package enum HardwareAndArchiveDeleteVerification {
             session: session,
             performancePreferences: .preset(for: .lightweightNoAI, completedSetup: true)
         )
-        // Photo 1 -> Para_Edicion, Photos 2 & 3 -> Archivadas, Photo 4 stays in RAW/
+        // Photo 1 -> Para_Edicion/{RAW,JPG}, Photos 2 & 3 -> Archivadas/{RAW,JPG}, Photo 4 stays in RAW/
         vm.approveCurrentToEditing()
+        let approvedRaw = session.forEditingRawFolderURL.appendingPathComponent("DEL_1.DNG")
+        let approvedJpg = session.forEditingJpgFolderURL.appendingPathComponent("DEL_1.JPG")
+        try assertTrue(FileManager.default.fileExists(atPath: approvedRaw.path), "DEL_1.DNG moved to Para_Edicion/RAW/")
+        try assertTrue(FileManager.default.fileExists(atPath: approvedJpg.path), "DEL_1.JPG moved alongside RAW to Para_Edicion/JPG/")
+
         vm.archiveCurrent()
         vm.archiveCurrent()
 
         try assertTrue(vm.pendingItems.count == 1, "1 pending item left in RAW/")
         try assertTrue(vm.session.counts.forEditing == 1, "1 approved item in Para_Edicion/")
         try assertTrue(vm.archivedItems.count == 2, "2 archived items in Archivadas/")
+        try assertTrue(
+            FileManager.default.fileExists(atPath: session.archivedRawFolderURL.appendingPathComponent("DEL_2.DNG").path),
+            "DEL_2.DNG in Archivadas/RAW/"
+        )
+        try assertTrue(
+            FileManager.default.fileExists(atPath: session.archivedJpgFolderURL.appendingPathComponent("DEL_2.JPG").path),
+            "DEL_2.JPG moved alongside RAW to Archivadas/JPG/"
+        )
 
         // Guard rail: refuse permanently deleting an item still in RAW/
         var threwOutsideGuard = false
@@ -147,11 +160,11 @@ package enum HardwareAndArchiveDeleteVerification {
         let xmpOne = PhotoTagStore.xmpSidecarURL(for: targetOne.fileURL)
         try assertTrue(FileManager.default.fileExists(atPath: xmpOne.path), "Archived XMP exists before delete")
 
-        // Delete item #1 (keeping companion JPG)
+        // Delete item #1 (because DEL_1..DEL_3 JPGs already moved into Archivadas/JPG/, deleting archived photo removes its archived pair too)
         vm.deleteArchivedItemPermanently(targetOne, alsoDeleteCompanionJpg: false)
         try assertTrue(!FileManager.default.fileExists(atPath: targetOne.fileURL.path), "Archived RAW permanently deleted")
         try assertTrue(!FileManager.default.fileExists(atPath: xmpOne.path), "Archived XMP permanently deleted")
-        try assertTrue(targetOne.pairedCompressedURL.map { FileManager.default.fileExists(atPath: $0.path) } == true, "Companion JPG kept when unchecked")
+        try assertTrue(targetOne.pairedCompressedURL.map { !FileManager.default.fileExists(atPath: $0.path) } == true, "Archived JPG pair in Archivadas/JPG/ also cleaned")
         try assertTrue(PhotoTagStore.loadAll(for: session)[targetOne.baseFilename] == nil, "Tag store pruned")
         try assertTrue(vm.archivedItems.count == 1 && vm.session.counts.archived == 1, "1 archived left")
 

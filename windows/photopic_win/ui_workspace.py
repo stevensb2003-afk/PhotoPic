@@ -108,7 +108,7 @@ class SessionWorkspaceWidget(QWidget):
     def reload_from_disk(self) -> None:
         tag_map = PhotoTagStore.load_all(self.session)
         self.pending_items = SessionFileManager.load_photo_items(self.session.raw_folder, self.session.jpg_folder, tag_map)
-        self.archived_items = SessionFileManager.load_photo_items(self.session.archived_folder, self.session.jpg_folder, tag_map)
+        self.archived_items = SessionFileManager.load_archived_items(self.session, tag_map)
         self._refresh_counters_and_stage()
         if self.perf_prefs.enable_vision_autotagging:
             QTimer.singleShot(50, self._analyze_unanalyzed_pending)

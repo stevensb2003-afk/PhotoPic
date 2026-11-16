@@ -236,12 +236,13 @@ package enum CorePipelineVerification {
         vm.selectedTagFilter = "Pareja"
         try assertTrue(vm.visiblePendingItems.count == 1, "Tag filter must retain matching item")
 
-        // Moving photo to Para_Edicion must also relocate its .xmp sidecar!
+        // Moving photo to Para_Edicion must also relocate its .xmp sidecar into Para_Edicion/RAW/!
         vm.approveCurrentToEditing()
         try assertTrue(!FileManager.default.fileExists(atPath: xmpInRaw.path), "Old XMP sidecar must move out of RAW/")
-        let movedDng = session.forEditingFolderURL.appendingPathComponent("VSN_0001.DNG")
+        let movedDng = session.forEditingRawFolderURL.appendingPathComponent("VSN_0001.DNG")
         let xmpInEditing = PhotoTagStore.xmpSidecarURL(for: movedDng)
-        try assertTrue(FileManager.default.fileExists(atPath: xmpInEditing.path), "XMP sidecar must follow RAW into Para_Edicion/")
+        try assertTrue(FileManager.default.fileExists(atPath: movedDng.path), "Approved RAW must move into Para_Edicion/RAW/")
+        try assertTrue(FileManager.default.fileExists(atPath: xmpInEditing.path), "XMP sidecar must follow RAW into Para_Edicion/RAW/")
 
         // Undo must bring both RAW and .xmp back to RAW/
         vm.undoLastMove()

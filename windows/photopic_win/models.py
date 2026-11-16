@@ -182,6 +182,36 @@ class PhotoSession:
     def archived_folder(self) -> Path:
         return self.directory / "Archivadas"
 
+    @property
+    def for_editing_raw_folder(self) -> Path:
+        return self.for_editing_folder / "RAW"
+
+    @property
+    def for_editing_jpg_folder(self) -> Path:
+        return self.for_editing_folder / "JPG"
+
+    @property
+    def archived_raw_folder(self) -> Path:
+        return self.archived_folder / "RAW"
+
+    @property
+    def archived_jpg_folder(self) -> Path:
+        return self.archived_folder / "JPG"
+
+    def raw_bucket(self, folder_name: str) -> Path:
+        if folder_name == "Para_Edicion":
+            return self.for_editing_raw_folder
+        if folder_name == "Archivadas":
+            return self.archived_raw_folder
+        return self.raw_folder
+
+    def jpg_bucket(self, folder_name: str) -> Path:
+        if folder_name == "Para_Edicion":
+            return self.for_editing_jpg_folder
+        if folder_name == "Archivadas":
+            return self.archived_jpg_folder
+        return self.jpg_folder
+
 
 @dataclass
 class KnownDevice:

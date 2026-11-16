@@ -68,6 +68,10 @@ class HomeDashboardWidget(QWidget):
             hw_btn.clicked.connect(self.on_open_hardware_settings)
             bar_layout.addWidget(hw_btn)
 
+        help_btn = QPushButton("Ayuda (?)")
+        help_btn.clicked.connect(self._open_help)
+        bar_layout.addWidget(help_btn)
+
         root_layout.addWidget(self._top_bar)
 
         header = QHBoxLayout()
@@ -155,6 +159,10 @@ class HomeDashboardWidget(QWidget):
         chosen = QFileDialog.getExistingDirectory(self, "Elegir Carpeta Raíz Global")
         if chosen:
             self.on_change_root(Path(chosen))
+
+    def _open_help(self) -> None:
+        from .ui_help_dialog import HelpCenterDialog
+        HelpCenterDialog(parent=self).exec()
 
     def _create_new_session(self) -> None:
         if self.root_dir is None:

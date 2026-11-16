@@ -155,9 +155,8 @@ package final class CullingSessionViewModel {
             jpgFolderURL: session.jpgFolderURL,
             cachedTagsByBase: tagMap
         )
-        archivedItems = SessionFileManager.loadPhotoItems(
-            in: session.archivedFolderURL,
-            jpgFolderURL: session.jpgFolderURL,
+        archivedItems = SessionFileManager.loadArchivedItems(
+            in: session,
             cachedTagsByBase: tagMap
         )
         session.counts = SessionFileManager.readDiskCounts(for: session)

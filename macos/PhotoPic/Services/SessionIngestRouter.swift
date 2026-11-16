@@ -60,14 +60,24 @@ package enum SessionIngestRouter {
             return .addedRaw(item, demotedCompressedFilename: demotedFilename)
 
         case .compressed:
-            let hasExistingRaw =
-                findMatchingImage(baseName: baseName, kind: .raw, in: session.rawFolderURL) != nil ||
-                findMatchingImage(baseName: baseName, kind: .raw, in: session.forEditingFolderURL) != nil ||
+            let inPendingRaw = findMatchingImage(baseName: baseName, kind: .raw, in: session.rawFolderURL) != nil
+            let inEditingRaw =
+                findMatchingImage(baseName: baseName, kind: .raw, in: session.forEditingRawFolderURL) != nil ||
+                findMatchingImage(baseName: baseName, kind: .raw, in: session.forEditingFolderURL) != nil
+            let inArchivedRaw =
+                findMatchingImage(baseName: baseName, kind: .raw, in: session.archivedRawFolderURL) != nil ||
                 findMatchingImage(baseName: baseName, kind: .raw, in: session.archivedFolderURL) != nil
 
-            if hasExistingRaw || !allowJpgWhenNoRaw {
+            if inEditingRaw || inArchivedRaw || inPendingRaw || !allowJpgWhenNoRaw {
+                let targetJpgFolder: URL = if inEditingRaw {
+                    session.forEditingJpgFolderURL
+                } else if inArchivedRaw {
+                    session.archivedJpgFolderURL
+                } else {
+                    session.jpgFolderURL
+                }
                 let destURL = SessionFileManager.uniqueDestinationURL(
-                    in: session.jpgFolderURL,
+                    in: targetJpgFolder,
                     preferredFilename: originalFilename
                 )
                 try fm.moveItem(at: stagedURL, to: destURL)

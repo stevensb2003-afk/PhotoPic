@@ -44,6 +44,7 @@
 | **Zoom 1:1 Píxel Real** | ![Zoom 1:1](assets/screenshots/04-workspace-zoom-1to1.png) |
 | **Archivadas (Recuperar o Eliminar Definitivamente)** | ![Archivadas](assets/screenshots/05-workspace-archived.png) |
 | **Popover de Confirmación al Eliminar** | ![Popover](assets/screenshots/08-archived-delete-popover.png) |
+| **Centro de Ayuda Interno (`⌘?`)** | ![Ayuda](assets/screenshots/09-help-center.png) |
 | **Administrador USB Plug & Play** | ![Dispositivos](assets/screenshots/06-settings-devices.png) |
 | **Ajustes de Rendimiento, Auditoría y Atajos** | ![Rendimiento](assets/screenshots/07-settings-general.png) |
 
@@ -80,10 +81,18 @@ Si elegís mantener activa la IA, el analizador local genera etiquetas al ingres
 └── [Nombre_De_La_Sesion]/
     ├── .photopic_tags.json   # Caché de etiquetas IA y manuales
     ├── RAW/                  # Cola pendiente (+ sidecars .xmp)
-    ├── JPG/                  # Copias .JPG / .HEIC separadas automáticamente
-    ├── Para_Edicion/         # Aprobadas (→ / Swipe Derecha)
-    └── Archivadas/           # Descartadas (← / Swipe Izquierda: recuperables o eliminables)
+    ├── JPG/                  # Copias .JPG / .HEIC pendientes asociadas
+    ├── Para_Edicion/
+    │   ├── RAW/              # RAW aprobado (+ .xmp)
+    │   └── JPG/              # Contraparte JPG movida automáticamente
+    └── Archivadas/
+        ├── RAW/              # RAW descartado (+ .xmp)
+        └── JPG/              # Contraparte JPG movida automáticamente
 ```
+
+- **Movimiento sincronizado `RAW + JPG`:** Cada vez que aprobás (`→`), archivás (`←`), deshacés (`⌘Z` / `Ctrl+Z`) o recuperás desde `Archivadas`, PhotoPic mueve el par completo manteniendo `RAW/` y `JPG/` clasificados por separado en cada carpeta destino.
+- **Tethering USB, Wi-Fi PTP/IP (Bonjour) y Watchfolder:** Además de USB-C / Thunderbolt 4, soporta detección PTP/IP por Wi-Fi y **Watchfolder en vivo** (`Vincular Carpeta / Wi-Fi...` en macOS y Windows) para transmisores inalámbricos (Air Direct, CamRanger, FTP local).
+- **Centro de Ayuda Interno (`?` / `⌘?`):** Guía paso a paso 100% offline dentro de la app, sincronizada con la base documental BRD en [`photopic_ai_agent_docs/`](photopic_ai_agent_docs/docs.md).
 
 Dentro de la pestaña **`Archivadas`** podés elegir entre **`Recuperar para Edición`** o liberar espacio en disco mediante **`Eliminar archivo...`** / **`Vaciar carpeta...`**, protegidos con un **Popover nativo de confirmación** que advierte que el archivo y su `.xmp` se borrarán definitivamente (con opción extra para eliminar también la copia `.JPG` asociada en `JPG/`).
 

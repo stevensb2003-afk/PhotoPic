@@ -1,11 +1,29 @@
 import Foundation
 
-/// Undoable disk movement record used by Cmd+Z.
+/// Undoable disk movement record used by Cmd+Z (tracks both RAW and paired JPG).
 package struct MoveHistoryRecord: Sendable, Equatable {
     package let item: PhotoItem
     package let originalURL: URL
     package let movedURL: URL
     package let destinationFolder: SessionSubfolder
+    package let originalCompanionURL: URL?
+    package let movedCompanionURL: URL?
+
+    package init(
+        item: PhotoItem,
+        originalURL: URL,
+        movedURL: URL,
+        destinationFolder: SessionSubfolder,
+        originalCompanionURL: URL? = nil,
+        movedCompanionURL: URL? = nil
+    ) {
+        self.item = item
+        self.originalURL = originalURL
+        self.movedURL = movedURL
+        self.destinationFolder = destinationFolder
+        self.originalCompanionURL = originalCompanionURL
+        self.movedCompanionURL = movedCompanionURL
+    }
 }
 
 /// Manages session folder trees (`RAW`, `JPG`, `Para_Edicion`, `Archivadas`),
@@ -43,10 +61,15 @@ package enum SessionFileManager {
     }
 
     package static func ensureSubfoldersExist(for session: PhotoSession) throws {
+        let fm = FileManager.default
         for subfolder in SessionSubfolder.allCases {
             let subURL = session.directoryURL.appendingPathComponent(subfolder.rawValue, isDirectory: true)
-            try FileManager.default.createDirectory(at: subURL, withIntermediateDirectories: true)
+            try fm.createDirectory(at: subURL, withIntermediateDirectories: true)
         }
+        try fm.createDirectory(at: session.forEditingRawFolderURL, withIntermediateDirectories: true)
+        try fm.createDirectory(at: session.forEditingJpgFolderURL, withIntermediateDirectories: true)
+        try fm.createDirectory(at: session.archivedRawFolderURL, withIntermediateDirectories: true)
+        try fm.createDirectory(at: session.archivedJpgFolderURL, withIntermediateDirectories: true)
     }
 
     package static func loadSessions(in rootURL: URL) -> [PhotoSession] {
@@ -79,8 +102,16 @@ package enum SessionFileManager {
     package static func readDiskCounts(for session: PhotoSession) -> SessionDiskCounts {
         SessionDiskCounts(
             pending: countSupportedImages(in: session.rawFolderURL),
-            forEditing: countSupportedImages(in: session.forEditingFolderURL),
-            archived: countSupportedImages(in: session.archivedFolderURL),
+            forEditing: countBucketEntries(
+                rawFolder: session.forEditingRawFolderURL,
+                jpgFolder: session.forEditingJpgFolderURL,
+                legacyRoot: session.forEditingFolderURL
+            ),
+            archived: countBucketEntries(
+                rawFolder: session.archivedRawFolderURL,
+                jpgFolder: session.archivedJpgFolderURL,
+                legacyRoot: session.archivedFolderURL
+            ),
             companionJpgs: countSupportedImages(in: session.jpgFolderURL)
         )
     }
@@ -88,6 +119,7 @@ package enum SessionFileManager {
     package static func loadPhotoItems(
         in folderURL: URL,
         jpgFolderURL: URL,
+        fallbackJpgFolderURL: URL? = nil,
         cachedTagsByBase: [String: PhotoVisionTags] = [:]
     ) -> [PhotoItem] {
         guard let files = try? FileManager.default.contentsOfDirectory(
@@ -98,7 +130,10 @@ package enum SessionFileManager {
             return []
         }
 
-        let companionIndex = indexFilesByBaseName(in: jpgFolderURL)
+        var companionIndex = fallbackJpgFolderURL.map { indexFilesByBaseName(in: $0) } ?? [:]
+        for (k, v) in indexFilesByBaseName(in: jpgFolderURL) {
+            companionIndex[k] = v
+        }
         var items: [PhotoItem] = []
 
         for url in files where MediaFormatClassifier.isSupportedImage(url: url) {
@@ -111,55 +146,6 @@ package enum SessionFileManager {
         return items.sorted {
             $0.capturedAt == $1.capturedAt ? $0.filename < $1.filename : $0.capturedAt < $1.capturedAt
         }
-    }
-
-    package static func moveItem(
-        _ item: PhotoItem,
-        to destinationFolder: SessionSubfolder,
-        in session: PhotoSession
-    ) throws -> MoveHistoryRecord {
-        try ensureSubfoldersExist(for: session)
-        let folderURL = session.directoryURL.appendingPathComponent(destinationFolder.rawValue, isDirectory: true)
-        let targetURL = uniqueDestinationURL(in: folderURL, preferredFilename: item.fileURL.lastPathComponent)
-
-        do {
-            try FileManager.default.moveItem(at: item.fileURL, to: targetURL)
-            PhotoTagStore.relocateSidecarIfPresent(from: item.fileURL, to: targetURL)
-        } catch {
-            throw SessionFileError.fileMoveFailed(error.localizedDescription)
-        }
-
-        var updatedItem = item
-        updatedItem.fileURL = targetURL
-        return MoveHistoryRecord(
-            item: updatedItem,
-            originalURL: item.fileURL,
-            movedURL: targetURL,
-            destinationFolder: destinationFolder
-        )
-    }
-
-    package static func undoMove(_ record: MoveHistoryRecord) throws -> PhotoItem {
-        let targetURL: URL
-        if !FileManager.default.fileExists(atPath: record.originalURL.path) {
-            targetURL = record.originalURL
-        } else {
-            targetURL = uniqueDestinationURL(
-                in: record.originalURL.deletingLastPathComponent(),
-                preferredFilename: record.originalURL.lastPathComponent
-            )
-        }
-
-        do {
-            try FileManager.default.moveItem(at: record.movedURL, to: targetURL)
-            PhotoTagStore.relocateSidecarIfPresent(from: record.movedURL, to: targetURL)
-        } catch {
-            throw SessionFileError.fileMoveFailed(error.localizedDescription)
-        }
-
-        var restored = record.item
-        restored.fileURL = targetURL
-        return restored
     }
 
     package static func buildPhotoItem(
@@ -197,7 +183,7 @@ package enum SessionFileManager {
         return candidate
     }
 
-    private static func countSupportedImages(in folderURL: URL) -> Int {
+    static func countSupportedImages(in folderURL: URL) -> Int {
         guard let urls = try? FileManager.default.contentsOfDirectory(
             at: folderURL,
             includingPropertiesForKeys: nil,
@@ -208,7 +194,7 @@ package enum SessionFileManager {
         return urls.reduce(0) { MediaFormatClassifier.isSupportedImage(url: $1) ? $0 + 1 : $0 }
     }
 
-    private static func indexFilesByBaseName(in folderURL: URL) -> [String: URL] {
+    static func indexFilesByBaseName(in folderURL: URL) -> [String: URL] {
         guard let urls = try? FileManager.default.contentsOfDirectory(
             at: folderURL,
             includingPropertiesForKeys: nil,

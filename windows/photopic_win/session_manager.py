@@ -7,6 +7,7 @@ from pathlib import Path
 import re
 import shutil
 
+from .ingest_router import route_ingest
 from .models import (
     MediaFormatClassifier,
     MediaFormatKind,
@@ -31,6 +32,8 @@ class MoveRecord:
     original_path: Path
     moved_path: Path
     destination_folder_name: str
+    original_companion_path: Path | None = None
+    moved_companion_path: Path | None = None
 
 
 class SessionFileManager:
@@ -46,6 +49,9 @@ class SessionFileManager:
         session_dir.mkdir(parents=True, exist_ok=True)
         for sub in cls.SUBFOLDERS:
             (session_dir / sub).mkdir(parents=True, exist_ok=True)
+        for dest in ("Para_Edicion", "Archivadas"):
+            (session_dir / dest / "RAW").mkdir(parents=True, exist_ok=True)
+            (session_dir / dest / "JPG").mkdir(parents=True, exist_ok=True)
 
         stat = session_dir.stat()
         return PhotoSession(name=session_dir.name, directory=session_dir, created_at=stat.st_mtime)
@@ -54,6 +60,13 @@ class SessionFileManager:
     def ensure_subfolders(cls, session: PhotoSession) -> None:
         for sub in cls.SUBFOLDERS:
             (session.directory / sub).mkdir(parents=True, exist_ok=True)
+        for folder in (
+            session.for_editing_raw_folder,
+            session.for_editing_jpg_folder,
+            session.archived_raw_folder,
+            session.archived_jpg_folder,
+        ):
+            folder.mkdir(parents=True, exist_ok=True)
 
     @classmethod
     def load_sessions(cls, root_dir: Path) -> list[PhotoSession]:
@@ -75,17 +88,35 @@ class SessionFileManager:
     def read_disk_counts(cls, session: PhotoSession) -> SessionDiskCounts:
         return SessionDiskCounts(
             pending=cls._count_images(session.raw_folder),
-            for_editing=cls._count_images(session.for_editing_folder),
-            archived=cls._count_images(session.archived_folder),
+            for_editing=cls._count_bucket(session.for_editing_raw_folder, session.for_editing_jpg_folder, session.for_editing_folder),
+            archived=cls._count_bucket(session.archived_raw_folder, session.archived_jpg_folder, session.archived_folder),
             companion_jpgs=cls._count_images(session.jpg_folder),
         )
 
     @classmethod
-    def load_photo_items(cls, folder: Path, jpg_folder: Path, tag_map: dict | None = None) -> list[PhotoItem]:
+    def load_archived_items(cls, session: PhotoSession, tag_map: dict | None = None) -> list[PhotoItem]:
+        primary = cls.load_photo_items(session.archived_raw_folder, session.archived_jpg_folder, tag_map, session.jpg_folder)
+        legacy = cls.load_photo_items(session.archived_folder, session.archived_jpg_folder, tag_map, session.jpg_folder)
+        raw_bases = {i.base_filename for i in primary + legacy}
+        standalone = [
+            i for i in cls.load_photo_items(session.archived_jpg_folder, session.archived_jpg_folder, tag_map)
+            if i.base_filename not in raw_bases
+        ]
+        return sorted(primary + legacy + standalone, key=lambda i: (i.captured_at, i.filename))
+
+    @classmethod
+    def load_photo_items(
+        cls,
+        folder: Path,
+        jpg_folder: Path,
+        tag_map: dict | None = None,
+        fallback_jpg_folder: Path | None = None,
+    ) -> list[PhotoItem]:
         if not folder.exists():
             return []
         tags = tag_map or {}
-        companion_index = cls._index_by_base(jpg_folder)
+        companion_index = cls._index_by_base(fallback_jpg_folder) if fallback_jpg_folder else {}
+        companion_index.update(cls._index_by_base(jpg_folder))
         items: list[PhotoItem] = []
 
         for path in folder.iterdir():
@@ -113,75 +144,38 @@ class SessionFileManager:
         allow_jpg_when_no_raw: bool,
         session: PhotoSession,
     ) -> IngestOutcome:
-        cls.ensure_subfolders(session)
-        kind = MediaFormatClassifier.classify(original_filename)
-        if kind is None:
-            return IngestOutcome(kind="ignored")
-
-        base = Path(original_filename).stem.lower()
-        if kind == MediaFormatKind.RAW:
-            dest = cls._unique_file(session.raw_folder, original_filename)
-            shutil.move(str(staged_path), str(dest))
-
-            demoted_name: str | None = None
-            existing_comp = cls._find_matching(base, MediaFormatKind.COMPRESSED, session.raw_folder)
-            if existing_comp is not None:
-                jpg_dest = cls._unique_file(session.jpg_folder, existing_comp.name)
-                shutil.move(str(existing_comp), str(jpg_dest))
-                demoted_name = existing_comp.name
-
-            companion = cls._find_matching(base, MediaFormatKind.COMPRESSED, session.jpg_folder)
-            stat = dest.stat()
-            item = PhotoItem(
-                id=dest.name.lower(),
-                file_path=dest,
-                paired_compressed_path=companion,
-                file_size_bytes=stat.st_size,
-                captured_at=stat.st_mtime,
-                source_device_alias=device_alias,
-            )
-            return IngestOutcome(
-                kind="added_raw",
-                item=item,
-                demoted_compressed_name=demoted_name,
-                destination_path=dest,
-            )
-
-        has_raw = any(
-            cls._find_matching(base, MediaFormatKind.RAW, fld) is not None
-            for fld in (session.raw_folder, session.for_editing_folder, session.archived_folder)
+        return route_ingest(
+            cls, staged_path, original_filename, device_alias, allow_jpg_when_no_raw, session, IngestOutcome
         )
-        if has_raw or not allow_jpg_when_no_raw:
-            dest = cls._unique_file(session.jpg_folder, original_filename)
-            shutil.move(str(staged_path), str(dest))
-            return IngestOutcome(kind="separated_jpg", destination_path=dest)
-
-        dest = cls._unique_file(session.raw_folder, original_filename)
-        shutil.move(str(staged_path), str(dest))
-        stat = dest.stat()
-        item = PhotoItem(
-            id=dest.name.lower(),
-            file_path=dest,
-            file_size_bytes=stat.st_size,
-            captured_at=stat.st_mtime,
-            source_device_alias=device_alias,
-        )
-        return IngestOutcome(kind="added_fallback", item=item, destination_path=dest)
 
     @classmethod
     def move_item(cls, item: PhotoItem, dest_folder_name: str, session: PhotoSession) -> MoveRecord:
         cls.ensure_subfolders(session)
-        target_dir = session.directory / dest_folder_name
+        target_dir = session.raw_bucket(dest_folder_name) if item.format_kind == MediaFormatKind.RAW else session.jpg_bucket(dest_folder_name)
         target_path = cls._unique_file(target_dir, item.file_path.name)
         old_path = item.file_path
         shutil.move(str(old_path), str(target_path))
         PhotoTagStore.relocate_sidecar_if_present(old_path, target_path)
         item.file_path = target_path
+
+        orig_comp: Path | None = None
+        moved_comp: Path | None = None
+        if item.format_kind == MediaFormatKind.RAW:
+            comp = cls._resolve_companion(item, session)
+            jpg_dest_dir = session.jpg_bucket(dest_folder_name)
+            if comp is not None and comp.resolve().parent != jpg_dest_dir.resolve():
+                jpg_target = cls._unique_file(jpg_dest_dir, comp.name)
+                shutil.move(str(comp), str(jpg_target))
+                orig_comp, moved_comp = comp, jpg_target
+                item.paired_compressed_path = jpg_target
+
         return MoveRecord(
             item=item,
             original_path=old_path,
             moved_path=target_path,
             destination_folder_name=dest_folder_name,
+            original_companion_path=orig_comp,
+            moved_companion_path=moved_comp,
         )
 
     @classmethod
@@ -194,7 +188,32 @@ class SessionFileManager:
         shutil.move(str(record.moved_path), str(target))
         PhotoTagStore.relocate_sidecar_if_present(record.moved_path, target)
         record.item.file_path = target
+        if record.moved_companion_path and record.original_companion_path and record.moved_companion_path.exists():
+            comp_target = (
+                record.original_companion_path
+                if not record.original_companion_path.exists()
+                else cls._unique_file(record.original_companion_path.parent, record.original_companion_path.name)
+            )
+            shutil.move(str(record.moved_companion_path), str(comp_target))
+            record.item.paired_compressed_path = comp_target
         return record.item
+
+    @classmethod
+    def _resolve_companion(cls, item: PhotoItem, session: PhotoSession) -> Path | None:
+        if item.paired_compressed_path and item.paired_compressed_path.exists():
+            return item.paired_compressed_path
+        for fld in (session.jpg_folder, session.archived_jpg_folder, session.for_editing_jpg_folder):
+            match = cls._index_by_base(fld).get(item.base_filename)
+            if match is not None:
+                return match
+        return None
+
+    @classmethod
+    def _count_bucket(cls, raw_folder: Path, jpg_folder: Path, legacy_root: Path) -> int:
+        raw_bases = set(cls._index_by_base(raw_folder).keys())
+        legacy_count = cls._count_images(legacy_root)
+        standalone_jpgs = sum(1 for k in cls._index_by_base(jpg_folder).keys() if k not in raw_bases)
+        return len(raw_bases) + legacy_count + standalone_jpgs
 
     @staticmethod
     def _count_images(folder: Path) -> int:

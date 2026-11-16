@@ -187,7 +187,14 @@ package enum UISnapshotVerification {
             )
         }
 
-        print("[PASS] 7. Rendered 8 Retina UI snapshots to \(outputDir.path)")
+        // 9. Built-in Offline Help Center snapshot
+        try renderSnapshot(
+            HelpCenterView(),
+            size: CGSize(width: 780, height: 560),
+            to: outputDir.appendingPathComponent("09-help-center.png")
+        )
+
+        print("[PASS] 7. Rendered 9 Retina UI snapshots to \(outputDir.path)")
     }
 
     private static func waitUntil(condition: @escaping () -> Bool) async throws {

@@ -18,9 +18,12 @@ class SessionArchiveCleaner:
         session: PhotoSession,
         delete_companion_jpg: bool = False,
     ) -> None:
-        archived_dir = session.archived_folder.resolve()
-        item_parent = item.file_path.resolve().parent
-        if item_parent != archived_dir:
+        allowed_dirs = {
+            session.archived_folder.resolve(),
+            session.archived_raw_folder.resolve(),
+            session.archived_jpg_folder.resolve(),
+        }
+        if item.file_path.resolve().parent not in allowed_dirs:
             raise ValueError("Operación bloqueada: el archivo no pertenece a Archivadas/ de esta sesión.")
 
         if item.file_path.exists():
@@ -28,8 +31,10 @@ class SessionArchiveCleaner:
 
         PhotoTagStore.remove_tags_and_sidecar(item, session)
 
-        if delete_companion_jpg and item.paired_compressed_path is not None:
-            SessionArchiveCleaner._delete_companion_jpg(item.paired_compressed_path, session)
+        if item.paired_compressed_path is not None:
+            in_arch_jpg = item.paired_compressed_path.resolve().parent == session.archived_jpg_folder.resolve()
+            if in_arch_jpg or delete_companion_jpg:
+                SessionArchiveCleaner._delete_companion_jpg(item.paired_compressed_path, session)
 
     @classmethod
     def permanently_delete_all_archived(
@@ -37,7 +42,7 @@ class SessionArchiveCleaner:
         session: PhotoSession,
         delete_companion_jpgs: bool = False,
     ) -> int:
-        items = SessionFileManager.load_photo_items(session.archived_folder, session.jpg_folder)
+        items = SessionFileManager.load_archived_items(session)
         if not items:
             return 0
 
@@ -48,13 +53,16 @@ class SessionArchiveCleaner:
                 item.file_path.unlink()
             bases.add(item.base_filename)
             paths.append(item.file_path)
-            if delete_companion_jpgs and item.paired_compressed_path is not None:
-                cls._delete_companion_jpg(item.paired_compressed_path, session)
+            if item.paired_compressed_path is not None:
+                in_arch_jpg = item.paired_compressed_path.resolve().parent == session.archived_jpg_folder.resolve()
+                if in_arch_jpg or delete_companion_jpgs:
+                    cls._delete_companion_jpg(item.paired_compressed_path, session)
 
         PhotoTagStore.remove_tags_and_sidecars(bases, paths, session)
         return len(items)
 
     @staticmethod
     def _delete_companion_jpg(companion_path: Path, session: PhotoSession) -> None:
-        if companion_path.resolve().parent == session.jpg_folder.resolve() and companion_path.exists():
+        allowed_jpg = {session.jpg_folder.resolve(), session.archived_jpg_folder.resolve()}
+        if companion_path.resolve().parent in allowed_jpg and companion_path.exists():
             companion_path.unlink()

@@ -37,7 +37,10 @@ package final class DeviceDiscoveryService: NSObject {
     package func startBrowsing() {
         guard !browser.isBrowsing else { return }
         browser.delegate = self
-        let maskValue = ICDeviceTypeMask.camera.rawValue | ICDeviceLocationTypeMask.local.rawValue
+        let maskValue =
+            ICDeviceTypeMask.camera.rawValue |
+            ICDeviceLocationTypeMask.local.rawValue |
+            ICDeviceLocationTypeMask.bonjour.rawValue
         if let mask = ICDeviceTypeMask(rawValue: maskValue) {
             browser.browsedDeviceTypeMask = mask
         }

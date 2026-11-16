@@ -128,13 +128,18 @@ class TestWindowsCorePipeline(unittest.TestCase):
                 SessionFileManager.ingest_captured_file(jpg_p, jpg_p.name, "Cam", False, session)
                 items.append(res_r.item)
 
-            # Move 1 -> Para_Edicion, 2 & 3 -> Archivadas
+            # Move 1 -> Para_Edicion/{RAW,JPG}, 2 & 3 -> Archivadas/{RAW,JPG}
             SessionFileManager.move_item(items[0], "Para_Edicion", session)
+            self.assertTrue((session.for_editing_raw_folder / "WIN_1.DNG").exists())
+            self.assertTrue((session.for_editing_jpg_folder / "WIN_1.JPG").exists())
+
             SessionFileManager.move_item(items[1], "Archivadas", session)
             SessionFileManager.move_item(items[2], "Archivadas", session)
+            self.assertTrue((session.archived_raw_folder / "WIN_2.DNG").exists())
+            self.assertTrue((session.archived_jpg_folder / "WIN_2.JPG").exists())
 
-            # Reload from disk (links companion JPGs created after RAW)
-            arch_items = SessionFileManager.load_photo_items(session.archived_folder, session.jpg_folder)
+            # Reload from disk
+            arch_items = SessionFileManager.load_archived_items(session)
             self.assertEqual(len(arch_items), 2)
 
             # Safety guard: refusing deletion outside Archivadas/
@@ -149,7 +154,7 @@ class TestWindowsCorePipeline(unittest.TestCase):
             self.assertFalse(arch_items[0].file_path.exists())
             self.assertFalse(xmp1.exists())
             self.assertIsNotNone(arch_items[0].paired_compressed_path)
-            self.assertTrue(arch_items[0].paired_compressed_path.exists())
+            self.assertFalse(arch_items[0].paired_compressed_path.exists())
             self.assertNotIn(arch_items[0].base_filename, PhotoTagStore.load_all(session))
 
             removed = SessionArchiveCleaner.permanently_delete_all_archived(session, delete_companion_jpgs=True)
