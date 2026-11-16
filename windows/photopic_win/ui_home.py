@@ -23,10 +23,11 @@ from .session_manager import SessionFileManager
 
 
 class HomeDashboardWidget(QWidget):
-    def __init__(self, on_open_session, on_change_root, parent=None) -> None:
+    def __init__(self, on_open_session, on_change_root, on_open_hardware_settings=None, parent=None) -> None:
         super().__init__(parent)
         self.on_open_session = on_open_session
         self.on_change_root = on_change_root
+        self.on_open_hardware_settings = on_open_hardware_settings
         self.root_dir: Path | None = None
 
         root_layout = QVBoxLayout(self)
@@ -61,6 +62,12 @@ class HomeDashboardWidget(QWidget):
         change_root_btn = QPushButton("Carpeta Raíz...")
         change_root_btn.clicked.connect(self._pick_root)
         bar_layout.addWidget(change_root_btn)
+
+        if self.on_open_hardware_settings is not None:
+            hw_btn = QPushButton("Rendimiento e IA...")
+            hw_btn.clicked.connect(self.on_open_hardware_settings)
+            bar_layout.addWidget(hw_btn)
+
         root_layout.addWidget(self._top_bar)
 
         header = QHBoxLayout()

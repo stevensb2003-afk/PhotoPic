@@ -65,7 +65,7 @@ package struct RootShellView: View {
         ZStack(alignment: .top) {
             Group {
                 if appState.needsOnboarding {
-                    RootFolderOnboardingView(onChooseFolder: { appState.pickAndSetRootFolder() })
+                    GuidedSetupWizardView(appState: appState)
                 } else if let workspaceVM = appState.activeSessionViewModel {
                     SessionWorkspaceView(appState: appState, viewModel: workspaceVM)
                 } else {

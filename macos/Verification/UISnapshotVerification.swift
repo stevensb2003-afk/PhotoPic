@@ -62,9 +62,16 @@ package enum UISnapshotVerification {
             allowJpgWhenNoRaw: true, in: s2
         )
 
-        // 1. Onboarding snapshot
+        // 1. Onboarding Step 1 (Guided Hardware Audit & AI Wizard) snapshot
+        let wizardState = AppState(
+            bookmarkManager: BookmarkManager(
+                defaults: UserDefaults(suiteName: "com.kairosvisuals.photopic.wizard.\(UUID().uuidString)") ?? .standard
+            ),
+            knownDevicesStore: knownStore,
+            startDeviceBrowser: false
+        )
         try renderSnapshot(
-            RootFolderOnboardingView(onChooseFolder: {}),
+            GuidedSetupWizardView(appState: wizardState),
             size: CGSize(width: 1360, height: 860),
             to: outputDir.appendingPathComponent("01-onboarding.png")
         )
@@ -159,7 +166,7 @@ package enum UISnapshotVerification {
             to: outputDir.appendingPathComponent("06-settings-devices.png")
         )
 
-        // 7. Settings: General y Atajos tab
+        // 7. Settings: General y Rendimiento tab
         appState.settingsTab = .general
         try renderSnapshot(
             SettingsContainerSheet(appState: appState),
@@ -167,7 +174,20 @@ package enum UISnapshotVerification {
             to: outputDir.appendingPathComponent("07-settings-general.png")
         )
 
-        print("[PASS] 7. Rendered 7 Retina UI snapshots to \(outputDir.path)")
+        // 8. Archived Permanent Delete Confirmation Popover snapshot
+        if let firstArchived = ws.archivedItems.first {
+            try renderSnapshot(
+                ArchivedDeleteConfirmPopover(
+                    item: firstArchived,
+                    onCancel: {},
+                    onConfirmDelete: { _ in }
+                ),
+                size: CGSize(width: 340, height: 198),
+                to: outputDir.appendingPathComponent("08-archived-delete-popover.png")
+            )
+        }
+
+        print("[PASS] 7. Rendered 8 Retina UI snapshots to \(outputDir.path)")
     }
 
     private static func waitUntil(condition: @escaping () -> Bool) async throws {

@@ -1,23 +1,68 @@
 import AppKit
 import SwiftUI
 
-/// Settings Tab 2: Global Root Folder configuration and visual summary of studio shortcuts.
+/// Settings Tab 2: Hardware audit & AI performance controls, Global Root Folder, and studio shortcuts.
 package struct GeneralSettingsView: View {
-    let rootFolderURL: URL?
+    @Bindable var appState: AppState
     let onChangeRootFolder: () -> Void
 
-    package init(rootFolderURL: URL?, onChangeRootFolder: @escaping () -> Void) {
-        self.rootFolderURL = rootFolderURL
+    package init(appState: AppState, onChangeRootFolder: @escaping () -> Void) {
+        self.appState = appState
         self.onChangeRootFolder = onChangeRootFolder
     }
 
     package var body: some View {
         ScrollView {
             VStack(alignment: .leading, spacing: AppSpacing.xl) {
+                hardwareAndAISection
                 rootFolderSection
                 shortcutsSummarySection
             }
             .padding(AppSpacing.xl)
+        }
+    }
+
+    private var hardwareAndAISection: some View {
+        VStack(alignment: .leading, spacing: AppSpacing.md) {
+            HStack {
+                Text("Auditoría de Hardware y Motor IA")
+                    .font(AppTypography.sectionTitle)
+                    .foregroundStyle(AppColors.textPrimary)
+                Spacer()
+                Text(appState.performancePrefs.tier.shortBadge)
+                    .font(AppTypography.monoMicro)
+                    .foregroundStyle(AppColors.textSecondary)
+                    .padding(.horizontal, AppSpacing.sm)
+                    .padding(.vertical, 3)
+                    .background(AppColors.elevatedSurface)
+                    .clipShape(Capsule())
+            }
+
+            HardwareAuditSettingsBlock(
+                report: appState.hardwareAudit,
+                preferences: appState.performancePrefs,
+                compact: true,
+                onSelectTier: { tier in appState.selectPerformanceTier(tier) },
+                onToggleAutoTag: { enabled in
+                    var updated = appState.performancePrefs
+                    updated.enableVisionAutoTagging = enabled
+                    if !enabled { updated.detectBodyPoses = false }
+                    appState.updatePerformancePreferences(updated)
+                },
+                onTogglePoses: { enabled in
+                    var updated = appState.performancePrefs
+                    updated.detectBodyPoses = enabled
+                    appState.updatePerformancePreferences(updated)
+                },
+                onReAudit: { appState.reAuditAndApplyRecommendedProfile() }
+            )
+            .padding(AppSpacing.md)
+            .background(AppColors.panelSurface)
+            .clipShape(RoundedRectangle(cornerRadius: AppRadius.lg, style: .continuous))
+            .overlay(
+                RoundedRectangle(cornerRadius: AppRadius.lg, style: .continuous)
+                    .stroke(AppColors.borderSubtle, lineWidth: AppSpacing.hairline)
+            )
         }
     }
 
@@ -28,7 +73,7 @@ package struct GeneralSettingsView: View {
                 .foregroundStyle(AppColors.textPrimary)
 
             VStack(alignment: .leading, spacing: AppSpacing.md) {
-                Text(rootFolderURL?.path ?? "Sin carpeta configurada")
+                Text(appState.rootFolderURL?.path ?? "Sin carpeta configurada")
                     .font(AppTypography.monoPath)
                     .foregroundStyle(AppColors.textPrimary)
                     .textSelection(.enabled)
@@ -41,7 +86,7 @@ package struct GeneralSettingsView: View {
                     Button("Cambiar carpeta...", action: onChangeRootFolder)
                         .buttonStyle(StudioButtonStyle(.primaryLight, compact: true))
 
-                    if let rootFolderURL {
+                    if let rootFolderURL = appState.rootFolderURL {
                         Button("Abrir en Finder") {
                             NSWorkspace.shared.activateFileViewerSelecting([rootFolderURL])
                         }

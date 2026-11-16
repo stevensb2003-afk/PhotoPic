@@ -48,7 +48,7 @@ package struct SettingsContainerSheet: View {
                     DeviceManagerView(viewModel: appState.deviceManagerViewModel)
                 case .general:
                     GeneralSettingsView(
-                        rootFolderURL: appState.rootFolderURL,
+                        appState: appState,
                         onChangeRootFolder: { appState.pickAndSetRootFolder() }
                     )
                 }

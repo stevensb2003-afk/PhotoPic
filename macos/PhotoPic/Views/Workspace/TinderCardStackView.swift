@@ -267,7 +267,7 @@ package struct TinderCardStackView: View {
     private func feedbackPillView(_ pill: CullingFeedbackPill) -> some View {
         let tint: Color = switch pill.kind {
         case .approved, .recovered: AppColors.approveGreen
-        case .archived: AppColors.archiveRed
+        case .archived, .deletedPermanently: AppColors.archiveRed
         case .undone: AppColors.warningAmber
         case .liveCaptured: AppColors.infoBlue
         }

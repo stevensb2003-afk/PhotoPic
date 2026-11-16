@@ -4,10 +4,11 @@ La edición de **PhotoPic para Windows** comparte el mismo esquema de carpetas (
 
 ---
 
-## 1. Requisitos del Sistema
+## 1. Requisitos del Sistema y Asistente Inicial
 - Windows 10 u 11 (64 bits).
 - **Opción A (Ejecutable portable):** Descargá `PhotoPic-Windows-x64.zip` desde **GitHub Releases**, descomprimilo y ejecutá `PhotoPic.exe`.
 - **Opción B (Desde código fuente):** Python 3.10 – 3.12.
+- En el primer arranque, el **Asistente de Instalación Inicial** detecta CPU, núcleos, memoria RAM (`GlobalMemoryStatusEx`) y librerías IA instaladas para recomendar entre **Estudio Completo**, **Equilibrado** o **Modo Ligero (Sin IA)**. Podés reabrir este panel desde **"Rendimiento e IA..."** en la barra superior o borrar descartes en `Archivadas` con el Popover de confirmación (**`Eliminar archivo...`** / **`Vaciar Archivadas...`**).
 
 ---
 

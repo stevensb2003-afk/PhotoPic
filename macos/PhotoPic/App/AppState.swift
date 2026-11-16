@@ -9,7 +9,7 @@ package enum SettingsTab: String, CaseIterable, Sendable {
     package var title: String {
         switch self {
         case .devices: return "Dispositivos"
-        case .general: return "General y Atajos"
+        case .general: return "General y Rendimiento"
         }
     }
 }
@@ -26,7 +26,15 @@ package final class AppState {
     package let visionAnalyzer: PhotoVisionAnalyzer
     package let homeViewModel: HomeViewModel
     package let deviceManagerViewModel: DeviceManagerViewModel
+    private let performanceStore: PerformancePreferencesStore
 
+    package private(set) var hardwareAudit: HardwareAuditReport
+    package var performancePrefs: PerformancePreferences {
+        didSet {
+            performanceStore.save(performancePrefs)
+            activeSessionViewModel?.applyPerformancePreferences(performancePrefs)
+        }
+    }
     package private(set) var rootFolderURL: URL?
     package private(set) var activeSessionViewModel: CullingSessionViewModel?
     package var isPresentingSettings: Bool = false
@@ -38,10 +46,17 @@ package final class AppState {
     package init(
         bookmarkManager: BookmarkManager = BookmarkManager(),
         knownDevicesStore: KnownDevicesStore = KnownDevicesStore(),
+        performanceStore: PerformancePreferencesStore? = nil,
         startDeviceBrowser: Bool = true
     ) {
         self.bookmarkManager = bookmarkManager
         self.knownDevicesStore = knownDevicesStore
+        let resolvedPerfStore = performanceStore ?? PerformancePreferencesStore()
+        self.performanceStore = resolvedPerfStore
+        let audit = HardwareCapabilityAuditor.auditCurrentMac()
+        self.hardwareAudit = audit
+        self.performancePrefs = resolvedPerfStore.loadOrSeed(from: audit)
+
         let capture = TetherCaptureService()
         let discovery = DeviceDiscoveryService(knownStore: knownDevicesStore, captureService: capture)
         self.discoveryService = discovery
@@ -73,7 +88,31 @@ package final class AppState {
     package func setRootFolderURL(_ url: URL) {
         bookmarkManager.saveBookmark(for: url)
         rootFolderURL = url
+        if !performancePrefs.hasCompletedGuidedSetup {
+            performancePrefs.hasCompletedGuidedSetup = true
+        }
         homeViewModel.reloadSessions(in: url)
+    }
+
+    package func updatePerformancePreferences(_ updated: PerformancePreferences) {
+        performancePrefs = updated
+    }
+
+    package func selectPerformanceTier(_ tier: PerformanceTier) {
+        performancePrefs = PerformancePreferences.preset(
+            for: tier,
+            completedSetup: performancePrefs.hasCompletedGuidedSetup
+        )
+    }
+
+    package func reAuditAndApplyRecommendedProfile() {
+        let freshAudit = HardwareCapabilityAuditor.auditCurrentMac()
+        hardwareAudit = freshAudit
+        performancePrefs = PerformancePreferences.preset(
+            for: freshAudit.recommendedTier,
+            completedSetup: performancePrefs.hasCompletedGuidedSetup
+        )
+        showTransientNotice("Auditoría completada: \(freshAudit.recommendedTier.shortBadge)")
     }
 
     package func createAndOpenSession(named name: String) {
@@ -87,7 +126,8 @@ package final class AppState {
         activeSessionViewModel = CullingSessionViewModel(
             session: session,
             renderer: rawRenderer,
-            visionAnalyzer: visionAnalyzer
+            visionAnalyzer: visionAnalyzer,
+            performancePreferences: performancePrefs
         )
     }
 

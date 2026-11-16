@@ -41,6 +41,30 @@ class PhotoTagStore:
     def save(cls, tags: PhotoVisionTags, item: PhotoItem, session: PhotoSession, write_xmp: bool = True) -> None:
         tag_map = cls.load_all(session)
         tag_map[item.base_filename] = tags
+        cls._persist_map(tag_map, session)
+
+        if write_xmp:
+            cls.write_xmp_sidecar(tags, item.file_path)
+
+    @classmethod
+    def remove_tags_and_sidecar(cls, item: PhotoItem, session: PhotoSession) -> None:
+        cls.remove_tags_and_sidecars({item.base_filename}, [item.file_path], session)
+
+    @classmethod
+    def remove_tags_and_sidecars(cls, base_names: set[str], image_paths: list[Path], session: PhotoSession) -> None:
+        for img_path in image_paths:
+            xmp = cls.xmp_sidecar_path(img_path)
+            if xmp.exists():
+                xmp.unlink()
+        if not base_names:
+            return
+        tag_map = cls.load_all(session)
+        for base in base_names:
+            tag_map.pop(base, None)
+        cls._persist_map(tag_map, session)
+
+    @classmethod
+    def _persist_map(cls, tag_map: dict[str, PhotoVisionTags], session: PhotoSession) -> None:
         serialized = {
             k: {
                 "analyzedAt": v.analyzed_at,
@@ -56,9 +80,6 @@ class PhotoTagStore:
         tmp_path = store_path.with_suffix(".json.tmp")
         tmp_path.write_text(json.dumps(serialized, indent=2, ensure_ascii=False), encoding="utf-8")
         tmp_path.replace(store_path)
-
-        if write_xmp:
-            cls.write_xmp_sidecar(tags, item.file_path)
 
     @staticmethod
     def xmp_sidecar_path(image_path: Path) -> Path:

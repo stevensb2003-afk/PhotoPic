@@ -61,6 +61,7 @@ extension CullingSessionViewModel {
             _ = try SessionFileManager.moveItem(item, to: .forEditing, in: session)
             let removedIndex = archivedItems.firstIndex(where: { $0.id == item.id }) ?? 0
             archivedItems.removeAll { $0.id == item.id }
+            undoStack.removeAll { $0.item.id == item.id }
             if !archivedItems.isEmpty {
                 selectedArchivedID = archivedItems[min(removedIndex, archivedItems.count - 1)].id
             } else {
@@ -71,6 +72,69 @@ extension CullingSessionViewModel {
             showFeedbackPill("Recuperada para Edición", kind: .recovered)
             if let next = selectedArchivedItem {
                 loadArchivedPreview(for: next)
+            }
+        } catch {
+            errorMessage = error.localizedDescription
+        }
+    }
+
+    package func deleteArchivedItemPermanently(_ item: PhotoItem, alsoDeleteCompanionJpg: Bool = false) {
+        do {
+            try SessionArchiveCleaner.permanentlyDeleteArchivedItem(
+                item,
+                alsoDeleteCompanionJpg: alsoDeleteCompanionJpg,
+                in: session
+            )
+            let removedIndex = archivedItems.firstIndex(where: { $0.id == item.id }) ?? 0
+            archivedItems.removeAll { $0.id == item.id }
+            archivedThumbnails.removeValue(forKey: item.id)
+            undoStack.removeAll { $0.item.id == item.id }
+
+            let deletedURL = item.fileURL
+            Task { [renderer] in
+                await renderer.evictCache(for: deletedURL)
+            }
+
+            if !archivedItems.isEmpty {
+                let nextItem = archivedItems[min(removedIndex, archivedItems.count - 1)]
+                selectedArchivedID = nextItem.id
+                loadArchivedPreview(for: nextItem)
+            } else {
+                selectedArchivedID = nil
+                archivedPreviewImage = nil
+            }
+
+            session.counts = SessionFileManager.readDiskCounts(for: session)
+            showFeedbackPill("Eliminada definitivamente", kind: .deletedPermanently)
+        } catch {
+            errorMessage = error.localizedDescription
+        }
+    }
+
+    package func emptyAllArchivedPermanently(alsoDeleteCompanionJpgs: Bool = false) {
+        do {
+            let urlsToEvict = archivedItems.map(\.fileURL)
+            let deletedIDs = Set(archivedItems.map(\.id))
+            let removedCount = try SessionArchiveCleaner.permanentlyDeleteAllArchived(
+                alsoDeleteCompanionJpgs: alsoDeleteCompanionJpgs,
+                in: session
+            )
+
+            archivedItems.removeAll()
+            archivedThumbnails.removeAll()
+            selectedArchivedID = nil
+            archivedPreviewImage = nil
+            undoStack.removeAll { deletedIDs.contains($0.item.id) }
+
+            Task { [renderer] in
+                for url in urlsToEvict {
+                    await renderer.evictCache(for: url)
+                }
+            }
+
+            session.counts = SessionFileManager.readDiskCounts(for: session)
+            if removedCount > 0 {
+                showFeedbackPill("Archivadas vaciada (\(removedCount))", kind: .deletedPermanently)
             }
         } catch {
             errorMessage = error.localizedDescription

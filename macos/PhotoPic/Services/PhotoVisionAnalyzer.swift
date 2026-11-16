@@ -10,24 +10,32 @@ package actor PhotoVisionAnalyzer {
 
     package init() {}
 
-    package func analyze(cgImage: CGImage) -> PhotoVisionTags {
+    package func analyze(cgImage: CGImage, includeBodyPose: Bool = true) -> PhotoVisionTags {
         let faceLandmarksReq = VNDetectFaceLandmarksRequest()
         let faceQualityReq = VNDetectFaceCaptureQualityRequest()
         let bodyPoseReq = VNDetectHumanBodyPoseRequest()
         let humanRectReq = VNDetectHumanRectanglesRequest()
         humanRectReq.upperBodyOnly = false
 
+        let requests: [VNRequest] = includeBodyPose
+            ? [faceLandmarksReq, faceQualityReq, bodyPoseReq, humanRectReq]
+            : [faceLandmarksReq, faceQualityReq]
+
         let handler = VNImageRequestHandler(cgImage: cgImage, options: [:])
         do {
-            try handler.perform([faceLandmarksReq, faceQualityReq, bodyPoseReq, humanRectReq])
+            try handler.perform(requests)
         } catch {
             logger.warning("Vision analysis warning: \(error.localizedDescription, privacy: .public)")
         }
 
         let faces = (faceLandmarksReq.results ?? []).filter { $0.confidence >= 0.45 }
         let qualityFaces = faceQualityReq.results ?? []
-        let poses = (bodyPoseReq.results ?? []).filter { confidentJointCount(in: $0) >= 4 }
-        let humanRects = (humanRectReq.results ?? []).filter { $0.confidence >= 0.50 }
+        let poses = includeBodyPose
+            ? (bodyPoseReq.results ?? []).filter { confidentJointCount(in: $0) >= 4 }
+            : []
+        let humanRects = includeBodyPose
+            ? (humanRectReq.results ?? []).filter { $0.confidence >= 0.50 }
+            : []
 
         let personCount = estimateUniquePersonCount(faces: faces, poses: poses, humanRects: humanRects)
         var autoTags: [String] = []

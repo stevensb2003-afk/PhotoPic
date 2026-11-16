@@ -28,16 +28,22 @@ class VisionAutoTaggerWin:
         except ImportError:
             pass
 
-    def analyze_rgb_bytes(self, rgb_bytes: bytes, width: int, height: int) -> PhotoVisionTags:
+    def analyze_rgb_bytes(
+        self,
+        rgb_bytes: bytes,
+        width: int,
+        height: int,
+        include_body_pose: bool = True,
+    ) -> PhotoVisionTags:
         if self._np is None or self._cv2 is None or not rgb_bytes:
             return PhotoVisionTags(person_count=0, face_count=0, auto_tags=["Sin análisis IA"])
 
         arr = self._np.frombuffer(rgb_bytes, dtype=self._np.uint8).reshape((height, width, 3))
         if self._mp is not None and hasattr(self._mp, "solutions"):
-            return self._analyze_with_mediapipe(arr)
+            return self._analyze_with_mediapipe(arr, include_body_pose=include_body_pose)
         return self._analyze_with_opencv_fallback(arr)
 
-    def _analyze_with_mediapipe(self, rgb_array: Any) -> PhotoVisionTags:
+    def _analyze_with_mediapipe(self, rgb_array: Any, include_body_pose: bool = True) -> PhotoVisionTags:
         mp_face = self._mp.solutions.face_detection
         mp_mesh = self._mp.solutions.face_mesh
         mp_pose = self._mp.solutions.pose
@@ -64,11 +70,12 @@ class VisionAutoTaggerWin:
 
         pose_tags: list[str] = []
         pose_detected = False
-        with mp_pose.Pose(static_image_mode=True, model_complexity=1, min_detection_confidence=0.45) as pose:
-            p_res = pose.process(rgb_array)
-            if p_res.pose_landmarks:
-                pose_detected = True
-                pose_tags = self._classify_pose_landmarks(p_res.pose_landmarks.landmark)
+        if include_body_pose:
+            with mp_pose.Pose(static_image_mode=True, model_complexity=1, min_detection_confidence=0.45) as pose:
+                p_res = pose.process(rgb_array)
+                if p_res.pose_landmarks:
+                    pose_detected = True
+                    pose_tags = self._classify_pose_landmarks(p_res.pose_landmarks.landmark)
 
         person_count = max(len(face_boxes), 1 if pose_detected else 0)
         tags = self._compose_people_tags(person_count)

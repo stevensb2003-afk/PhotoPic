@@ -102,8 +102,10 @@ package actor RawImageRenderer {
     }
 
     package func evictCache(for url: URL) {
-        let vpPrefix = Self.cacheKey(for: url, suffix: "vp:2400")
-        viewportCache.removeObject(forKey: vpPrefix as NSString)
+        for dim in [420, 1280, 1400, 1600, 1720, 1920, 2200, 2400] {
+            let vpKey = Self.cacheKey(for: url, suffix: "vp:\(dim)")
+            viewportCache.removeObject(forKey: vpKey as NSString)
+        }
         let fullKey = Self.cacheKey(for: url, suffix: "full")
         fullSensorCache.removeValue(forKey: fullKey)
         fullSensorOrder.removeAll { $0 == fullKey }

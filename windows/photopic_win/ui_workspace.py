@@ -1,4 +1,4 @@
-"""Real-time RAW culling workspace widget with 1:1 zoom, AI tags, and Archived recovery."""
+"""Real-time RAW culling workspace widget with 1:1 zoom, AI tags, and Archived cleanup."""
 
 from __future__ import annotations
 
@@ -11,8 +11,6 @@ from PySide6.QtWidgets import (
     QHBoxLayout,
     QInputDialog,
     QLabel,
-    QListWidget,
-    QListWidgetItem,
     QPushButton,
     QStackedWidget,
     QVBoxLayout,
@@ -20,20 +18,30 @@ from PySide6.QtWidgets import (
 )
 
 from .design_system import AppColors, AppSpacing
+from .hardware_auditor import PerformancePreferences
 from .models import DeviceCategory, KnownDevice, PhotoItem, PhotoSession, PhotoVisionTags
 from .raw_renderer import RawImageRendererWin
 from .session_manager import MoveRecord, SessionFileManager
 from .tag_store import PhotoTagStore
+from .ui_archived_tab import ArchivedTabWidget
 from .ui_workspace_bars import build_workspace_bottom_controls, build_workspace_topbar
 from .vision_autotagger import VisionAutoTaggerWin
 
 
 class SessionWorkspaceWidget(QWidget):
-    def __init__(self, session: PhotoSession, tether_service, on_back, parent=None) -> None:
+    def __init__(
+        self,
+        session: PhotoSession,
+        tether_service,
+        on_back,
+        performance_prefs: PerformancePreferences | None = None,
+        parent=None,
+    ) -> None:
         super().__init__(parent)
         self.session = session
         self.tether_service = tether_service
         self.on_back = on_back
+        self.perf_prefs = performance_prefs or PerformancePreferences()
         self.renderer = RawImageRendererWin()
         self.tagger = VisionAutoTaggerWin()
 
@@ -67,15 +75,8 @@ class SessionWorkspaceWidget(QWidget):
         self._stage_label.setStyleSheet(f"background: {AppColors.STAGE_BG};")
         self._stack.addWidget(self._stage_label)
 
-        arch_page = QWidget()
-        arch_l = QVBoxLayout(arch_page)
-        self._arch_list = QListWidget()
-        arch_l.addWidget(self._arch_list)
-        recover_btn = QPushButton("Recuperar para Edición")
-        recover_btn.setObjectName("ApproveButton")
-        recover_btn.clicked.connect(self._recover_selected_archived)
-        arch_l.addWidget(recover_btn)
-        self._stack.addWidget(arch_page)
+        self._archived_tab = ArchivedTabWidget(self.session, on_items_changed=self._on_archived_changed)
+        self._stack.addWidget(self._archived_tab)
         root.addWidget(self._stack, stretch=1)
 
         hud = QFrame()
@@ -109,7 +110,15 @@ class SessionWorkspaceWidget(QWidget):
         self.pending_items = SessionFileManager.load_photo_items(self.session.raw_folder, self.session.jpg_folder, tag_map)
         self.archived_items = SessionFileManager.load_photo_items(self.session.archived_folder, self.session.jpg_folder, tag_map)
         self._refresh_counters_and_stage()
-        QTimer.singleShot(50, self._analyze_unanalyzed_pending)
+        if self.perf_prefs.enable_vision_autotagging:
+            QTimer.singleShot(50, self._analyze_unanalyzed_pending)
+
+    def apply_performance_preferences(self, prefs: PerformancePreferences) -> None:
+        self.perf_prefs = prefs
+        if prefs.enable_vision_autotagging:
+            self._analyze_unanalyzed_pending()
+        else:
+            self._refresh_counters_and_stage()
 
     def handle_staged_file(self, staged_path: Path, filename: str, profile: KnownDevice) -> None:
         outcome = SessionFileManager.ingest_captured_file(
@@ -117,9 +126,15 @@ class SessionWorkspaceWidget(QWidget):
         )
         if outcome.item is not None:
             self.pending_items.append(outcome.item)
-            self._analyze_item(outcome.item)
+            if self.perf_prefs.enable_vision_autotagging:
+                self._analyze_item(outcome.item)
             if self.follow_latest or len(self.pending_items) == 1:
                 self.current_index = len(self.pending_items) - 1
+        elif outcome.kind == "separated_jpg" and outcome.destination_path is not None:
+            base = outcome.destination_path.stem.lower()
+            for pending in self.pending_items:
+                if pending.base_filename == base:
+                    pending.paired_compressed_path = outcome.destination_path
         self._refresh_counters_and_stage()
 
     def navigate_prev(self) -> None:
@@ -183,21 +198,16 @@ class SessionWorkspaceWidget(QWidget):
         self.zoom_one_to_one = False
         self._refresh_counters_and_stage()
 
-    def _recover_selected_archived(self) -> None:
-        row = self._arch_list.currentRow()
-        if 0 <= row < len(self.archived_items):
-            SessionFileManager.move_item(self.archived_items.pop(row), "Para_Edicion", self.session)
-            self._refresh_counters_and_stage()
+    def _on_archived_changed(self, removed_ids: set[str]) -> None:
+        self.undo_stack = [r for r in self.undo_stack if r.item.id not in removed_ids]
+        self._refresh_counters_and_stage()
 
     def _refresh_counters_and_stage(self) -> None:
         self.session.counts = SessionFileManager.read_disk_counts(self.session)
         self._tab_cull_btn.setText(f"Filtrar ({self.session.counts.pending})")
         self._tab_arch_btn.setText(f"Archivadas ({self.session.counts.archived})")
         self._editing_badge.setText(f"Para Edición: {self.session.counts.for_editing}")
-
-        self._arch_list.clear()
-        for item in self.archived_items:
-            QListWidgetItem(f"{item.filename} ({item.format_extension})", self._arch_list)
+        self._archived_tab.set_items(self.archived_items)
 
         if not (0 <= self.current_index < len(self.pending_items)):
             self._stage_label.setPixmap(QPixmap())
@@ -212,9 +222,18 @@ class SessionWorkspaceWidget(QWidget):
             f"{current.filename} [{current.format_extension}] · {exif.compact_hud_summary} "
             f"· Foto {self.current_index + 1} de {len(self.pending_items)}"
         )
-        self._hud_tags.setText("  ".join(f"[{t}]" for t in current.vision_tags.all_tags) if current.vision_tags else "Analizando IA...")
+        tag_text = (
+            "  ".join(f"[{t}]" for t in current.vision_tags.all_tags)
+            if current.vision_tags
+            else ("Analizando IA..." if self.perf_prefs.enable_vision_autotagging else "IA desactivada (Modo Ligero)")
+        )
+        self._hud_tags.setText(tag_text)
 
-        payload = self.renderer.render_image(current, max_dimension=1800, full_sensor=self.zoom_one_to_one)
+        payload = self.renderer.render_image(
+            current,
+            max_dimension=self.perf_prefs.preview_max_dimension,
+            full_sensor=self.zoom_one_to_one,
+        )
         if payload:
             qimg = QImage(payload.rgb_bytes, payload.width, payload.height, payload.width * 3, QImage.Format.Format_RGB888)
             pix = QPixmap.fromImage(qimg)
@@ -223,15 +242,24 @@ class SessionWorkspaceWidget(QWidget):
             self._stage_label.setPixmap(pix)
 
     def _analyze_unanalyzed_pending(self) -> None:
+        if not self.perf_prefs.enable_vision_autotagging:
+            return
         for item in self.pending_items:
             if item.vision_tags is None:
                 self._analyze_item(item)
         self._refresh_counters_and_stage()
 
     def _analyze_item(self, item: PhotoItem) -> None:
+        if not self.perf_prefs.enable_vision_autotagging:
+            return
         payload = self.renderer.render_image(item, max_dimension=960, full_sensor=False)
         if payload:
-            tags = self.tagger.analyze_rgb_bytes(payload.rgb_bytes, payload.width, payload.height)
+            tags = self.tagger.analyze_rgb_bytes(
+                payload.rgb_bytes,
+                payload.width,
+                payload.height,
+                include_body_pose=self.perf_prefs.detect_body_poses,
+            )
             item.vision_tags = tags
             PhotoTagStore.save(tags, item, self.session, write_xmp=True)
 

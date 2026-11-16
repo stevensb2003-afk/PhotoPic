@@ -1,8 +1,11 @@
 import SwiftUI
 
-/// Pestaña `Archivadas`: split grid & RAW GPU inspector with one-click recovery to `Para_Edicion/`.
+/// Pestaña `Archivadas`: split grid & RAW GPU inspector with recovery to `Para_Edicion/`
+/// and permanent disk deletion guarded by confirmation popovers.
 package struct ArchivedPhotosView: View {
     @Bindable var viewModel: CullingSessionViewModel
+    @State private var isConfirmingSingleDelete = false
+    @State private var isConfirmingEmptyFolder = false
 
     package init(viewModel: CullingSessionViewModel) {
         self.viewModel = viewModel
@@ -31,22 +34,64 @@ package struct ArchivedPhotosView: View {
     }
 
     private var archivedGridPane: some View {
-        ScrollView {
-            LazyVGrid(
-                columns: [GridItem(.adaptive(minimum: AppSpacing.archivedGridMinWidth), spacing: AppSpacing.md)],
-                spacing: AppSpacing.md
-            ) {
-                ForEach(viewModel.archivedItems) { item in
-                    ArchivedTileView(
-                        item: item,
-                        isSelected: viewModel.selectedArchivedItem?.id == item.id,
-                        cachedThumbnail: viewModel.archivedThumbnails[item.id],
-                        loadThumbnail: { await viewModel.renderThumbnail(for: item) },
-                        onSelect: { viewModel.selectArchivedItem(item) }
+        VStack(spacing: 0) {
+            HStack {
+                Text("\(viewModel.archivedItems.count) descartadas")
+                    .font(AppTypography.monoCaption)
+                    .foregroundStyle(AppColors.textSecondary)
+
+                Spacer()
+
+                Button {
+                    isConfirmingEmptyFolder = true
+                } label: {
+                    HStack(spacing: AppSpacing.xs) {
+                        PictogrammersIcon(.trashCanOutline, size: 13)
+                        Text("Vaciar carpeta...")
+                    }
+                }
+                .buttonStyle(StudioButtonStyle(.archiveCoral, compact: true))
+                .popover(isPresented: $isConfirmingEmptyFolder, arrowEdge: .bottom) {
+                    EmptyArchivedFolderConfirmPopover(
+                        itemCount: viewModel.archivedItems.count,
+                        onCancel: { isConfirmingEmptyFolder = false },
+                        onConfirmEmpty: { deleteJpgs in
+                            isConfirmingEmptyFolder = false
+                            viewModel.emptyAllArchivedPermanently(alsoDeleteCompanionJpgs: deleteJpgs)
+                        }
                     )
                 }
             }
-            .padding(AppSpacing.lg)
+            .padding(.horizontal, AppSpacing.lg)
+            .padding(.vertical, AppSpacing.sm)
+            .background(AppColors.panelSurface)
+            .overlay(
+                Rectangle()
+                    .frame(height: AppSpacing.hairline)
+                    .foregroundStyle(AppColors.borderSubtle),
+                alignment: .bottom
+            )
+
+            ScrollView {
+                LazyVGrid(
+                    columns: [GridItem(.adaptive(minimum: AppSpacing.archivedGridMinWidth), spacing: AppSpacing.md)],
+                    spacing: AppSpacing.md
+                ) {
+                    ForEach(viewModel.archivedItems) { item in
+                        ArchivedTileView(
+                            item: item,
+                            isSelected: viewModel.selectedArchivedItem?.id == item.id,
+                            cachedThumbnail: viewModel.archivedThumbnails[item.id],
+                            loadThumbnail: { await viewModel.renderThumbnail(for: item) },
+                            onSelect: {
+                                isConfirmingSingleDelete = false
+                                viewModel.selectArchivedItem(item)
+                            }
+                        )
+                    }
+                }
+                .padding(AppSpacing.lg)
+            }
         }
         .background(AppColors.windowCanvas)
     }
@@ -94,6 +139,29 @@ package struct ArchivedPhotosView: View {
                     }
 
                     Spacer()
+
+                    Button {
+                        isConfirmingSingleDelete = true
+                    } label: {
+                        HStack(spacing: AppSpacing.xs) {
+                            PictogrammersIcon(.trashCanOutline, size: 14)
+                            Text("Eliminar archivo...")
+                        }
+                    }
+                    .buttonStyle(StudioButtonStyle(.archiveCoral))
+                    .popover(isPresented: $isConfirmingSingleDelete, arrowEdge: .top) {
+                        ArchivedDeleteConfirmPopover(
+                            item: selected,
+                            onCancel: { isConfirmingSingleDelete = false },
+                            onConfirmDelete: { deleteJpg in
+                                isConfirmingSingleDelete = false
+                                viewModel.deleteArchivedItemPermanently(
+                                    selected,
+                                    alsoDeleteCompanionJpg: deleteJpg
+                                )
+                            }
+                        )
+                    }
 
                     Button {
                         viewModel.recoverArchivedItemToEditing(selected)

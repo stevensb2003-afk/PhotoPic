@@ -1,9 +1,13 @@
 # Guía de Instalación y Uso — macOS (Apple Silicon & Intel)
 
-## 1. Instalación Rápida (`.dmg` o `.app`)
+## 1. Instalación Rápida (`.dmg` o `.app`) y Asistente Guiado Inicial
 1. Descargá `PhotoPic-Installer.dmg` desde **Releases** (o compilalo localmente con `bash macos/Scripts/package_macos_app.sh`).
 2. Abrí el `.dmg` y arrastrá **PhotoPic.app** a tu carpeta **Aplicaciones (`/Applications`)**.
 3. En la primera apertura, si macOS muestra aviso de desarrollador no identificado (firma ad-hoc local), hacé **clic derecho sobre PhotoPic.app → Abrir** (una sola vez).
+4. Al abrirse, el **Asistente Inicial** audita tu Mac (CPU, RAM, Metal GPU y presencia de Neural Engine), te recomienda el perfil óptimo (con opción de apagar toda la IA desde el paso 1) y luego te pide tu **Carpeta Raíz Global**.
+
+### Gestión de Espacio en `Archivadas/`
+Dentro de la pestaña **`Archivadas`** podés recuperar descartes con **`Recuperar para Edición`**, o bien eliminar una foto puntual (**`Eliminar archivo...`**) o vaciar todos los descartes de la sesión (**`Vaciar carpeta...`**) mediante un **Popover nativo de confirmación**.
 
 ---
 

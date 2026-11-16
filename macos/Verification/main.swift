@@ -8,6 +8,7 @@ private func runVerification() async {
 
     do {
         try await CorePipelineVerification.runAll()
+        try await HardwareAndArchiveDeleteVerification.runAll()
 
         let snapshotDir = URL(
             fileURLWithPath: "/Users/stevensb/Documents/Kairos Visuals/PhotoSelect/assets/screenshots",

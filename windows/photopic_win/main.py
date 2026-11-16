@@ -11,8 +11,10 @@ from PySide6.QtGui import QIcon
 from PySide6.QtWidgets import QApplication, QMainWindow, QStackedWidget
 
 from .design_system import build_darkroom_stylesheet, resolve_asset_path
+from .hardware_auditor import HardwareCapabilityAuditor, PerformancePreferences, WindowsConfigStore
 from .models import PhotoSession
 from .ui_home import HomeDashboardWidget
+from .ui_setup_wizard import GuidedSetupWizardWidget, HardwareSettingsDialog
 from .ui_workspace import SessionWorkspaceWidget
 from .wpd_tether_service import WindowsTetherService
 
@@ -40,39 +42,68 @@ class PhotoPicMainWindow(QMainWindow):
         self._signals.file_staged.connect(self._on_file_staged)
         self._signals.devices_updated.connect(self._on_devices_updated)
 
+        self._config_store = WindowsConfigStore()
+        self._hardware_audit = HardwareCapabilityAuditor.audit_host()
+        saved_root, self._perf_prefs = self._config_store.load(self._hardware_audit)
+
         self._stack = QStackedWidget()
-        self._home = HomeDashboardWidget(on_open_session=self.open_session, on_change_root=self.set_root_folder)
+        self._home = HomeDashboardWidget(
+            on_open_session=self.open_session,
+            on_change_root=self.set_root_folder,
+            on_open_hardware_settings=self._open_hardware_settings,
+        )
         self._workspace: SessionWorkspaceWidget | None = None
+        self._wizard = GuidedSetupWizardWidget(
+            self._hardware_audit,
+            self._perf_prefs,
+            on_complete=self._finish_guided_setup,
+        )
+        self._stack.addWidget(self._wizard)
         self._stack.addWidget(self._home)
         self.setCentralWidget(self._stack)
 
-        default_root = self._load_saved_root() or (Path.home() / "Pictures" / "Sesiones_PhotoPic")
-        default_root.mkdir(parents=True, exist_ok=True)
-        self.set_root_folder(default_root)
+        if saved_root is not None and self._perf_prefs.has_completed_guided_setup:
+            self.set_root_folder(saved_root)
+            self._stack.setCurrentWidget(self._home)
+        else:
+            self._stack.setCurrentWidget(self._wizard)
         self.tether_service.start()
 
     def set_root_folder(self, folder: Path) -> None:
         folder.mkdir(parents=True, exist_ok=True)
-        cfg_file = Path.home() / ".photopic_windows.json"
-        cfg_file.write_text(json.dumps({"root_folder": str(folder)}), encoding="utf-8")
+        self._root_dir = folder
+        self._config_store.save(folder, self._perf_prefs)
         self._home.set_root_folder(folder)
 
-    def _load_saved_root(self) -> Path | None:
-        cfg_file = Path.home() / ".photopic_windows.json"
-        if not cfg_file.exists():
-            return None
-        try:
-            raw = json.loads(cfg_file.read_text(encoding="utf-8"))
-            p = Path(raw.get("root_folder", ""))
-            return p if p.exists() else None
-        except Exception:
-            return None
+    def _finish_guided_setup(self, folder: Path, prefs: PerformancePreferences) -> None:
+        self._perf_prefs = prefs
+        self.set_root_folder(folder)
+        self._stack.setCurrentWidget(self._home)
+
+    def _open_hardware_settings(self) -> None:
+        HardwareSettingsDialog(
+            self._hardware_audit,
+            self._perf_prefs,
+            on_apply=self._apply_performance_prefs,
+            parent=self,
+        ).exec()
+
+    def _apply_performance_prefs(self, prefs: PerformancePreferences) -> None:
+        self._perf_prefs = prefs
+        self._config_store.save(getattr(self, "_root_dir", None), prefs)
+        if self._workspace is not None:
+            self._workspace.apply_performance_preferences(prefs)
 
     def open_session(self, session: PhotoSession) -> None:
         if self._workspace is not None:
             self._stack.removeWidget(self._workspace)
             self._workspace.deleteLater()
-        self._workspace = SessionWorkspaceWidget(session, self.tether_service, on_back=self.close_session)
+        self._workspace = SessionWorkspaceWidget(
+            session,
+            self.tether_service,
+            on_back=self.close_session,
+            performance_prefs=self._perf_prefs,
+        )
         self._stack.addWidget(self._workspace)
         self._stack.setCurrentWidget(self._workspace)
         self._workspace.setFocus()

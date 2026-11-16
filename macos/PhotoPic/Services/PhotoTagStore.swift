@@ -46,6 +46,29 @@ package enum PhotoTagStore {
         try? FileManager.default.moveItem(at: oldXMP, to: newXMP)
     }
 
+    package static func removeTagsAndSidecar(for item: PhotoItem, in session: PhotoSession) {
+        removeTagsAndSidecars(forBaseFilenames: [item.baseFilename], imageURLs: [item.fileURL], in: session)
+    }
+
+    package static func removeTagsAndSidecars(
+        forBaseFilenames baseFilenames: Set<String>,
+        imageURLs: [URL],
+        in session: PhotoSession
+    ) {
+        for imageURL in imageURLs {
+            let xmpURL = xmpSidecarURL(for: imageURL)
+            if FileManager.default.fileExists(atPath: xmpURL.path) {
+                try? FileManager.default.removeItem(at: xmpURL)
+            }
+        }
+        guard !baseFilenames.isEmpty else { return }
+        var map = loadAll(for: session)
+        for base in baseFilenames {
+            map.removeValue(forKey: base)
+        }
+        persist(map: map, to: session.directoryURL.appendingPathComponent(storeFilename, isDirectory: false))
+    }
+
     package static func writeXMPSidecar(tags: PhotoVisionTags, forImageAt imageURL: URL) {
         let xmpURL = xmpSidecarURL(for: imageURL)
         let subjectItems = tags.allTags

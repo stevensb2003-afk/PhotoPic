@@ -15,6 +15,7 @@ package enum AppSpacing {
     package static let topBarHeight: CGFloat = 52
     package static let bottomControlBarHeight: CGFloat = 68
     package static let onboardingMaxWidth: CGFloat = 540
+    package static let wizardMaxWidth: CGFloat = 720
     package static let settingsWidth: CGFloat = 680
     package static let settingsHeight: CGFloat = 560
     package static let newSessionSheetWidth: CGFloat = 420

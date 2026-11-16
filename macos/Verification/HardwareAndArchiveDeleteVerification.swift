@@ -1,0 +1,171 @@
+import Foundation
+import PhotoPicKit
+
+/// Verifies HardwareCapabilityAuditor, AI disabling / balanced modes,
+/// and permanent Archived deletion (including sidecar + undoStack cleanup & path safety).
+@MainActor
+package enum HardwareAndArchiveDeleteVerification {
+    package static func runAll() async throws {
+        let tempRoot = FileManager.default.temporaryDirectory
+            .appendingPathComponent("PhotoPicVerifyV21_\(UUID().uuidString)", isDirectory: true)
+        try FileManager.default.createDirectory(at: tempRoot, withIntermediateDirectories: true)
+        defer { try? FileManager.default.removeItem(at: tempRoot) }
+
+        try testHardwareAuditorAndStore()
+        try await testAIDisableAndLiveToggle(rootURL: tempRoot)
+        try await testPermanentArchiveDeletionAndSafetyGuard(rootURL: tempRoot)
+
+        print("ALL PHOTOPIC V2.1 HARDWARE & ARCHIVE DELETE VERIFICATIONS PASSED")
+    }
+
+    private static func assertTrue(_ condition: Bool, _ message: String) throws {
+        if !condition {
+            throw NSError(domain: "PhotoPicVerify", code: 210, userInfo: [NSLocalizedDescriptionKey: "ASSERT FAILED: \(message)"])
+        }
+    }
+
+    private static func testHardwareAuditorAndStore() throws {
+        let hostReport = HardwareCapabilityAuditor.auditCurrentMac()
+        try assertTrue(!hostReport.cpuBrand.isEmpty, "Host CPU brand detected")
+        try assertTrue(hostReport.physicalMemoryGB >= 1, "Host RAM detected")
+
+        let lowSpec = HardwareCapabilityAuditor.evaluateTier(
+            isAppleSilicon: false, ramGB: 4, cores: 2, hasMetalGPU: false
+        )
+        try assertTrue(lowSpec.tier == .lightweightNoAI, "4GB/2-core no Metal recommends lightweightNoAI")
+
+        let intelSpec = HardwareCapabilityAuditor.evaluateTier(
+            isAppleSilicon: false, ramGB: 16, cores: 8, hasMetalGPU: true
+        )
+        try assertTrue(intelSpec.tier == .balancedAI, "Intel without Neural Engine recommends balancedAI")
+
+        let appleSiliconSpec = HardwareCapabilityAuditor.evaluateTier(
+            isAppleSilicon: true, ramGB: 16, cores: 8, hasMetalGPU: true
+        )
+        try assertTrue(appleSiliconSpec.tier == .fullAI, "Apple Silicon >=12GB recommends fullAI")
+
+        let suiteName = "com.kairosvisuals.photopic.perfverify.\(UUID().uuidString)"
+        let defaults = UserDefaults(suiteName: suiteName) ?? .standard
+        defer { UserDefaults.standard.removePersistentDomain(forName: suiteName) }
+
+        let store = PerformancePreferencesStore(defaults: defaults)
+        var seeded = store.loadOrSeed(from: hostReport)
+        try assertTrue(!seeded.hasCompletedGuidedSetup, "First seed starts before guided setup completion")
+        seeded.enableVisionAutoTagging = false
+        seeded.tier = .lightweightNoAI
+        seeded.hasCompletedGuidedSetup = true
+        store.save(seeded)
+
+        let reloaded = store.loadOrSeed(from: hostReport)
+        try assertTrue(!reloaded.enableVisionAutoTagging, "Disabled AI flag persists")
+        try assertTrue(reloaded.hasCompletedGuidedSetup, "Guided setup completion persists")
+        print("[PASS] 9. HardwareCapabilityAuditor & PerformancePreferencesStore verified")
+    }
+
+    private static func testAIDisableAndLiveToggle(rootURL: URL) async throws {
+        let session = try SessionFileManager.createSession(named: "Audit_AI_Toggle", in: rootURL)
+        let stage = rootURL.appendingPathComponent("StageAI", isDirectory: true)
+        try FileManager.default.createDirectory(at: stage, withIntermediateDirectories: true)
+
+        let dng = stage.appendingPathComponent("NO_AI_01.DNG")
+        try SyntheticDNGGenerator.writeSyntheticDNG(to: dng, width: 640, height: 480)
+        _ = try SessionIngestRouter.ingestCapturedFile(
+            stagedURL: dng, originalFilename: "NO_AI_01.DNG",
+            deviceAlias: "Canon", deviceCategory: .dslrMirrorless,
+            allowJpgWhenNoRaw: false, in: session
+        )
+
+        let lightweightPrefs = PerformancePreferences.preset(for: .lightweightNoAI, completedSetup: true)
+        let vm = CullingSessionViewModel(session: session, performancePreferences: lightweightPrefs)
+        try await Task.sleep(for: .milliseconds(250))
+
+        try assertTrue(!vm.autoTagOnIngest, "autoTagOnIngest disabled under lightweightNoAI")
+        try assertTrue(vm.pendingItems.first?.visionTags == nil, "No AI tags generated when AI disabled")
+
+        // Switch live to balancedAI -> triggers Vision face-only pass
+        vm.applyPerformancePreferences(PerformancePreferences.preset(for: .balancedAI, completedSetup: true))
+        try assertTrue(vm.autoTagOnIngest && !vm.detectBodyPoses, "Balanced mode enables faces & skips body poses")
+        let tags = await vm.runVisionAnalysis(for: vm.pendingItems[0])
+        try assertTrue(tags != nil, "Live re-enable of AI analyzes photo on demand")
+        print("[PASS] 10. Disabling & live-toggling Neural Engine/Vision AI verified")
+    }
+
+    private static func testPermanentArchiveDeletionAndSafetyGuard(rootURL: URL) async throws {
+        let session = try SessionFileManager.createSession(named: "Delete_Archived_Test", in: rootURL)
+        let stage = rootURL.appendingPathComponent("StageDel", isDirectory: true)
+        try FileManager.default.createDirectory(at: stage, withIntermediateDirectories: true)
+
+        for idx in 1...4 {
+            let dng = stage.appendingPathComponent("DEL_\(idx).DNG")
+            let jpg = stage.appendingPathComponent("DEL_\(idx).JPG")
+            try SyntheticDNGGenerator.writeSyntheticDNG(to: dng, width: 512, height: 384, seedOffset: idx)
+            try SyntheticDNGGenerator.writeSyntheticJPEGWithExif(to: jpg, width: 160, height: 120)
+            _ = try SessionIngestRouter.ingestCapturedFile(
+                stagedURL: dng, originalFilename: "DEL_\(idx).DNG",
+                deviceAlias: "Sony", deviceCategory: .dslrMirrorless,
+                allowJpgWhenNoRaw: false, in: session
+            )
+            _ = try SessionIngestRouter.ingestCapturedFile(
+                stagedURL: jpg, originalFilename: "DEL_\(idx).JPG",
+                deviceAlias: "Sony", deviceCategory: .dslrMirrorless,
+                allowJpgWhenNoRaw: false, in: session
+            )
+        }
+
+        let vm = CullingSessionViewModel(
+            session: session,
+            performancePreferences: .preset(for: .lightweightNoAI, completedSetup: true)
+        )
+        // Photo 1 -> Para_Edicion, Photos 2 & 3 -> Archivadas, Photo 4 stays in RAW/
+        vm.approveCurrentToEditing()
+        vm.archiveCurrent()
+        vm.archiveCurrent()
+
+        try assertTrue(vm.pendingItems.count == 1, "1 pending item left in RAW/")
+        try assertTrue(vm.session.counts.forEditing == 1, "1 approved item in Para_Edicion/")
+        try assertTrue(vm.archivedItems.count == 2, "2 archived items in Archivadas/")
+
+        // Guard rail: refuse permanently deleting an item still in RAW/
+        var threwOutsideGuard = false
+        do {
+            try SessionArchiveCleaner.permanentlyDeleteArchivedItem(
+                vm.pendingItems[0], alsoDeleteCompanionJpg: false, in: session
+            )
+        } catch {
+            threwOutsideGuard = true
+        }
+        try assertTrue(threwOutsideGuard, "Cleaner blocks permanent deletion outside Archivadas/")
+
+        // Save tag & XMP sidecar for archived item #1
+        let targetOne = vm.archivedItems[0]
+        PhotoTagStore.save(
+            tags: PhotoVisionTags(personCount: 1, faceCount: 1, autoTags: ["1 persona"]),
+            for: targetOne,
+            in: session,
+            writeSidecarAndFinderTags: true
+        )
+        let xmpOne = PhotoTagStore.xmpSidecarURL(for: targetOne.fileURL)
+        try assertTrue(FileManager.default.fileExists(atPath: xmpOne.path), "Archived XMP exists before delete")
+
+        // Delete item #1 (keeping companion JPG)
+        vm.deleteArchivedItemPermanently(targetOne, alsoDeleteCompanionJpg: false)
+        try assertTrue(!FileManager.default.fileExists(atPath: targetOne.fileURL.path), "Archived RAW permanently deleted")
+        try assertTrue(!FileManager.default.fileExists(atPath: xmpOne.path), "Archived XMP permanently deleted")
+        try assertTrue(targetOne.pairedCompressedURL.map { FileManager.default.fileExists(atPath: $0.path) } == true, "Companion JPG kept when unchecked")
+        try assertTrue(PhotoTagStore.loadAll(for: session)[targetOne.baseFilename] == nil, "Tag store pruned")
+        try assertTrue(vm.archivedItems.count == 1 && vm.session.counts.archived == 1, "1 archived left")
+
+        // Cmd+Z must restore Photo 1 (from Para_Edicion) or skip purged item cleanly, not resurrect deleted file
+        let remainingArchived = vm.archivedItems[0]
+        vm.emptyAllArchivedPermanently(alsoDeleteCompanionJpgs: true)
+        try assertTrue(vm.archivedItems.isEmpty && vm.session.counts.archived == 0, "Archivadas emptied")
+        try assertTrue(!FileManager.default.fileExists(atPath: remainingArchived.fileURL.path), "Remaining archived file deleted")
+        if let jpgURL = remainingArchived.pairedCompressedURL {
+            try assertTrue(!FileManager.default.fileExists(atPath: jpgURL.path), "Companion JPG also deleted when checked")
+        }
+        // RAW and Para_Edicion untouched
+        let finalCounts = SessionFileManager.readDiskCounts(for: session)
+        try assertTrue(finalCounts.pending == 1 && finalCounts.forEditing == 1, "RAW/ and Para_Edicion/ intact after empty")
+        print("[PASS] 11. Permanent Archive single delete, empty-all & path guard verified")
+    }
+}

@@ -35,14 +35,17 @@
 </p>
 
 <details>
-<summary>Ver todas las pantallas (Onboarding, Sesiones, Zoom 1:1, Archivadas y Dispositivos USB)</summary>
+<summary>Ver todas las pantallas (Asistente Inicial con Auditor de Hardware, Sesiones, Zoom 1:1, Archivadas con Borrado, Popover y Dispositivos)</summary>
 
 | Pantalla | Vista |
 | :--- | :--- |
+| **Asistente Inicial · Paso 1 (Auditoría de Hardware e IA)** | ![Wizard](assets/screenshots/01-onboarding.png) |
 | **Inicio / Sesiones** | ![Home](assets/screenshots/02-home-dashboard.png) |
 | **Zoom 1:1 Píxel Real** | ![Zoom 1:1](assets/screenshots/04-workspace-zoom-1to1.png) |
-| **Archivadas (Recuperables)** | ![Archivadas](assets/screenshots/05-workspace-archived.png) |
+| **Archivadas (Recuperar o Eliminar Definitivamente)** | ![Archivadas](assets/screenshots/05-workspace-archived.png) |
+| **Popover de Confirmación al Eliminar** | ![Popover](assets/screenshots/08-archived-delete-popover.png) |
 | **Administrador USB Plug & Play** | ![Dispositivos](assets/screenshots/06-settings-devices.png) |
+| **Ajustes de Rendimiento, Auditoría y Atajos** | ![Rendimiento](assets/screenshots/07-settings-general.png) |
 
 </details>
 
@@ -55,14 +58,22 @@
 - **11 formatos comprimidos/móviles:** `.JPG`, `.JPEG`, `.HEIC`, `.HEIF`, `.HIF`, `.AVIF`, `.JXL`, `.WEBP`, `.PNG`, `.TIF`, `.TIFF`.
 - **Separación inteligente RAW + JPG:** El maestro RAW entra a `RAW/` y su copia comprimida va automáticamente a `JPG/`. Si un teléfono dispara solo `.JPG`/`.HEIC`, el switch *"Permitir filtrar JPG/HEIC si no hay RAW"* permite usarlo como cámara de apoyo.
 
-### 2. Auto-Etiquetado IA 100% Offline (Caras · Ojos · Poses · Personas)
-Conforme ingresa cada foto, el analizador local genera etiquetas automáticas y permite filtrar la cola al instante:
+### 2. Auditor de Capacidad de Hardware + Asistente Guiado Inicial (y Modo Sin IA)
+Desde la primera apertura, **PhotoPic** audita automáticamente tu equipo (`HardwareCapabilityAuditor` en macOS y Windows) antes de pedirte tu Carpeta Raíz:
+- **Detección física real:** Inspecciona procesador y arquitectura (Apple Silicon `arm64` con **Apple Neural Engine** físico integrado vs Intel `x86_64` / CPU Windows), núcleos activos, RAM física y GPU Metal.
+- **Perfiles configurables desde el inicio (y modificables en Configuración):**
+  - **Estudio Completo (GPU + IA Completa):** Apple Silicon / equipos aptos (`>= 12 GB RAM`) con conteo de personas, rostros, parpadeo y poses de cuerpo entero.
+  - **Equilibrado (GPU + Rostros Rápidos):** Analiza rostros y ojos sin ejecutar el modelo corporal completo (ideal para Macs Intel o laptops con 8 GB).
+  - **Modo Ligero (Sin IA · Solo Tethering y RAW):** Desactiva el análisis Neural Engine / MediaPipe por completo para equipos antiguos o máxima fluidez en estudio.
+
+### 3. Auto-Etiquetado IA 100% Offline (Caras · Ojos · Poses · Personas)
+Si elegís mantener activa la IA, el analizador local genera etiquetas al ingresar cada foto y permite filtrar la cola al instante:
 - **Conteo de personas:** `Sin personas`, `1 persona` + `Individual`, `2 personas` + `Pareja`, `N personas` + `Grupo` / `Grupo grande`.
 - **Detección facial y ojos:** `Primer plano`, `Plano medio`, `Cuerpo entero`, `Ojos abiertos`, alerta `Ojos cerrados` (Eye Aspect Ratio) y `Rostro nítido`.
 - **Poses corporales:** `De pie`, `Sentado`, `Brazos arriba`, `Manos en cintura`, `Pose dinámica`.
 - **Sidecars `.xmp` compatibles con Lightroom / Capture One:** Cada etiqueta (automática o agregada con `+ Etiqueta`) se escribe en `.photopic_tags.json`, en un archivo `.xmp` que acompaña al RAW al moverse de carpeta y en macOS Finder Tags.
 
-### 3. Organización Automática en Disco
+### 4. Organización Automática y Limpieza Definitiva en `Archivadas/`
 
 ```text
 [Carpeta_Raiz_Global]/
@@ -71,8 +82,10 @@ Conforme ingresa cada foto, el analizador local genera etiquetas automáticas y 
     ├── RAW/                  # Cola pendiente (+ sidecars .xmp)
     ├── JPG/                  # Copias .JPG / .HEIC separadas automáticamente
     ├── Para_Edicion/         # Aprobadas (→ / Swipe Derecha)
-    └── Archivadas/           # Descartadas (← / Swipe Izquierda, recuperables)
+    └── Archivadas/           # Descartadas (← / Swipe Izquierda: recuperables o eliminables)
 ```
+
+Dentro de la pestaña **`Archivadas`** podés elegir entre **`Recuperar para Edición`** o liberar espacio en disco mediante **`Eliminar archivo...`** / **`Vaciar carpeta...`**, protegidos con un **Popover nativo de confirmación** que advierte que el archivo y su `.xmp` se borrarán definitivamente (con opción extra para eliminar también la copia `.JPG` asociada en `JPG/`).
 
 ---
 

@@ -29,6 +29,10 @@ extension CullingSessionViewModel {
 
     package func scheduleVisionAnalysisForPending() {
         visionBatchTask?.cancel()
+        guard autoTagOnIngest else {
+            isAnalyzingVision = false
+            return
+        }
         let unanalyzed = pendingItems.filter { $0.visionTags == nil }
         guard !unanalyzed.isEmpty else { return }
 
@@ -36,7 +40,7 @@ extension CullingSessionViewModel {
         visionBatchTask = Task { [weak self] in
             guard let self else { return }
             for item in unanalyzed {
-                guard !Task.isCancelled else { break }
+                guard !Task.isCancelled, self.autoTagOnIngest else { break }
                 await self.runVisionAnalysis(for: item)
             }
             self.isAnalyzingVision = false
@@ -44,6 +48,7 @@ extension CullingSessionViewModel {
     }
 
     package func scheduleVisionAnalysis(for item: PhotoItem) {
+        guard autoTagOnIngest else { return }
         isAnalyzingVision = true
         Task { [weak self] in
             guard let self else { return }
@@ -57,7 +62,7 @@ extension CullingSessionViewModel {
         guard let payload = await renderer.renderViewportImage(for: item, maxDimension: 1280) else {
             return nil
         }
-        let tags = await visionAnalyzer.analyze(cgImage: payload.cgImage)
+        let tags = await visionAnalyzer.analyze(cgImage: payload.cgImage, includeBodyPose: detectBodyPoses)
         applyVisionTags(tags, forBaseFilename: item.baseFilename, syncSidecar: true)
         return tags
     }

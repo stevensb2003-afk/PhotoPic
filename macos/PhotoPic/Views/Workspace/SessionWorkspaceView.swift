@@ -34,7 +34,7 @@ package struct SessionWorkspaceView: View {
 
             workspaceSubHeader
 
-            if viewModel.activeTab == .cullPending {
+            if viewModel.activeTab == .cullPending && (viewModel.autoTagOnIngest || !viewModel.availablePendingTags.isEmpty) {
                 VisionTagFilterStrip(
                     availableTags: viewModel.availablePendingTags,
                     selectedTag: $viewModel.selectedTagFilter,

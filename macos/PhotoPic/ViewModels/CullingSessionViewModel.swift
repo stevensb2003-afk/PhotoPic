@@ -23,6 +23,7 @@ package struct CullingFeedbackPill: Equatable, Sendable {
         case undone
         case recovered
         case liveCaptured
+        case deletedPermanently
     }
 
     package let id = UUID()
@@ -50,6 +51,8 @@ package final class CullingSessionViewModel {
     package var activeTab: WorkspaceTab = .cullPending
     package var followLatestCapture: Bool = false
     package var autoTagOnIngest: Bool = true
+    package var detectBodyPoses: Bool = true
+    package var viewportMaxDimension: CGFloat = 2400
     package var selectedTagFilter: String? {
         didSet {
             clampCurrentIndex()
@@ -84,12 +87,37 @@ package final class CullingSessionViewModel {
     package init(
         session: PhotoSession,
         renderer: RawImageRenderer = RawImageRenderer(),
-        visionAnalyzer: PhotoVisionAnalyzer = PhotoVisionAnalyzer()
+        visionAnalyzer: PhotoVisionAnalyzer = PhotoVisionAnalyzer(),
+        performancePreferences: PerformancePreferences? = nil
     ) {
         self.session = session
         self.renderer = renderer
         self.visionAnalyzer = visionAnalyzer
+        if let prefs = performancePreferences {
+            self.autoTagOnIngest = prefs.enableVisionAutoTagging
+            self.detectBodyPoses = prefs.detectBodyPoses
+            self.viewportMaxDimension = CGFloat(prefs.viewportMaxDimension)
+        }
         reloadFromDisk()
+    }
+
+    package func applyPerformancePreferences(_ prefs: PerformancePreferences) {
+        let wasAutoTag = autoTagOnIngest
+        autoTagOnIngest = prefs.enableVisionAutoTagging
+        detectBodyPoses = prefs.detectBodyPoses
+        viewportMaxDimension = CGFloat(prefs.viewportMaxDimension)
+
+        if !autoTagOnIngest {
+            visionBatchTask?.cancel()
+            visionBatchTask = nil
+            isAnalyzingVision = false
+            if selectedTagFilter != nil {
+                selectedTagFilter = nil
+            }
+        } else if !wasAutoTag {
+            scheduleVisionAnalysisForPending()
+        }
+        renderActivePhotoIfNeeded(force: true)
     }
 
     package var visiblePendingItems: [PhotoItem] {
@@ -205,8 +233,9 @@ package final class CullingSessionViewModel {
             renderActivePhotoIfNeeded(force: true)
         } else {
             let target = item
+            let targetDim = max(1200, viewportMaxDimension - 200)
             Task { [renderer] in
-                _ = await renderer.renderViewportImage(for: target, maxDimension: 2200)
+                _ = await renderer.renderViewportImage(for: target, maxDimension: targetDim)
             }
         }
         showFeedbackPill("Nueva captura: \(item.filename)", kind: .liveCaptured)

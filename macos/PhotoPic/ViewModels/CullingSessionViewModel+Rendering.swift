@@ -88,9 +88,11 @@ extension CullingSessionViewModel {
         activeRenderedItemID = item.id
 
         let upcoming = Array(visiblePendingItems.dropFirst(currentIndex + 1).prefix(2))
+        let maxDim = viewportMaxDimension
+        let prefetchDim = max(1200, maxDim - 200)
         renderTask = Task { [weak self] in
             guard let self else { return }
-            let payload = await self.renderer.renderViewportImage(for: item, maxDimension: 2400)
+            let payload = await self.renderer.renderViewportImage(for: item, maxDimension: maxDim)
             guard !Task.isCancelled, self.currentPendingItem?.id == item.id else { return }
             self.activeViewportImage = payload?.cgImage
             self.activeNativeSize = payload?.nativeSize ?? .zero
@@ -99,7 +101,7 @@ extension CullingSessionViewModel {
             if self.isAnyZoomActive {
                 self.ensureFullSensorImageLoaded()
             }
-            await self.renderer.prefetch(items: upcoming, maxDimension: 2200)
+            await self.renderer.prefetch(items: upcoming, maxDimension: prefetchDim)
         }
     }
 

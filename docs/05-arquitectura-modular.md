@@ -57,18 +57,23 @@ PhotoSelect/
 │   ├── PhotoPic/
 │   │   ├── App/                     # PhotoPicApp, AppState
 │   │   ├── DesignSystem/            # AppColors, AppTypography, AppSpacing, AppRadius, AppMotion, PictogrammersIcons
-│   │   ├── Models/                  # PhotoItem, PhotoExifMetadata, PhotoVisionTags, PhotoSession, KnownDevice, ConnectedDeviceState
+│   │   ├── Models/                  # PhotoItem, PhotoExifMetadata, PhotoVisionTags, PhotoSession,
+│   │   │                            # KnownDevice, ConnectedDeviceState, PerformancePreferences
 │   │   ├── Services/                # BookmarkManager, KnownDevicesStore, DeviceDiscoveryService, TetherCaptureService,
-│   │   │                            # TetherBaselineGate, SessionFileManager, SessionIngestRouter, RawImageRenderer,
-│   │   │                            # ExifMetadataReader, PhotoVisionAnalyzer, PhotoTagStore
+│   │   │                            # TetherBaselineGate, SessionFileManager, SessionIngestRouter, SessionArchiveCleaner,
+│   │   │                            # RawImageRenderer, ExifMetadataReader, PhotoVisionAnalyzer, PhotoTagStore,
+│   │   │                            # HardwareCapabilityAuditor
 │   │   ├── ViewModels/              # HomeViewModel, DeviceManagerViewModel, CullingSessionViewModel (+Actions/Rendering/Vision)
-│   │   └── Views/                   # Onboarding, Home, Workspace, Settings, Components
+│   │   └── Views/                   # Onboarding (+GuidedSetupWizardView), Home, Workspace (+ArchivedDeletePopovers),
+│   │                                # Settings, Components (+HardwareAuditSettingsBlock)
 │   ├── Resources/                   # Info.plist, PhotoPic.entitlements, AppIcon.icns
 │   ├── Scripts/                     # generate_icon.swift, generate_xcodeproj.py, package_macos_app.sh
-│   └── Verification/                # SyntheticDNGGenerator, CorePipelineVerification, UISnapshotVerification
+│   └── Verification/                # SyntheticDNGGenerator, CorePipelineVerification, HardwareAndArchiveDeleteVerification,
+│                                    # UISnapshotVerification
 └── windows/
-    ├── photopic_win/                # main, design_system, models, baseline_gate, tag_store, session_manager,
-    │                                # raw_renderer, vision_autotagger, wpd_tether_service, ui_home, ui_workspace
+    ├── photopic_win/                # main, design_system, hardware_auditor, models, baseline_gate, tag_store,
+    │                                # session_manager, archive_cleaner, raw_renderer, vision_autotagger,
+    │                                # wpd_tether_service, ui_home, ui_setup_wizard, ui_archived_tab, ui_workspace
     ├── scripts/                     # wpd_bridge.ps1, build_windows_exe.ps1
     └── tests/                       # test_windows_core.py
 ```
