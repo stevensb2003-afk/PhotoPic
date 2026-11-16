@@ -1,0 +1,57 @@
+name: Build PhotoPic (macOS & Windows)
+
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+    branches: [ main ]
+  workflow_dispatch:
+
+jobs:
+  macos:
+    name: macOS (Apple Silicon DMG + Verify)
+    runs-on: macos-15
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Verify Swift & Run PhotoPicVerify
+        run: |
+          swift build
+          swift run PhotoPicVerify
+
+      - name: Build & Package PhotoPic.dmg
+        run: |
+          chmod +x macos/Scripts/package_macos_app.sh
+          bash macos/Scripts/package_macos_app.sh
+
+      - name: Upload macOS Installer Artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: PhotoPic-macOS-arm64
+          path: dist/PhotoPic-Installer.dmg
+
+  windows:
+    name: Windows (x64 EXE + Core Tests)
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: Run Windows Core Unit Tests
+        run: |
+          python -m unittest discover -s windows/tests -v
+
+      - name: Build Standalone PhotoPic.exe
+        shell: pwsh
+        run: |
+          ./windows/scripts/build_windows_exe.ps1
+          Compress-Archive -Path dist/PhotoPic-Windows/* -DestinationPath dist/PhotoPic-Windows-x64.zip -Force
+
+      - name: Upload Windows Portable Artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: PhotoPic-Windows-x64
+          path: dist/PhotoPic-Windows-x64.zip
