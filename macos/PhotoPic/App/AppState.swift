@@ -25,6 +25,7 @@ package final class AppState {
     package let folderWatchService: FolderWatchTetherService
     package let liveViewService: LiveViewCameraService
     package let gphotoBridge: GPhoto2LiveBridge
+    package let networkStreamService = NetworkMJPEGStreamService()
     package let rawRenderer: RawImageRenderer
     package let visionAnalyzer: PhotoVisionAnalyzer
     package let homeViewModel: HomeViewModel
@@ -149,6 +150,7 @@ package final class AppState {
 
     package func stopAllLiveView() {
         liveViewService.stop()
+        networkStreamService.stopStream()
         if gphotoBridge.isStreaming {
             gphotoBridge.stopPreviewStream()
             discoveryService.resumeSessionsAfterExternalBridge()

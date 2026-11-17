@@ -16,6 +16,7 @@ from PySide6.QtWidgets import (
     QFrame,
     QHBoxLayout,
     QLabel,
+    QLineEdit,
     QPushButton,
     QVBoxLayout,
     QWidget,
@@ -58,9 +59,16 @@ class LiveViewTabWidget(QWidget):
         bl.setContentsMargins(AppSpacing.LG, AppSpacing.SM, AppSpacing.LG, AppSpacing.SM)
 
         self._cam_combo = QComboBox()
+        self._cam_combo.addItem("Stream IP / Android Wi-Fi (URL MJPEG)", "ip_url")
         for idx in range(4):
             self._cam_combo.addItem(f"Entrada Video / HDMI #{idx}", idx)
+        self._cam_combo.currentIndexChanged.connect(self._on_source_changed)
         bl.addWidget(self._cam_combo)
+
+        self._url_input = QLineEdit("http://192.168.1.50:8080/video")
+        self._url_input.setPlaceholderText("http://192.168.1.50:8080/video (IP Webcam / DroidCam)")
+        self._url_input.setFixedWidth(250)
+        bl.addWidget(self._url_input)
 
         self._chk_grid = QCheckBox("Cuadrícula 3×3")
         self._chk_grid.setChecked(True)
@@ -81,14 +89,19 @@ class LiveViewTabWidget(QWidget):
         root.addWidget(bar)
 
         self._stage = QLabel(
-            "Vista en Vivo UVC / Capturadora HDMI-USB (Windows DirectShow)\n\n"
-            "• Funciona con cámaras modernas vía USB Streaming y DSLRs con capturadora HDMI→USB.\n"
-            "• Mantiene intacto el driver estándar WPD para que sigan entrando tus RAWs por separado.\n"
-            "• Cámaras clásicas sin HDMI ni UVC no transmiten Live View sin reemplazar el driver por WinUSB (Zadig)."
+            "Vista en Vivo por Dispositivo (Windows DirectShow + IP Wi-Fi)\n\n"
+            "• Android: el cable MTP/PTP solo pasa fotos; usá 'Stream IP / Android Wi-Fi' (IP Webcam o DroidCam) sin cortar el USB, o 'Webcam USB' en Pixel/Moto.\n"
+            "• iPhone: la Cámara de Continuidad es exclusiva de macOS; en Windows usá Camo/EpocCam como webcam virtual.\n"
+            "• Cámaras DSLR / Mirrorless: usá 'Entrada Video / HDMI' para USB Streaming (UVC) o capturadora HDMI→USB sin tocar drivers WPD."
         )
         self._stage.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        self._stage.setWordWrap(True)
         self._stage.setStyleSheet(f"background: {AppColors.STAGE_BG}; color: {AppColors.TEXT_SECONDARY}; padding: 24px;")
         root.addWidget(self._stage, stretch=1)
+        self._on_source_changed()
+
+    def _on_source_changed(self) -> None:
+        self._url_input.setVisible(self._cam_combo.currentData() == "ip_url")
 
     def toggle_stream(self) -> None:
         if self._timer.isActive():
@@ -98,15 +111,27 @@ class LiveViewTabWidget(QWidget):
 
     def start_stream(self) -> None:
         if self._cv2 is None:
-            self._stage.setText("OpenCV no está disponible en este entorno Python para abrir entradas UVC/HDMI.")
+            self._stage.setText("OpenCV no está disponible en este entorno Python para abrir Live View.")
             return
-        idx = int(self._cam_combo.currentData() or 0)
-        backend = getattr(self._cv2, "CAP_DSHOW", 0) if os.name == "nt" else 0
-        self._cap = self._cv2.VideoCapture(idx, backend) if backend else self._cv2.VideoCapture(idx)
-        if not self._cap or not self._cap.isOpened():
-            self.stop_stream()
-            self._stage.setText(f"No se detectó señal de video en Entrada #{idx}. Verificá tu cámara UVC o capturadora HDMI.")
-            return
+        source = self._cam_combo.currentData()
+        if source == "ip_url":
+            url = self._url_input.text().strip()
+            if not url.startswith(("http://", "https://")):
+                self._stage.setText("Ingresá una URL http:// válida (ej. http://192.168.1.50:8080/video).")
+                return
+            self._cap = self._cv2.VideoCapture(url)
+            if not self._cap or not self._cap.isOpened():
+                self.stop_stream()
+                self._stage.setText(f"No se pudo abrir el stream IP ({url}). Verificá IP Webcam / DroidCam y la red Wi-Fi.")
+                return
+        else:
+            idx = int(source or 0)
+            backend = getattr(self._cv2, "CAP_DSHOW", 0) if os.name == "nt" else 0
+            self._cap = self._cv2.VideoCapture(idx, backend) if backend else self._cv2.VideoCapture(idx)
+            if not self._cap or not self._cap.isOpened():
+                self.stop_stream()
+                self._stage.setText(f"No se detectó señal de video en Entrada #{idx}. Verificá tu cámara UVC o capturadora HDMI.")
+                return
         self._timer.start()
         self._toggle_btn.setText("Detener Vista en Vivo")
         self._save_btn.setEnabled(True)

@@ -61,14 +61,45 @@ package final class LiveViewCameraService {
     package var aspectGuide: LiveAspectGuide = .threeTwo
     package var mirrorHorizontally = false
 
+    @ObservationIgnored nonisolated(unsafe) private var observerTokens: [NSObjectProtocol] = []
+
     package init() {
         refreshDevices()
+        installHotplugObservers()
+    }
+
+    deinit {
+        for token in observerTokens {
+            NotificationCenter.default.removeObserver(token)
+        }
+    }
+
+    private func installHotplugObservers() {
+        let onDeviceEvent: @Sendable () -> Void = { [weak self] in
+            Task { @MainActor [weak self] in
+                self?.refreshDevices()
+            }
+        }
+        observerTokens = Self.registerVideoHotplugObservers(onEvent: onDeviceEvent)
+    }
+
+    nonisolated private static func registerVideoHotplugObservers(
+        onEvent: @escaping @Sendable () -> Void
+    ) -> [NSObjectProtocol] {
+        let nc = NotificationCenter.default
+        let t1 = nc.addObserver(forName: AVCaptureDevice.wasConnectedNotification, object: nil, queue: .main) { _ in
+            onEvent()
+        }
+        let t2 = nc.addObserver(forName: AVCaptureDevice.wasDisconnectedNotification, object: nil, queue: .main) { _ in
+            onEvent()
+        }
+        return [t1, t2]
     }
 
     package func refreshDevices() {
-        var deviceTypes: [AVCaptureDevice.DeviceType] = [.external, .builtInWideAngleCamera]
+        var deviceTypes: [AVCaptureDevice.DeviceType] = [.continuityCamera, .external, .builtInWideAngleCamera]
         if #available(macOS 14.0, *) {
-            deviceTypes.append(.continuityCamera)
+            deviceTypes = [.continuityCamera, .external, .builtInWideAngleCamera]
         }
         let discovery = AVCaptureDevice.DiscoverySession(
             deviceTypes: deviceTypes,
@@ -78,7 +109,7 @@ package final class LiveViewCameraService {
         let mapped = discovery.devices.map { device in
             let external = device.deviceType == .external || device.deviceType == .continuityCamera
             let note = device.deviceType == .continuityCamera
-                ? "Continuity Wi-Fi/USB"
+                ? "iPhone Continuidad Wi-Fi/USB"
                 : (device.deviceType == .external ? "UVC / Capturadora HDMI-USB" : "Cámara Mac")
             return LiveVideoSource(
                 id: device.uniqueID,

@@ -6,6 +6,7 @@ import SwiftUI
 package struct LiveViewWorkspacePane: View {
     private enum BridgeMode: String, CaseIterable, Identifiable {
         case nativeUVC = "UVC / HDMI-USB"
+        case networkMJPEG = "Android / IP Wi-Fi"
         case classicGPhoto2 = "DSLR USB (gphoto2)"
         var id: String { rawValue }
     }
@@ -22,8 +23,13 @@ package struct LiveViewWorkspacePane: View {
 
     private var live: LiveViewCameraService { appState.liveViewService }
     private var gphoto: GPhoto2LiveBridge { appState.gphotoBridge }
+    private var network: NetworkMJPEGStreamService { appState.networkStreamService }
     private var isLiveActive: Bool {
-        bridgeMode == .nativeUVC ? live.isRunning : gphoto.isStreaming
+        switch bridgeMode {
+        case .nativeUVC: return live.isRunning
+        case .networkMJPEG: return network.isStreaming
+        case .classicGPhoto2: return gphoto.isStreaming
+        }
     }
 
     package var body: some View {
@@ -34,13 +40,21 @@ package struct LiveViewWorkspacePane: View {
                 if let frame = live.currentFrame, isLiveActive {
                     liveFrameStage(frame)
                 } else {
-                    liveEmptyStage
+                    LiveViewCompatibilityCard(
+                        connectedDevice: appState.discoveryService.primaryLiveDevice,
+                        modeTitle: emptyModeTitle,
+                        explanation: emptyExplanation,
+                        feedbackMessage: captureFeedback ?? live.statusMessage ?? network.statusNote ?? gphoto.statusNote,
+                        isActive: isLiveActive,
+                        onToggle: { Task { await toggleStream() } }
+                    )
                 }
             }
             .frame(maxWidth: .infinity, maxHeight: .infinity)
             liveBottomBar
         }
         .background(AppColors.stageBackground)
+        .onAppear { live.refreshDevices() }
         .onDisappear { appState.stopAllLiveView() }
     }
 
@@ -53,7 +67,7 @@ package struct LiveViewWorkspacePane: View {
             }
             .pickerStyle(.segmented)
             .labelsHidden()
-            .frame(maxWidth: 255)
+            .frame(maxWidth: 375)
             .onChange(of: bridgeMode) { _, _ in
                 appState.stopAllLiveView()
             }
@@ -72,7 +86,7 @@ package struct LiveViewWorkspacePane: View {
                     }
                 }
                 .labelsHidden()
-                .frame(maxWidth: 260)
+                .frame(maxWidth: 250)
 
                 Button {
                     live.refreshDevices()
@@ -81,7 +95,15 @@ package struct LiveViewWorkspacePane: View {
                     Image(systemName: "arrow.clockwise")
                 }
                 .buttonStyle(StudioButtonStyle(.secondaryDark, compact: true))
-                .help("Actualizar cámaras UVC/HDMI y gphoto2")
+                .help("Actualizar cámaras UVC/Continuity/HDMI y gphoto2")
+            } else if bridgeMode == .networkMJPEG {
+                TextField("http://192.168.1.50:8080/video", text: Binding(
+                    get: { network.streamURLString },
+                    set: { network.streamURLString = $0 }
+                ))
+                .textFieldStyle(.roundedBorder)
+                .font(AppTypography.monoCaption)
+                .frame(width: 245)
             }
 
             Spacer()
@@ -124,10 +146,10 @@ package struct LiveViewWorkspacePane: View {
                     .frame(maxWidth: geo.size.width, maxHeight: geo.size.height)
 
                 if live.showThirdsGrid {
-                    thirdsGridOverlay
+                    LiveThirdsGridOverlay()
                 }
                 if let targetRatio = live.aspectGuide.aspectRatio {
-                    aspectMaskOverlay(containerSize: geo.size, targetRatio: targetRatio)
+                    LiveAspectMaskOverlay(containerSize: geo.size, targetRatio: targetRatio)
                 }
             }
             .frame(width: geo.size.width, height: geo.size.height)
@@ -135,78 +157,35 @@ package struct LiveViewWorkspacePane: View {
         .padding(AppSpacing.md)
     }
 
-    private var thirdsGridOverlay: some View {
-        GeometryReader { g in
-            Path { path in
-                for i in 1...2 {
-                    let x = g.size.width * CGFloat(i) / 3.0
-                    let y = g.size.height * CGFloat(i) / 3.0
-                    path.move(to: CGPoint(x: x, y: 0))
-                    path.addLine(to: CGPoint(x: x, y: g.size.height))
-                    path.move(to: CGPoint(x: 0, y: y))
-                    path.addLine(to: CGPoint(x: g.size.width, y: y))
-                }
-            }
-            .stroke(AppColors.borderStrong, lineWidth: AppSpacing.hairline)
+    private var emptyModeTitle: String {
+        switch bridgeMode {
+        case .nativeUVC: return "Vista en Vivo UVC / Continuidad iOS / HDMI-USB"
+        case .networkMJPEG: return "Vista en Vivo Android / Cámara IP Wi-Fi (MJPEG)"
+        case .classicGPhoto2: return "Vista en Vivo DSLR Clásica vía gphoto2 USB"
         }
-        .allowsHitTesting(false)
-    }
-
-    private func aspectMaskOverlay(containerSize: CGSize, targetRatio: CGFloat) -> some View {
-        let currentRatio = containerSize.width / max(1, containerSize.height)
-        let boxW = currentRatio > targetRatio ? containerSize.height * targetRatio : containerSize.width * 0.92
-        let boxH = boxW / targetRatio
-        return RoundedRectangle(cornerRadius: AppRadius.xs, style: .continuous)
-            .stroke(AppColors.warningAmber, lineWidth: 1.5)
-            .frame(width: boxW, height: boxH)
-            .allowsHitTesting(false)
-    }
-
-    private var liveEmptyStage: some View {
-        VStack(spacing: AppSpacing.md) {
-            Image(systemName: "video.viewfinder")
-                .font(AppTypography.displayTitle)
-                .foregroundStyle(AppColors.textTertiary)
-
-            Text(bridgeMode == .nativeUVC ? "Vista en Vivo UVC / Capturadora HDMI-USB" : "Vista en Vivo DSLR Clásica vía gphoto2 USB")
-                .font(AppTypography.pageTitle)
-                .foregroundStyle(AppColors.textPrimary)
-
-            Text(emptyExplanation)
-                .font(AppTypography.body)
-                .foregroundStyle(AppColors.textSecondary)
-                .multilineTextAlignment(.center)
-                .frame(maxWidth: 560)
-
-            if let msg = captureFeedback ?? live.statusMessage ?? gphoto.statusNote {
-                Text(msg)
-                    .font(AppTypography.monoCaption)
-                    .foregroundStyle(AppColors.warningAmber)
-            }
-
-            Button(isLiveActive ? "Detener" : "Iniciar Vista en Vivo") {
-                Task { await toggleStream() }
-            }
-            .buttonStyle(StudioButtonStyle(.primaryLight))
-        }
-        .padding(AppSpacing.xxl)
     }
 
     private var emptyExplanation: String {
-        if bridgeMode == .nativeUVC {
-            return "Ideal para cámaras modernas con USB Streaming (UVC) o DSLRs clásicas conectadas con capturadora HDMI→USB-C. No interfiere con el tethering de tus RAWs."
+        switch bridgeMode {
+        case .nativeUVC:
+            return "Detecta automáticamente iPhone Continuidad, cámaras UVC, Android con Webcam USB (Pixel/Moto) o DroidCam/Camo y capturadoras HDMI→USB sin cortar el tethering."
+        case .networkMJPEG:
+            return "Abrí IP Webcam (puerto :8080/video) o DroidCam (:4747/video) en tu Android y conectá por Wi-Fi local mientras el cable USB sigue pasando fotos PTP a RAW/."
+        case .classicGPhoto2:
+            if gphoto.isAvailable {
+                return "gphoto2 detectado (\(gphoto.executablePath ?? "")). Al iniciar, PhotoPic pausa ImageCaptureCore temporalmente para transmitir el visor por USB y disparar directo a RAW/."
+            }
+            return "gphoto2 no está instalado en este Mac. Para usarlo con DSLRs clásicas (ej. Canon EOS 70D) por un único cable USB ejecutá: brew install gphoto2"
         }
-        if gphoto.isAvailable {
-            return "gphoto2 detectado (\(gphoto.executablePath ?? "")). Al iniciar, PhotoPic pausa ImageCaptureCore temporalmente para transmitir el visor por USB y disparar directo a RAW/."
-        }
-        return "gphoto2 no está instalado en este Mac. Para usarlo con DSLRs clásicas (ej. Canon EOS 70D) por un único cable USB ejecutá: brew install gphoto2"
     }
 
     private var liveBottomBar: some View {
         HStack(spacing: AppSpacing.md) {
-            let statusLabel = bridgeMode == .nativeUVC
-                ? "\(live.availableDevices.count) fuente(s) UVC/HDMI detectada(s)"
-                : (gphoto.isAvailable ? "gphoto2 listo" : "Modo DSLR USB requiere brew install gphoto2")
+            let statusLabel: String = switch bridgeMode {
+            case .nativeUVC: "\(live.availableDevices.count) fuente(s) UVC / Continuidad / HDMI"
+            case .networkMJPEG: network.statusNote ?? "Stream IP Wi-Fi simultáneo al cable PTP"
+            case .classicGPhoto2: gphoto.isAvailable ? "gphoto2 listo" : "Modo DSLR USB requiere brew install gphoto2"
+            }
             Text(statusLabel)
                 .font(AppTypography.monoCaption)
                 .foregroundStyle(AppColors.textSecondary)
@@ -232,7 +211,7 @@ package struct LiveViewWorkspacePane: View {
                 .buttonStyle(StudioButtonStyle(.approveEmerald, compact: true))
             }
 
-            if live.currentFrame != nil && bridgeMode == .nativeUVC {
+            if live.currentFrame != nil && (bridgeMode == .nativeUVC || bridgeMode == .networkMJPEG) {
                 Button("Guardar Cuadro de Referencia") {
                     if let ref = live.captureReferenceJPEG() {
                         let profile = KnownDevice(id: "liveview", displayName: "Live View UVC", alias: "Vista en Vivo", category: .dslrMirrorless, allowJpgWhenNoRaw: true)
@@ -259,9 +238,16 @@ package struct LiveViewWorkspacePane: View {
             appState.stopAllLiveView()
             return
         }
-        if bridgeMode == .nativeUVC {
+        switch bridgeMode {
+        case .nativeUVC:
             await live.start()
-        } else {
+        case .networkMJPEG:
+            network.startStream(
+                url: network.streamURLString,
+                onFrame: { frame in live.injectExternalPreviewFrame(frame) },
+                onError: { err in captureFeedback = err }
+            )
+        case .classicGPhoto2:
             appState.discoveryService.pauseSessionsForExternalBridge()
             gphoto.startPreviewStream(
                 onFrame: { frame in live.injectExternalPreviewFrame(frame) },

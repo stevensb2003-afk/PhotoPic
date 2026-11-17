@@ -219,7 +219,11 @@ package enum HardwareAndArchiveDeleteVerification {
 
         let liveService = LiveViewCameraService()
         try assertTrue(liveService.showThirdsGrid && liveService.aspectGuide == .threeTwo, "Live View defaults configured")
-        print("[PASS] 12. Help Center search/categories & LiveViewCameraService state verified")
+
+        var mjpegBuffer = Data([0x00, 0xFF, 0xD8, 0xAA, 0xBB, 0xFF, 0xD9, 0xCC])
+        let frame = NetworkMJPEGStreamService.extractNextJPEGFrame(from: &mjpegBuffer)
+        try assertTrue(frame == Data([0xFF, 0xD8, 0xAA, 0xBB, 0xFF, 0xD9]) && mjpegBuffer == Data([0xCC]), "MJPEG SOI/EOI frame extractor parses cleanly")
+        print("[PASS] 12. Help Center search/categories, LiveView & MJPEG stream extractor verified")
     }
 
     private static func testAndroidPermissionAndOffMainWriteQueueSafety() async throws {

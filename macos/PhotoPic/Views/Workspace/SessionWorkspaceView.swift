@@ -155,7 +155,9 @@ package struct SessionWorkspaceView: View {
                     tab: .liveView,
                     count: nil,
                     badgeColor: AppColors.approveGreen,
-                    liveActive: appState.liveViewService.isRunning || appState.gphotoBridge.isStreaming
+                    liveActive: appState.liveViewService.isRunning
+                        || appState.networkStreamService.isStreaming
+                        || appState.gphotoBridge.isStreaming
                 )
                 tabButton(
                     tab: .archived,

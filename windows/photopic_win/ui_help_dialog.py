@@ -78,18 +78,21 @@ _HELP_TOPICS: list[dict] = [
     {
         "code": "DOC-07",
         "cat": "Conexión y Vivo",
-        "title": "Vista en Vivo (Live View) DirectShow",
-        "kw": "live view vista en vivo hdmi uvc directshow zadig winusb disparar",
-        "summary": "Muestra encuadre en tiempo real desde cámaras UVC / HDMI-USB usando OpenCV DirectShow sin tocar el driver USB WPD.",
+        "title": "Vista en Vivo — Android IP, iOS y Cámaras",
+        "kw": "live view vista en vivo hdmi uvc directshow zadig winusb android ip webcam droidcam iphone",
+        "summary": "Soporta Stream IP Wi-Fi MJPEG para teléfonos Android en paralelo al cable WPD, además de cámaras UVC / HDMI-USB en DirectShow.",
         "can_do": [
-            "Ver video en vivo con cuadrícula 3×3, espejo y captura de cuadro de referencia a la sesión.",
-            "Trabajar en paralelo con la entrada de RAWs sin reemplazar drivers de Windows.",
+            "Conectar Android mediante 'Stream IP / Android Wi-Fi' (IP Webcam o DroidCam) mientras entran fotos RAW por WPD.",
+            "Ver video de cámaras UVC, Pixel/Moto en modo Webcam USB o capturadoras HDMI→USB sin reemplazar drivers.",
         ],
         "limits": [
-            "DSLRs clásicas sin UVC ni capturadora HDMI-USB no envían Live View en Windows sin reemplazar el driver por WinUSB (Zadig), lo cual rompería WPD.",
+            "Samsung One UI oculta el modo 'Webcam USB' y USB PTP/MTP solo transporta fotos: usá URL IP Wi-Fi o DroidCam.",
+            "La Cámara de Continuidad nativa de Apple solo funciona en Mac (en Windows usá Camo/EpocCam como webcam virtual).",
+            "DSLRs clásicas sin HDMI ni UVC no transmiten Live View sin Zadig (WinUSB), lo cual rompería WPD.",
         ],
         "steps": [
-            "Abrí la pestaña 'Vista en Vivo', elegí tu Entrada Video / HDMI y pulsá 'Iniciar Vista en Vivo'.",
+            "Android: abrí IP Webcam (:8080/video), pegá la URL en 'Stream IP / Android Wi-Fi' y pulsá 'Iniciar Vista en Vivo'.",
+            "Cámaras / HDMI: elegí tu Entrada Video / HDMI y pulsá 'Iniciar Vista en Vivo'.",
         ],
     },
     {

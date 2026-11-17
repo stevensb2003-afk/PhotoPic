@@ -91,29 +91,29 @@ extension HelpGuideCatalog {
             id: "live-view-guide",
             docCode: "DOC-07",
             category: .connectionsLive,
-            title: "Vista en Vivo (Live View) por Sistema",
-            subtitle: "UVC / HDMI-USB nativo + puente gphoto2 USB",
+            title: "Vista en Vivo (Live View) — Android, iOS y Cámaras",
+            subtitle: "UVC / Continuidad iOS / HDMI-USB + Android IP Wi-Fi + gphoto2",
             iconSystemName: "video.viewfinder",
-            keywords: ["live view", "vista en vivo", "hdmi", "uvc", "gphoto2", "canon 70d", "camara en vivo", "disparar", "zadig", "cuadricula"],
-            summary: "La pestaña 'Vista en Vivo' muestra el encuadre en tiempo real con cuadrícula 3×3, máscaras 3:2 / 4:5 / 16:9 y disparo remoto, adaptándose al mejor método de cada sistema.",
+            keywords: ["live view", "vista en vivo", "hdmi", "uvc", "gphoto2", "android", "iphone", "continuity", "ip webcam", "droidcam", "samsung", "zadig"],
+            summary: "Explicación clara por dispositivo: iPhone usa Cámara de Continuidad automático, cámaras usan UVC/HDMI/gphoto2, y Android usa IP Wi-Fi (MJPEG) o Webcam USB (Pixel/Moto) porque USB PTP solo transporta archivos.",
             steps: [
-                "1. Abrí la pestaña 'Vista en Vivo' en la barra superior de cualquier sesión.",
-                "2. Método Universal (macOS y Windows): conectá una cámara moderna con USB Streaming (UVC) o una DSLR vieja con capturadora HDMI→USB y pulsá 'Iniciar Vista en Vivo'.",
-                "3. Método DSLR USB Clásica (solo macOS opcional): instalá gphoto2 con 'brew install gphoto2', cambiá el selector arriba a 'DSLR USB (gphoto2)' y pulsá Iniciar.",
-                "4. Usá 'Disparar Cámara (PTP)' / 'Disparar y Descargar RAW' o 'Guardar Cuadro de Referencia'."
+                "1. Android: PTP solo envía fotos. Abrí la pestaña 'Android / IP Wi-Fi', iniciá IP Webcam (:8080/video) o DroidCam (:4747/video) en tu celular y conéctate sin cortar el cable USB PTP.",
+                "2. iPhone / iPad: aparece automáticamente en 'UVC / HDMI-USB' gracias a Cámara de Continuidad (mismo Apple ID + Bluetooth + Wi-Fi).",
+                "3. Cámaras modernas / HDMI: usá 'UVC / HDMI-USB' (Sony/Canon/Fuji con USB Streaming o capturadora HDMI→USB a 30–60 fps).",
+                "4. DSLR clásica por un único cable (solo macOS opcional): instalá 'brew install gphoto2' y seleccioná 'DSLR USB (gphoto2)'."
             ],
             canDo: [
-                "En modo UVC / HDMI-USB corre hasta 30–60 fps sin cortar el tethering USB de fotos.",
-                "Si tu cámara PTP soporta disparo remoto (cameraDeviceCanTakePicture), podés disparar desde PhotoPic mientras ves HDMI.",
-                "En macOS con gphoto2 instalado podés ver el visor USB y descargar RAWs con un solo cable en Canon 70D / Nikon / Sony."
+                "Transmitir video en vivo desde Android vía Wi-Fi local (MJPEG) mientras entran los RAWs/JPGs por USB.",
+                "Detectar al vuelo (hot-plug) iPhone Continuidad, Pixel Webcam USB y capturadoras HDMI→USB.",
+                "Guardar cuadros de referencia directo a la sesión o disparar remoto en cámaras PTP compatibles."
             ],
             limitations: [
-                "ImageCaptureCore de Apple NO transmite video Live View nativo por USB en DSLRs antiguas sin HDMI ni gphoto2.",
-                "El modo 'DSLR USB (gphoto2)' NO viene empaquetado dentro del .dmg (requiere 'brew install gphoto2') y pausa temporalmente el PTP de macOS mientras transmite.",
-                "En Windows se usa UVC/HDMI DirectShow por estabilidad; usar libgphoto2 en Windows obligaría a reemplazar el driver USB con Zadig (WinUSB), rompiendo WPD."
+                "Un Android en 'Transferir imágenes (PTP)' o Samsung One UI sin modo Webcam USB jamás aparece como webcam UVC nativa.",
+                "ImageCaptureCore NO transmite video Live View por USB en DSLRs clásicas sin HDMI ni gphoto2.",
+                "En Windows se usa DirectShow + URL IP MJPEG sin reemplazar drivers WPD con Zadig (WinUSB)."
             ],
             tips: [
-                "La combinación más fluida en sesiones pro es HDMI→USB económico ($20) para Live View 60fps + cable USB para pasar el RAW puro sin conflictos."
+                "Para teléfonos Android Samsung (donde One UI oculta 'Webcam USB'), 'Android / IP Wi-Fi' es la vía más rápida y no interrumpe la descarga PTP."
             ]
         ),
         HelpTopic(
