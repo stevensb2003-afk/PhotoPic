@@ -153,4 +153,32 @@ extension TetherCaptureService: ICCameraDeviceDelegate {
             completion("verified_off_main.jpg", nil)
         }
     }
+
+    func keyForFile(_ file: ICCameraFile) -> String {
+        TetherBaselineGate.itemKey(ptpHandle: file.ptpObjectHandle, filename: effectiveFilename(for: file), fileSize: Int64(file.fileSize))
+    }
+
+    func effectiveFilename(for file: ICCameraFile) -> String {
+        file.originalFilename ?? file.name ?? "IMG_\(file.ptpObjectHandle).JPG"
+    }
+
+    func dateForFile(_ file: ICCameraFile) -> Date? {
+        file.exifCreationDate ?? file.creationDate ?? file.fileCreationDate ?? file.modificationDate
+    }
+
+    func isHiddenDeviceFolder(_ file: ICCameraFile) -> Bool {
+        var folder = file.parentFolder
+        while let current = folder {
+            if let name = current.name?.lowercased(),
+               name.hasPrefix(".") || name == "thumbnails" {
+                return true
+            }
+            folder = current.parentFolder
+        }
+        return false
+    }
+
+    func batteryValue(for camera: ICCameraDevice) -> Int? {
+        camera.batteryLevelAvailable ? Int(camera.batteryLevel) : nil
+    }
 }

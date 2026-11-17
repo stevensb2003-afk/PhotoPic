@@ -64,22 +64,22 @@ extension HelpGuideCatalog {
             title: "Conexión USB, Android PTP y Wi-Fi",
             subtitle: "Cable directo, Bonjour PTP/IP y Watchfolder",
             iconSystemName: "cable.connector",
-            keywords: ["usb", "thunderbolt", "android", "ptp", "mtp", "iphone", "wifi", "bluetooth", "ptpcamera", "watchfolder", "ftp"],
+            keywords: ["usb", "thunderbolt", "android", "ptp", "mtp", "iphone", "wifi", "bluetooth", "ptpcamera", "watchfolder", "ftp", "expert raw", "tethering", "midi"],
             summary: "Recibe capturas por cable USB-C/Thunderbolt 4, cámaras Bonjour Wi-Fi PTP/IP (macOS) y Watchfolder para transmisores inalámbricos o FTP.",
             steps: [
                 "1. Cámara DSLR/Mirrorless: conectá por cable USB. Si muestra 'Ocupado por macOS', tocá la píldora superior → Liberar macOS.",
-                "2. Android USB: elegí 'Transferir imágenes (PTP)' en el celular (en Windows también acepta MTP). Activá Pro/Expert RAW (.DNG) o permite JPG fallback.",
+                "2. Android USB: elegí 'Transferir imágenes (PTP)' (NO 'USB Tethering' ni 'MIDI'). Usá Modo Pro (RAW/DNG) para transferencia casi instantánea (~1s).",
                 "3. iPhone / iPad: desbloqueá el teléfono y tocá 'Confiar en esta computadora'.",
                 "4. Transmisor Wi-Fi / FTP / Air Direct: pulsá 'Vincular Carpeta / Wi-Fi...' para vigilar la carpeta donde bajan las fotos nuevas."
             ],
             canDo: [
-                "Escudo Anti-Galería Vieja: nunca descarga fotos viejas del carrete ni de la SD.",
+                "Escudo Anti-Galería Vieja: nunca descarga fotos viejas del carrete ni miniaturas ocultas (.thumbnails).",
                 "Auto-conecta cámaras guardadas en menos de 1 segundo."
             ],
             limitations: [
                 "Bluetooth NO sirve para transferir RAWs de cámara a full calidad por falta de ancho de banda.",
-                "En macOS, Android conectado en modo MTP ('Transferir archivos') no aparece en ImageCaptureCore: debés usar modo PTP.",
-                "Para Wi-Fi sin receptor PTP/IP de macOS (ej. FTP o CamRanger), es obligatorio vincular la carpeta destino vía Watchfolder."
+                "En Android con Samsung Expert RAW (50MP HDR multiframe), el celular puede tardar ~35–45s en procesar cada toma y dejar el .DNG cacheado en 0 bytes sobre USB PTP; para tethering rápido en RAW usá Modo Pro (.DNG) o Watchfolder Wi-Fi.",
+                "En macOS, Android en modo MTP ('Transferir archivos'), USB Tethering o MIDI no sirve para ImageCaptureCore: usá 'Transferir imágenes (PTP)'."
             ],
             tips: [
                 "Por seguridad, PhotoPic bloquea vincular como Watchfolder una subcarpeta de tus sesiones para evitar bucles infinitos."

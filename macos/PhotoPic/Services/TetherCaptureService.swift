@@ -112,7 +112,7 @@ package final class TetherCaptureService: NSObject {
         ctx.deltaTask?.cancel()
         ctx.deltaTask = Task { [weak self, weak camera] in
             while !Task.isCancelled {
-                try? await Task.sleep(for: .milliseconds(1500))
+                try? await Task.sleep(for: .milliseconds(600))
                 guard !Task.isCancelled, let self, let camera else { break }
                 self.scanMediaFilesDelta(for: fingerprint, camera: camera)
             }
@@ -137,6 +137,7 @@ package final class TetherCaptureService: NSObject {
         var approved: [ICCameraFile] = []
 
         for file in files {
+            guard !isHiddenDeviceFolder(file) else { continue }
             let filename = effectiveFilename(for: file)
             guard MediaFormatClassifier.classify(filename: filename) != nil else { continue }
             let key = keyForFile(file)
@@ -144,6 +145,9 @@ package final class TetherCaptureService: NSObject {
 
             if !ctx.gate.isCatalogComplete {
                 ctx.gate.recordPreCatalogItem(key: key, itemDate: date)
+            } else if file.fileSize == 0 {
+                // Skip 0-byte placeholders (e.g. Samsung Expert RAW flushing DNG) without locking out retries.
+                continue
             } else if ctx.gate.shouldDownloadLiveItem(
                 key: key,
                 itemDate: date,
@@ -267,21 +271,5 @@ package final class TetherCaptureService: NSObject {
         contexts[fingerprint] = ctx
         let status: DeviceConnectionStatus = remaining > 0 ? .capturing(activeDownloads: remaining) : .connectedReady
         onStatusChanged?(fingerprint, status, camera.flatMap { batteryValue(for: $0) })
-    }
-
-    private func keyForFile(_ file: ICCameraFile) -> String {
-        TetherBaselineGate.itemKey(ptpHandle: file.ptpObjectHandle, filename: effectiveFilename(for: file), fileSize: Int64(file.fileSize))
-    }
-
-    private func effectiveFilename(for file: ICCameraFile) -> String {
-        file.originalFilename ?? file.name ?? "IMG_\(file.ptpObjectHandle).JPG"
-    }
-
-    private func dateForFile(_ file: ICCameraFile) -> Date? {
-        file.exifCreationDate ?? file.creationDate ?? file.fileCreationDate ?? file.modificationDate
-    }
-
-    private func batteryValue(for camera: ICCameraDevice) -> Int? {
-        camera.batteryLevelAvailable ? Int(camera.batteryLevel) : nil
     }
 }
