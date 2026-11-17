@@ -142,7 +142,7 @@ package struct TopDeviceStatusBar: View {
         guard let status = primaryDevice?.status else { return AppColors.textTertiary }
         switch status {
         case .connectedReady: return AppColors.approveGreen
-        case .capturing, .connecting: return AppColors.warningAmber
+        case .capturing, .connecting, .androidPermissionRequired: return AppColors.warningAmber
         case .busyByMacOS, .accessRestrictedLocked, .error: return AppColors.archiveRed
         case .waiting, .detectedNotConnected, .disconnected: return AppColors.textTertiary
         }
@@ -152,7 +152,7 @@ package struct TopDeviceStatusBar: View {
         guard let status = primaryDevice?.status else { return AppColors.borderSubtle }
         switch status {
         case .connectedReady: return AppColors.approveGreen.opacity(0.35)
-        case .capturing: return AppColors.warningAmber.opacity(0.4)
+        case .capturing, .androidPermissionRequired: return AppColors.warningAmber.opacity(0.4)
         case .busyByMacOS, .accessRestrictedLocked, .error: return AppColors.archiveRed.opacity(0.4)
         default: return AppColors.borderSubtle
         }
@@ -173,6 +173,8 @@ package struct TopDeviceStatusBar: View {
             return "\(device.alias) · Ocupado por macOS"
         case .accessRestrictedLocked:
             return "\(device.alias) · Desbloquear"
+        case .androidPermissionRequired:
+            return "\(device.alias) · Permitir en Android"
         case .detectedNotConnected:
             return "\(device.alias) · Sin vincular"
         case .disconnected:

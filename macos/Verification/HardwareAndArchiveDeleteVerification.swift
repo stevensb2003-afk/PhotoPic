@@ -15,6 +15,7 @@ package enum HardwareAndArchiveDeleteVerification {
         try await testAIDisableAndLiveToggle(rootURL: tempRoot)
         try await testPermanentArchiveDeletionAndSafetyGuard(rootURL: tempRoot)
         try testHelpSearchAndLiveViewDefaults()
+        try await testAndroidPermissionAndOffMainWriteQueueSafety()
 
         print("ALL PHOTOPIC V2.1 HARDWARE & ARCHIVE DELETE VERIFICATIONS PASSED")
     }
@@ -218,5 +219,20 @@ package enum HardwareAndArchiveDeleteVerification {
         let liveService = LiveViewCameraService()
         try assertTrue(liveService.showThirdsGrid && liveService.aspectGuide == .threeTwo, "Live View defaults configured")
         print("[PASS] 12. Help Center search/categories & LiveViewCameraService state verified")
+    }
+
+    private static func testAndroidPermissionAndOffMainWriteQueueSafety() async throws {
+        let androidState = DeviceConnectionStatus.androidPermissionRequired
+        try assertTrue(!androidState.isLiveSessionOpen && androidState.label.contains("Android"), "Android permission status formatted")
+
+        let capturedFilename: String? = await withCheckedContinuation { continuation in
+            TetherCaptureService.dispatchWriteQueueCallbackForVerification { savedName, _ in
+                Task { @MainActor in
+                    continuation.resume(returning: savedName)
+                }
+            }
+        }
+        try assertTrue(capturedFilename == "verified_off_main.jpg", "Off-main ICDeviceWriteQueue callback completed without @MainActor SIGTRAP")
+        print("[PASS] 13. Android permission state & off-main ICDeviceWriteQueue completion safety verified")
     }
 }

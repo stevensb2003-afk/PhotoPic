@@ -27,4 +27,41 @@ extension DeviceDiscoveryService: ICDeviceBrowserDelegate {
             }
         }
     }
+
+    /// Terminates macOS background `PTPCamera` / `ptpcamerad` daemon when Photos or Image Capture locks a USB camera.
+    package func releaseMacOSPTPCameraLock(for fingerprint: String) {
+        Task { @MainActor [weak self] in
+            await Task.detached(priority: .userInitiated) {
+                let task = Process()
+                task.executableURL = URL(fileURLWithPath: "/usr/bin/killall")
+                task.arguments = ["-9", "PTPCamera", "ptpcamerad"]
+                task.standardOutput = FileHandle.nullDevice
+                task.standardError = FileHandle.nullDevice
+                try? task.run()
+                task.waitUntilExit()
+            }.value
+            try? await Task.sleep(for: .milliseconds(350))
+            self?.connectDevice(fingerprint: fingerprint)
+        }
+    }
+
+    /// Temporarily releases `ImageCaptureCore` USB sessions when external `gphoto2` Live View runs.
+    package func pauseSessionsForExternalBridge() {
+        pausedFingerprints = connectedDevices
+            .filter { $0.status.isLiveSessionOpen }
+            .map(\.fingerprint)
+        for fp in pausedFingerprints {
+            disconnectDevice(fingerprint: fp)
+        }
+        setExternalBridgePaused(true)
+    }
+
+    package func resumeSessionsAfterExternalBridge() {
+        setExternalBridgePaused(false)
+        let toRestore = pausedFingerprints
+        pausedFingerprints.removeAll()
+        for fp in toRestore {
+            connectDevice(fingerprint: fp)
+        }
+    }
 }

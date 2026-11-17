@@ -10,6 +10,7 @@ package final class TetherCaptureService: NSObject {
         let camera: ICCameraDevice
         var profile: KnownDevice
         var gate: TetherBaselineGate
+        var openTimeoutTask: Task<Void, Never>?
         var deltaTask: Task<Void, Never>?
         var activeDownloads: Int = 0
     }
@@ -24,10 +25,20 @@ package final class TetherCaptureService: NSObject {
 
     package func openSession(for camera: ICCameraDevice, profile: KnownDevice) {
         let fingerprint = profile.fingerprint
-        contexts[fingerprint]?.deltaTask?.cancel()
+        if let previous = contexts[fingerprint] {
+            previous.openTimeoutTask?.cancel()
+            previous.deltaTask?.cancel()
+        }
 
         let gate = TetherBaselineGate(connectedAtTimestamp: Date())
-        contexts[fingerprint] = ActiveCameraContext(camera: camera, profile: profile, gate: gate)
+        let timeoutTask = Task { @MainActor [weak self] in
+            try? await Task.sleep(for: .milliseconds(4500))
+            guard !Task.isCancelled else { return }
+            self?.handleOpenSessionTimeout(for: fingerprint, category: profile.category)
+        }
+        contexts[fingerprint] = ActiveCameraContext(
+            camera: camera, profile: profile, gate: gate, openTimeoutTask: timeoutTask
+        )
         cameraToFingerprint[ObjectIdentifier(camera)] = fingerprint
 
         camera.delegate = self
@@ -41,6 +52,7 @@ package final class TetherCaptureService: NSObject {
 
     package func closeSession(for fingerprint: String) {
         guard let ctx = contexts.removeValue(forKey: fingerprint) else { return }
+        ctx.openTimeoutTask?.cancel()
         ctx.deltaTask?.cancel()
         cameraToFingerprint.removeValue(forKey: ObjectIdentifier(ctx.camera))
         if ctx.camera.hasOpenSession {
@@ -79,6 +91,21 @@ package final class TetherCaptureService: NSObject {
     }
 
     func finalizeCatalogAndStartWatcher(for fingerprint: String, camera: ICCameraDevice) {
+        contexts[fingerprint]?.openTimeoutTask?.cancel()
+        contexts[fingerprint]?.openTimeoutTask = nil
+
+        if let ctx = contexts[fingerprint],
+           ctx.profile.category == .androidPTP,
+           (camera.mediaFiles ?? []).isEmpty,
+           (camera.contents ?? []).isEmpty {
+            logger.warning("Android PTP ready with empty catalog; likely Charging-only or access denied")
+            contexts.removeValue(forKey: fingerprint)
+            cameraToFingerprint.removeValue(forKey: ObjectIdentifier(camera))
+            if camera.hasOpenSession { camera.requestCloseSession() }
+            onStatusChanged?(fingerprint, .androidPermissionRequired, batteryValue(for: camera))
+            return
+        }
+
         indexExistingCatalog(for: fingerprint, camera: camera)
         guard var ctx = contexts[fingerprint] else { return }
         ctx.gate.markCatalogComplete()
@@ -148,23 +175,22 @@ package final class TetherCaptureService: NSObject {
             .appendingPathComponent("PhotoPicStaging/\(UUID().uuidString)", isDirectory: true)
         try? FileManager.default.createDirectory(at: stagingDir, withIntermediateDirectories: true)
 
-        let options: [ICDownloadOption: Any] = [
-            .downloadsDirectoryURL: stagingDir,
-            .saveAsFilename: filename,
-            .overwrite: true,
-            .deleteAfterSuccessfulDownload: deleteFromDevice,
-            .sidecarFiles: false
-        ]
-
-        file.requestDownload(options: options) { [weak self, weak camera] savedFilename, error in
-            Task { @MainActor [weak self, weak camera] in
+        let fileBox = ICCallbackTransfer(value: file)
+        Self.startNonisolatedDownload(
+            file: file,
+            stagingDir: stagingDir,
+            filename: filename,
+            deleteAfter: deleteFromDevice
+        ) { [weak self, fileBox] savedFilename, errorMessage in
+            Task { @MainActor [weak self, fileBox] in
                 guard let self else { return }
+                let activeCamera = self.contexts[fingerprint]?.camera
                 let stagedURL = stagingDir.appendingPathComponent(savedFilename ?? filename)
-                if error == nil, FileManager.default.fileExists(atPath: stagedURL.path) {
-                    self.completeDownload(stagedURL: stagedURL, filename: filename, stagingDir: stagingDir, fingerprint: fingerprint, camera: camera)
+                if errorMessage == nil, FileManager.default.fileExists(atPath: stagedURL.path) {
+                    self.completeDownload(stagedURL: stagedURL, filename: filename, stagingDir: stagingDir, fingerprint: fingerprint, camera: activeCamera)
                 } else {
                     self.logger.warning("requestDownload fallback to requestReadData for \(filename, privacy: .public)")
-                    self.fallbackReadDataDownload(file, filename: filename, stagingDir: stagingDir, deleteAfter: deleteFromDevice, fingerprint: fingerprint, camera: camera)
+                    self.fallbackReadDataDownload(fileBox.value, filename: filename, stagingDir: stagingDir, deleteAfter: deleteFromDevice, fingerprint: fingerprint, camera: activeCamera)
                 }
             }
         }
@@ -185,11 +211,11 @@ package final class TetherCaptureService: NSObject {
         }
 
         let handle = file.ptpObjectHandle
-        file.requestReadData(atOffset: 0, length: targetLength) { [weak self] data, error in
+        Self.startNonisolatedReadData(file: file, length: targetLength) { [weak self] data, errorMessage in
             Task { @MainActor [weak self] in
                 guard let self else { return }
                 let activeCamera = self.contexts[fingerprint]?.camera
-                if let data, !data.isEmpty, error == nil {
+                if let data, !data.isEmpty, errorMessage == nil {
                     let stagedURL = stagingDir.appendingPathComponent(filename)
                     do {
                         try data.write(to: stagedURL, options: .atomic)
@@ -205,12 +231,25 @@ package final class TetherCaptureService: NSObject {
                     } catch {
                         self.onCaptureError?(fingerprint, error.localizedDescription)
                     }
-                } else if let error {
-                    self.onCaptureError?(fingerprint, error.localizedDescription)
+                } else if let errorMessage {
+                    self.onCaptureError?(fingerprint, errorMessage)
                 }
                 self.finishDownloadState(fingerprint: fingerprint, camera: activeCamera, stagingDir: stagingDir)
             }
         }
+    }
+
+    private func handleOpenSessionTimeout(for fingerprint: String, category: DeviceCategory) {
+        guard let ctx = contexts[fingerprint], !ctx.gate.isCatalogComplete else { return }
+        contexts.removeValue(forKey: fingerprint)
+        cameraToFingerprint.removeValue(forKey: ObjectIdentifier(ctx.camera))
+        if ctx.camera.hasOpenSession {
+            ctx.camera.requestCloseSession()
+        }
+        let nextStatus: DeviceConnectionStatus = category == .androidPTP
+            ? .androidPermissionRequired
+            : .error(message: "Tiempo de espera agotado al abrir sesión PTP.")
+        onStatusChanged?(fingerprint, nextStatus, batteryValue(for: ctx.camera))
     }
 
     private func completeDownload(stagedURL: URL, filename: String, stagingDir: URL, fingerprint: String, camera: ICCameraDevice?) {

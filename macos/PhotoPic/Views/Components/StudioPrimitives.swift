@@ -147,20 +147,24 @@ package struct UnknownDeviceTopBanner: View {
         HStack(spacing: AppSpacing.md) {
             Image(systemName: device.category.sfSymbolName)
                 .font(AppTypography.sectionTitle)
-                .foregroundStyle(AppColors.infoBlue)
+                .foregroundStyle(device.category == .androidPTP ? AppColors.warningAmber : AppColors.infoBlue)
 
             VStack(alignment: .leading, spacing: 2) {
-                Text("Nuevo dispositivo detectado: \(device.deviceName)")
+                Text(device.category == .androidPTP
+                    ? "Android detectado (\(device.deviceName)) — Requiere permiso USB"
+                    : "Nuevo dispositivo detectado: \(device.deviceName)")
                     .font(AppTypography.bodyMedium)
                     .foregroundStyle(AppColors.textPrimary)
-                Text(device.category.displayTitle)
+                Text(device.category == .androidPTP
+                    ? "En tu teléfono cambiá 'Solo carga' → 'Transferir imágenes (PTP)' y tocá 'Permitir acceso'."
+                    : device.category.displayTitle)
                     .font(AppTypography.caption)
                     .foregroundStyle(AppColors.textSecondary)
             }
 
             Spacer()
 
-            Button("Conectar y Guardar", action: onConnectAndSave)
+            Button(device.category == .androidPTP ? "Verificar permiso y Conectar" : "Conectar y Guardar", action: onConnectAndSave)
                 .buttonStyle(StudioButtonStyle(.primaryLight, compact: true))
 
             Button(action: onDismiss) {

@@ -93,6 +93,15 @@ package struct DeviceManagerView: View {
                     viewModel.releaseMacOSLock(for: device.fingerprint)
                 }
                 .buttonStyle(StudioButtonStyle(.secondaryDark, compact: true))
+            } else if device.status == .androidPermissionRequired {
+                Button(device.isKnownDevice ? "Reintentar PTP" : "Verificar y Guardar") {
+                    if device.isKnownDevice {
+                        viewModel.connect(fingerprint: device.fingerprint)
+                    } else {
+                        viewModel.connectAndSave(fingerprint: device.fingerprint)
+                    }
+                }
+                .buttonStyle(StudioButtonStyle(.secondaryDark, compact: true))
             } else if device.status.isLiveSessionOpen {
                 Button("Desconectar") {
                     viewModel.disconnect(fingerprint: device.fingerprint)
@@ -153,6 +162,7 @@ package struct DeviceManagerView: View {
                         onToggleKeepOriginals: { viewModel.setKeepOriginals(fingerprint: saved.fingerprint, enabled: $0) },
                         onToggleAllowJpg: { viewModel.setAllowJpgWhenNoRaw(fingerprint: saved.fingerprint, enabled: $0) },
                         onReleaseMacOSLock: { viewModel.releaseMacOSLock(for: saved.fingerprint) },
+                        onRetryConnection: { viewModel.connect(fingerprint: saved.fingerprint) },
                         onForget: { viewModel.forget(fingerprint: saved.fingerprint) }
                     )
                 }

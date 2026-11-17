@@ -10,6 +10,7 @@ package struct SavedDeviceRowView: View {
     let onToggleKeepOriginals: @MainActor (Bool) -> Void
     let onToggleAllowJpg: @MainActor (Bool) -> Void
     let onReleaseMacOSLock: () -> Void
+    let onRetryConnection: () -> Void
     let onForget: () -> Void
 
     package init(
@@ -21,6 +22,7 @@ package struct SavedDeviceRowView: View {
         onToggleKeepOriginals: @escaping @MainActor (Bool) -> Void,
         onToggleAllowJpg: @escaping @MainActor (Bool) -> Void,
         onReleaseMacOSLock: @escaping () -> Void,
+        onRetryConnection: @escaping () -> Void = {},
         onForget: @escaping () -> Void
     ) {
         self.device = device
@@ -31,6 +33,7 @@ package struct SavedDeviceRowView: View {
         self.onToggleKeepOriginals = onToggleKeepOriginals
         self.onToggleAllowJpg = onToggleAllowJpg
         self.onReleaseMacOSLock = onReleaseMacOSLock
+        self.onRetryConnection = onRetryConnection
         self.onForget = onForget
     }
 
@@ -75,6 +78,20 @@ package struct SavedDeviceRowView: View {
                         .foregroundStyle(AppColors.textSecondary)
                     Spacer()
                     Button("Liberar macOS", action: onReleaseMacOSLock)
+                        .buttonStyle(StudioButtonStyle(.secondaryDark, compact: true))
+                }
+                .padding(AppSpacing.sm)
+                .background(AppColors.warningAmberTint)
+                .clipShape(RoundedRectangle(cornerRadius: AppRadius.sm, style: .continuous))
+            } else if liveState?.status == .androidPermissionRequired {
+                HStack(spacing: AppSpacing.sm) {
+                    Image(systemName: "iphone.and.arrow.right.inward")
+                        .foregroundStyle(AppColors.warningAmber)
+                    Text("En tu Android cambiá 'Solo carga' a 'Transferir imágenes (PTP)' y tocá 'Permitir'.")
+                        .font(AppTypography.caption)
+                        .foregroundStyle(AppColors.textSecondary)
+                    Spacer()
+                    Button("Reintentar", action: onRetryConnection)
                         .buttonStyle(StudioButtonStyle(.secondaryDark, compact: true))
                 }
                 .padding(AppSpacing.sm)
@@ -137,7 +154,7 @@ package struct SavedDeviceRowView: View {
     private var statusColor: Color {
         switch effectiveStatus {
         case .connectedReady: return AppColors.approveGreen
-        case .capturing, .connecting: return AppColors.warningAmber
+        case .capturing, .connecting, .androidPermissionRequired: return AppColors.warningAmber
         case .busyByMacOS, .accessRestrictedLocked, .error: return AppColors.archiveRed
         default: return AppColors.textTertiary
         }

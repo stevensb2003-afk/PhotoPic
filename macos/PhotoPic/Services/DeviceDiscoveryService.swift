@@ -53,7 +53,12 @@ package final class DeviceDiscoveryService: NSObject {
 
     package var primaryLiveDevice: ConnectedDeviceState? {
         connectedDevices.first { $0.status.isLiveSessionOpen }
-            ?? connectedDevices.first { $0.status == .connecting || $0.status == .busyByMacOS }
+            ?? connectedDevices.first {
+                $0.status == .connecting
+                    || $0.status == .busyByMacOS
+                    || $0.status == .androidPermissionRequired
+                    || $0.status == .accessRestrictedLocked
+            }
             ?? connectedDevices.first
     }
 
@@ -147,22 +152,8 @@ package final class DeviceDiscoveryService: NSObject {
         }
     }
 
-    /// Terminates macOS background `PTPCamera` daemon when Photos or Image Capture locks a USB camera.
-    package func releaseMacOSPTPCameraLock(for fingerprint: String) {
-        let task = Process()
-        task.executableURL = URL(fileURLWithPath: "/usr/bin/killall")
-        task.arguments = ["-9", "PTPCamera"]
-        try? task.run()
-        task.waitUntilExit()
-
-        Task { @MainActor [weak self] in
-            try? await Task.sleep(for: .milliseconds(350))
-            self?.connectDevice(fingerprint: fingerprint)
-        }
-    }
-
     package private(set) var isPausedForExternalBridge = false
-    private var pausedFingerprints: [String] = []
+    var pausedFingerprints: [String] = []
 
     package var canTriggerPrimaryShutter: Bool {
         guard let fp = primaryLiveDevice?.fingerprint else { return false }
@@ -175,24 +166,8 @@ package final class DeviceDiscoveryService: NSObject {
         return captureService.triggerRemoteShutter(for: fp)
     }
 
-    /// Temporarily releases `ImageCaptureCore` USB sessions when external `gphoto2` Live View runs.
-    package func pauseSessionsForExternalBridge() {
-        pausedFingerprints = connectedDevices
-            .filter { $0.status.isLiveSessionOpen }
-            .map(\.fingerprint)
-        for fp in pausedFingerprints {
-            disconnectDevice(fingerprint: fp)
-        }
-        isPausedForExternalBridge = true
-    }
-
-    package func resumeSessionsAfterExternalBridge() {
-        isPausedForExternalBridge = false
-        let toRestore = pausedFingerprints
-        pausedFingerprints.removeAll()
-        for fp in toRestore {
-            connectDevice(fingerprint: fp)
-        }
+    package func setExternalBridgePaused(_ paused: Bool) {
+        isPausedForExternalBridge = paused
     }
 
     package func dismissToast() { statusToastMessage = nil }
@@ -207,12 +182,22 @@ package final class DeviceDiscoveryService: NSObject {
         liveCameraByFingerprint[fp] = camera
         deviceObjectToFingerprint[ObjectIdentifier(camera)] = fp
 
+        let resolvedCategory = saved?.category ?? category
+        let initialStatus: DeviceConnectionStatus
+        if camera.isAccessRestrictedAppleDevice {
+            initialStatus = .accessRestrictedLocked
+        } else if resolvedCategory == .androidPTP {
+            initialStatus = .androidPermissionRequired
+        } else {
+            initialStatus = .detectedNotConnected
+        }
+
         let initialState = ConnectedDeviceState(
             fingerprint: fp,
             deviceName: rawName,
             alias: saved?.alias ?? rawName,
-            category: saved?.category ?? category,
-            status: camera.isAccessRestrictedAppleDevice ? .accessRestrictedLocked : .detectedNotConnected,
+            category: resolvedCategory,
+            status: initialStatus,
             batteryLevel: camera.batteryLevelAvailable ? Int(camera.batteryLevel) : nil,
             isKnownDevice: saved != nil,
             usbVendorID: Int(camera.usbVendorID),
@@ -231,7 +216,6 @@ package final class DeviceDiscoveryService: NSObject {
             knownStore.recordConnection(fingerprint: fp)
             refreshSavedDevices()
             captureService.openSession(for: camera, profile: saved)
-            statusToastMessage = "Conectado automáticamente: \(saved.alias)"
         } else if saved == nil {
             unknownDeviceBanner = initialState
         }
@@ -252,8 +236,18 @@ package final class DeviceDiscoveryService: NSObject {
     private func configureCaptureCallbacks() {
         captureService.onStatusChanged = { [weak self] fingerprint, status, battery in
             guard let self, let idx = self.connectedDevices.firstIndex(where: { $0.fingerprint == fingerprint }) else { return }
+            let previousStatus = self.connectedDevices[idx].status
             self.connectedDevices[idx].status = status
             if let battery { self.connectedDevices[idx].batteryLevel = battery }
+            if self.unknownDeviceBanner?.fingerprint == fingerprint {
+                self.unknownDeviceBanner = self.connectedDevices[idx]
+            }
+            if previousStatus == .connecting && status == .connectedReady {
+                let alias = self.connectedDevices[idx].alias
+                self.statusToastMessage = "Conectado por USB: \(alias)"
+            } else if status == .androidPermissionRequired && previousStatus == .connecting {
+                self.statusToastMessage = "Android sin permiso PTP: cambiá 'Solo carga' a 'Transferir imágenes (PTP)' y tocá Permitir."
+            }
         }
         captureService.onFileStaged = { [weak self] stagedURL, filename, profile in
             self?.onCapturedFileReady?(stagedURL, filename, profile)

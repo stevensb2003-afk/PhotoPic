@@ -42,6 +42,7 @@ package enum DeviceConnectionStatus: Sendable, Equatable, Hashable {
     case capturing(activeDownloads: Int)
     case busyByMacOS
     case accessRestrictedLocked
+    case androidPermissionRequired
     case disconnected(lastSeen: Date?)
     case error(message: String)
 
@@ -63,6 +64,8 @@ package enum DeviceConnectionStatus: Sendable, Equatable, Hashable {
             return "Ocupado por macOS (Fotos / PTPCamera)"
         case .accessRestrictedLocked:
             return "Dispositivo bloqueado (desbloqueá y confiá en este Mac)"
+        case .androidPermissionRequired:
+            return "Falta permiso en Android (cambiá 'Solo carga' a PTP / Permitir acceso)"
         case .disconnected(let lastSeen):
             if let lastSeen {
                 let formatted = Self.relativeFormatter.string(from: lastSeen)

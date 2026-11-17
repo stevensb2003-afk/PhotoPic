@@ -1,7 +1,7 @@
 import Foundation
 @preconcurrency import ImageCaptureCore
 
-private struct ICCallbackTransfer<Value>: @unchecked Sendable {
+struct ICCallbackTransfer<Value>: @unchecked Sendable {
     let value: Value
 }
 
@@ -17,19 +17,24 @@ extension TetherCaptureService: ICCameraDeviceDelegate {
     nonisolated package func device(_ device: ICDevice, didOpenSessionWithError error: (any Error)?) {
         Task { @MainActor [weak self] in
             guard let self, let fp = self.cameraToFingerprint[ObjectIdentifier(device)] else { return }
+            let category = self.contexts[fp]?.profile.category
             if let nsErr = error as NSError? {
-                if nsErr.code == ICCReturnCodeValue.passcodeLocked
+                if nsErr.code == ICCReturnCodeValue.sessionAlreadyOpen
+                    || nsErr.code == ICCReturnCodeValue.legacyAlreadyOpen {
+                    self.onStatusChanged?(fp, .busyByMacOS, nil)
+                } else if category == .androidPTP {
+                    self.onStatusChanged?(fp, .androidPermissionRequired, nil)
+                } else if nsErr.code == ICCReturnCodeValue.passcodeLocked
                     || nsErr.code == ICCReturnCodeValue.notAuthorized {
                     self.onStatusChanged?(fp, .accessRestrictedLocked, nil)
-                } else if nsErr.code == ICCReturnCodeValue.failedToOpenSession
-                    || nsErr.code == ICCReturnCodeValue.sessionAlreadyOpen
-                    || nsErr.code == ICCReturnCodeValue.legacyAlreadyOpen {
+                } else if nsErr.code == ICCReturnCodeValue.failedToOpenSession {
                     self.onStatusChanged?(fp, .busyByMacOS, nil)
                 } else {
                     self.onStatusChanged?(fp, .error(message: nsErr.localizedDescription), nil)
                 }
-                self.contexts[fp]?.deltaTask?.cancel()
-                self.contexts.removeValue(forKey: fp)
+                let removed = self.contexts.removeValue(forKey: fp)
+                removed?.openTimeoutTask?.cancel()
+                removed?.deltaTask?.cancel()
                 self.cameraToFingerprint.removeValue(forKey: ObjectIdentifier(device))
             } else if let cam = device as? ICCameraDevice {
                 self.indexExistingCatalog(for: fp, camera: cam)
@@ -60,15 +65,22 @@ extension TetherCaptureService: ICCameraDeviceDelegate {
     nonisolated package func device(_ device: ICDevice, didCloseSessionWithError error: (any Error)?) {
         Task { @MainActor [weak self] in
             guard let self, let fp = self.cameraToFingerprint.removeValue(forKey: ObjectIdentifier(device)) else { return }
-            self.contexts.removeValue(forKey: fp)?.deltaTask?.cancel()
-            self.onStatusChanged?(fp, .disconnected(lastSeen: Date()), nil)
+            let ctx = self.contexts.removeValue(forKey: fp)
+            ctx?.openTimeoutTask?.cancel()
+            ctx?.deltaTask?.cancel()
+            let nextStatus: DeviceConnectionStatus = (ctx?.profile.category == .androidPTP && error != nil)
+                ? .androidPermissionRequired
+                : .detectedNotConnected
+            self.onStatusChanged?(fp, nextStatus, nil)
         }
     }
 
     nonisolated package func didRemove(_ device: ICDevice) {
         Task { @MainActor [weak self] in
             guard let self, let fp = self.cameraToFingerprint.removeValue(forKey: ObjectIdentifier(device)) else { return }
-            self.contexts.removeValue(forKey: fp)?.deltaTask?.cancel()
+            let ctx = self.contexts.removeValue(forKey: fp)
+            ctx?.openTimeoutTask?.cancel()
+            ctx?.deltaTask?.cancel()
             self.onStatusChanged?(fp, .disconnected(lastSeen: Date()), nil)
         }
     }
@@ -102,4 +114,43 @@ extension TetherCaptureService: ICCameraDeviceDelegate {
     nonisolated package func cameraDevice(_ camera: ICCameraDevice, didRenameItems items: [ICCameraItem]) {}
     nonisolated package func cameraDeviceDidChangeCapability(_ camera: ICCameraDevice) {}
     nonisolated package func cameraDevice(_ camera: ICCameraDevice, didReceivePTPEvent eventData: Data) {}
+
+    // Constructed in `nonisolated` scope so Swift 6 does not assert `@MainActor` on `ICDeviceWriteQueue`.
+    nonisolated static func startNonisolatedDownload(
+        file: ICCameraFile,
+        stagingDir: URL,
+        filename: String,
+        deleteAfter: Bool,
+        completion: @escaping @Sendable (String?, String?) -> Void
+    ) {
+        let options: [ICDownloadOption: Any] = [
+            .downloadsDirectoryURL: stagingDir,
+            .saveAsFilename: filename,
+            .overwrite: true,
+            .deleteAfterSuccessfulDownload: deleteAfter,
+            .sidecarFiles: false
+        ]
+        file.requestDownload(options: options) { savedFilename, error in
+            completion(savedFilename, error?.localizedDescription)
+        }
+    }
+
+    nonisolated static func startNonisolatedReadData(
+        file: ICCameraFile,
+        length: Int64,
+        completion: @escaping @Sendable (Data?, String?) -> Void
+    ) {
+        file.requestReadData(atOffset: 0, length: length) { data, error in
+            completion(data, error?.localizedDescription)
+        }
+    }
+
+    nonisolated package static func dispatchWriteQueueCallbackForVerification(
+        _ completion: @escaping @Sendable (String?, String?) -> Void
+    ) {
+        let queue = DispatchQueue(label: "ICDeviceWriteQueue")
+        queue.async {
+            completion("verified_off_main.jpg", nil)
+        }
+    }
 }
