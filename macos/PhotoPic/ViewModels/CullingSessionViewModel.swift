@@ -44,6 +44,7 @@ package final class CullingSessionViewModel {
     var fullSensorTask: Task<Void, Never>?
     var visionBatchTask: Task<Void, Never>?
     var feedbackDismissTask: Task<Void, Never>?
+    var timerTickTask: Task<Void, Never>?
     var undoStack: [MoveHistoryRecord] = []
 
     package internal(set) var session: PhotoSession
@@ -54,6 +55,8 @@ package final class CullingSessionViewModel {
     package var followLatestCapture: Bool = false
     package var autoTagOnIngest: Bool = true
     package var detectBodyPoses: Bool = true
+    package var autoStartTimerOnFirstShot: Bool = true
+    package internal(set) var timerNow: Date = Date()
     package var viewportMaxDimension: CGFloat = 2400
     package var selectedTagFilter: String? {
         didSet {
@@ -98,6 +101,7 @@ package final class CullingSessionViewModel {
         if let prefs = performancePreferences {
             self.autoTagOnIngest = prefs.enableVisionAutoTagging
             self.detectBodyPoses = prefs.detectBodyPoses
+            self.autoStartTimerOnFirstShot = prefs.autoStartSessionTimerOnFirstShot
             self.viewportMaxDimension = CGFloat(prefs.viewportMaxDimension)
         }
         reloadFromDisk()
@@ -107,6 +111,7 @@ package final class CullingSessionViewModel {
         let wasAutoTag = autoTagOnIngest
         autoTagOnIngest = prefs.enableVisionAutoTagging
         detectBodyPoses = prefs.detectBodyPoses
+        autoStartTimerOnFirstShot = prefs.autoStartSessionTimerOnFirstShot
         viewportMaxDimension = CGFloat(prefs.viewportMaxDimension)
 
         if !autoTagOnIngest {
@@ -162,6 +167,8 @@ package final class CullingSessionViewModel {
             cachedTagsByBase: tagMap
         )
         session.counts = SessionFileManager.readDiskCounts(for: session)
+        session.metadata = SessionMetadataStore.load(for: session.directoryURL)
+        syncTimerTicker()
         clampCurrentIndex()
         if selectedArchivedID == nil || !archivedItems.contains(where: { $0.id == selectedArchivedID }) {
             selectedArchivedID = archivedItems.first?.id
@@ -223,6 +230,7 @@ package final class CullingSessionViewModel {
     private func appendLivePendingItem(_ item: PhotoItem) {
         let wasEmpty = visiblePendingItems.isEmpty
         pendingItems.append(item)
+        handleFirstShotTimerAutoStartIfNeeded(capturedAt: item.capturedAt)
 
         if autoTagOnIngest {
             scheduleVisionAnalysis(for: item)

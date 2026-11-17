@@ -15,10 +15,48 @@ package struct GeneralSettingsView: View {
         ScrollView {
             VStack(alignment: .leading, spacing: AppSpacing.xl) {
                 hardwareAndAISection
+                sessionTimerSection
                 rootFolderSection
                 shortcutsSummarySection
             }
             .padding(AppSpacing.xl)
+        }
+    }
+
+    private var sessionTimerSection: some View {
+        VStack(alignment: .leading, spacing: AppSpacing.md) {
+            Text("Temporizador de Sesiones Fotográficas")
+                .font(AppTypography.sectionTitle)
+                .foregroundStyle(AppColors.textPrimary)
+
+            VStack(alignment: .leading, spacing: AppSpacing.sm) {
+                Toggle(isOn: Binding(
+                    get: { appState.performancePrefs.autoStartSessionTimerOnFirstShot },
+                    set: { enabled in
+                        var updated = appState.performancePrefs
+                        updated.autoStartSessionTimerOnFirstShot = enabled
+                        appState.updatePerformancePreferences(updated)
+                    }
+                )) {
+                    Text("Auto-iniciar temporizador con la primera foto")
+                        .font(AppTypography.bodyMedium)
+                        .foregroundStyle(AppColors.textPrimary)
+                }
+                .toggleStyle(.switch)
+
+                Text("Al recibir la primera foto en vivo dentro de la sesión, el reloj arranca automáticamente usando la hora de captura de esa primera foto. Siempre podés iniciar o finalizar el timer manualmente desde la barra superior.")
+                    .font(AppTypography.caption)
+                    .foregroundStyle(AppColors.textSecondary)
+                    .fixedSize(horizontal: false, vertical: true)
+            }
+            .padding(AppSpacing.md)
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .background(AppColors.panelSurface)
+            .clipShape(RoundedRectangle(cornerRadius: AppRadius.lg, style: .continuous))
+            .overlay(
+                RoundedRectangle(cornerRadius: AppRadius.lg, style: .continuous)
+                    .stroke(AppColors.borderSubtle, lineWidth: AppSpacing.hairline)
+            )
         }
     }
 

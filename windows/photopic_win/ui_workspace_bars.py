@@ -7,7 +7,14 @@ from PySide6.QtWidgets import QCheckBox, QFrame, QHBoxLayout, QLabel, QPushButto
 from .design_system import AppColors, AppSpacing
 
 
-def build_workspace_topbar(session_name: str, on_back, on_tab, on_watch, on_help=None) -> tuple[QFrame, dict]:
+def build_workspace_topbar(
+    session_name: str,
+    on_back,
+    on_tab,
+    on_watch,
+    on_help=None,
+    timer_widget=None,
+) -> tuple[QFrame, dict]:
     top = QFrame()
     top.setObjectName("TopBar")
     top.setFixedHeight(52)
@@ -42,6 +49,9 @@ def build_workspace_topbar(session_name: str, on_back, on_tab, on_watch, on_help
         help_btn = QPushButton("Ayuda (?)")
         help_btn.clicked.connect(on_help)
         lay.addWidget(help_btn)
+
+    if timer_widget is not None:
+        lay.addWidget(timer_widget)
 
     edit_badge = QLabel("Para Edición: 0")
     edit_badge.setStyleSheet(

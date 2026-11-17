@@ -31,12 +31,18 @@ package struct MoveHistoryRecord: Sendable, Equatable {
 package enum SessionFileManager {
     package enum SessionFileError: LocalizedError {
         case invalidSessionName
+        case invalidGroupName
+        case unsafeDeleteTarget
         case fileMoveFailed(String)
 
         package var errorDescription: String? {
             switch self {
             case .invalidSessionName:
                 return "El nombre de la sesión no es válido."
+            case .invalidGroupName:
+                return "El nombre de la carpeta máster no es válido."
+            case .unsafeDeleteTarget:
+                return "Bloqueo de seguridad: la carpeta seleccionada no es una sesión válida dentro de la Carpeta Raíz."
             case .fileMoveFailed(let reason):
                 return "No se pudo mover el archivo: \(reason)"
             }
@@ -73,30 +79,7 @@ package enum SessionFileManager {
     }
 
     package static func loadSessions(in rootURL: URL) -> [PhotoSession] {
-        let fm = FileManager.default
-        guard let entries = try? fm.contentsOfDirectory(
-            at: rootURL,
-            includingPropertiesForKeys: [.isDirectoryKey, .creationDateKey, .contentModificationDateKey],
-            options: [.skipsHiddenFiles]
-        ) else {
-            return []
-        }
-
-        var sessions: [PhotoSession] = []
-        for entry in entries {
-            let values = try? entry.resourceValues(forKeys: [.isDirectoryKey, .creationDateKey])
-            guard values?.isDirectory == true else { continue }
-
-            let rawURL = entry.appendingPathComponent(SessionSubfolder.raw.rawValue, isDirectory: true)
-            guard fm.fileExists(atPath: rawURL.path) else { continue }
-
-            let createdAt = values?.creationDate ?? Date()
-            var session = PhotoSession(name: entry.lastPathComponent, directoryURL: entry, createdAt: createdAt)
-            session.counts = readDiskCounts(for: session)
-            sessions.append(session)
-        }
-
-        return sessions.sorted { $0.createdAt > $1.createdAt }
+        loadAllFlatAndGroupedSessions(in: rootURL)
     }
 
     package static func readDiskCounts(for session: PhotoSession) -> SessionDiskCounts {
@@ -209,12 +192,12 @@ package enum SessionFileManager {
         return index
     }
 
-    private static func sanitizeSessionName(_ name: String) -> String {
+    static func sanitizeSessionName(_ name: String) -> String {
         let invalid = CharacterSet(charactersIn: "/:\\?%*|\"<>")
         return name.components(separatedBy: invalid).joined(separator: "-").trimmingCharacters(in: .whitespacesAndNewlines)
     }
 
-    private static func uniqueDirectoryURL(in parentURL: URL, preferredName: String) -> URL {
+    static func uniqueDirectoryURL(in parentURL: URL, preferredName: String) -> URL {
         let fm = FileManager.default
         var candidate = parentURL.appendingPathComponent(preferredName, isDirectory: true)
         var suffix = 2

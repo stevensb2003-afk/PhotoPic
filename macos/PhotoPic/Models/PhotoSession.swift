@@ -22,6 +22,10 @@ package struct SessionDiskCounts: Sendable, Equatable, Hashable {
     package var totalCulled: Int {
         forEditing + archived
     }
+
+    package var totalAllImages: Int {
+        pending + forEditing + archived
+    }
 }
 
 /// Canonical subfolder layout inside each shooting session.
@@ -39,18 +43,24 @@ package struct PhotoSession: Identifiable, Sendable, Equatable, Hashable {
     package var directoryURL: URL
     package var createdAt: Date
     package var counts: SessionDiskCounts
+    package var groupName: String?
+    package var metadata: SessionMetadata
 
     package init(
         name: String,
         directoryURL: URL,
         createdAt: Date = Date(),
-        counts: SessionDiskCounts = SessionDiskCounts()
+        counts: SessionDiskCounts = SessionDiskCounts(),
+        groupName: String? = nil,
+        metadata: SessionMetadata = SessionMetadata()
     ) {
         self.id = directoryURL.standardizedFileURL.path
         self.name = name
         self.directoryURL = directoryURL
         self.createdAt = createdAt
         self.counts = counts
+        self.groupName = groupName
+        self.metadata = metadata
     }
 
     package var rawFolderURL: URL {

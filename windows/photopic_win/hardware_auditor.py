@@ -55,14 +55,20 @@ class PerformancePreferences:
     detect_body_poses: bool = False
     preview_max_dimension: int = 1600
     has_completed_guided_setup: bool = False
+    auto_start_session_timer: bool = True
 
     @classmethod
-    def preset(cls, tier: PerformanceTier, completed: bool = False) -> PerformancePreferences:
+    def preset(
+        cls,
+        tier: PerformanceTier,
+        completed: bool = False,
+        auto_start_timer: bool = True,
+    ) -> PerformancePreferences:
         if tier == PerformanceTier.FULL_AI:
-            return cls(tier.value, True, True, 1800, completed)
+            return cls(tier.value, True, True, 1800, completed, auto_start_timer)
         if tier == PerformanceTier.BALANCED_AI:
-            return cls(tier.value, True, False, 1500, completed)
-        return cls(tier.value, False, False, 1280, completed)
+            return cls(tier.value, True, False, 1500, completed, auto_start_timer)
+        return cls(tier.value, False, False, 1280, completed, auto_start_timer)
 
 
 class _MemoryStatusEx(ctypes.Structure):
@@ -163,6 +169,7 @@ class WindowsConfigStore:
                 detect_body_poses=bool(perf_raw.get("detect_body_poses", False)),
                 preview_max_dimension=int(perf_raw.get("preview_max_dimension", 1600)),
                 has_completed_guided_setup=bool(perf_raw.get("has_completed_guided_setup", root_dir is not None)),
+                auto_start_session_timer=bool(perf_raw.get("auto_start_session_timer", True)),
             )
         else:
             prefs = PerformancePreferences.preset(default_audit.recommended_tier, completed=root_dir is not None)

@@ -1,7 +1,8 @@
 import SwiftUI
 
-/// Central RAW culling stage combining GPU image display, minimalist EXIF HUD,
-/// horizontal swipe gestures, and spring-loaded 1:1 hold-and-drag loupe.
+/// Central RAW culling stage combining unobstructed GPU image display,
+/// horizontal swipe gestures, spring-loaded 1:1 hold-and-drag loupe,
+/// and an isolated right-side floating PhotoInspectorCardView.
 package struct TinderCardStackView: View {
     @Bindable var viewModel: CullingSessionViewModel
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
@@ -17,27 +18,41 @@ package struct TinderCardStackView: View {
     }
 
     package var body: some View {
-        GeometryReader { proxy in
-            ZStack {
-                AppColors.stageBackground
+        ZStack {
+            AppColors.stageBackground
 
-                if let item = viewModel.currentPendingItem {
-                    cardStage(for: item, size: proxy.size)
-                } else {
-                    emptyQueueState
-                }
-
-                if let pill = viewModel.feedbackPill {
-                    VStack {
-                        feedbackPillView(pill)
-                            .padding(.top, AppSpacing.lg)
-                        Spacer()
+            if let item = viewModel.currentPendingItem {
+                HStack(spacing: AppSpacing.md) {
+                    GeometryReader { stageProxy in
+                        cardStage(for: item, size: stageProxy.size)
+                            .frame(width: stageProxy.size.width, height: stageProxy.size.height)
                     }
-                    .allowsHitTesting(false)
-                    .transition(.opacity.combined(with: .scale(scale: 0.96)))
+                    .frame(maxWidth: .infinity, maxHeight: .infinity)
+
+                    PhotoInspectorCardView(
+                        item: item,
+                        currentIndex: viewModel.currentIndex,
+                        totalCount: viewModel.visiblePendingItems.count,
+                        nativeSize: viewModel.activeNativeSize,
+                        onAddCustomTag: { tag in viewModel.addCustomTag(tag, to: item) },
+                        onRemoveCustomTag: { tag in viewModel.removeCustomTag(tag, from: item) }
+                    )
+                    .padding(.vertical, AppSpacing.md)
+                    .padding(.trailing, AppSpacing.lg)
                 }
+            } else {
+                emptyQueueState
             }
-            .frame(width: proxy.size.width, height: proxy.size.height)
+
+            if let pill = viewModel.feedbackPill {
+                VStack {
+                    feedbackPillView(pill)
+                        .padding(.top, AppSpacing.lg)
+                    Spacer()
+                }
+                .allowsHitTesting(false)
+                .transition(.opacity.combined(with: .scale(scale: 0.96)))
+            }
         }
         .onChange(of: viewModel.currentIndex) { _, _ in
             committedPanOffset = .zero
@@ -59,7 +74,7 @@ package struct TinderCardStackView: View {
         )
         let rotationDegrees = viewModel.isAnyZoomActive ? 0.0 : Double(max(-6, min(6, swipeOffsetX / 48)))
 
-        return ZStack(alignment: .bottomLeading) {
+        return ZStack {
             RawZoomableImageView(
                 viewportImage: viewModel.activeViewportImage,
                 fullSensorImage: viewModel.activeFullSensorImage,
@@ -72,14 +87,13 @@ package struct TinderCardStackView: View {
             )
 
             swipeIntentStamp
-            minimalistHudOverlay(for: item)
         }
         .clipShape(RoundedRectangle(cornerRadius: AppRadius.lg, style: .continuous))
         .overlay(
             RoundedRectangle(cornerRadius: AppRadius.lg, style: .continuous)
                 .stroke(cardBorderColor, lineWidth: AppSpacing.hairline)
         )
-        .padding(AppSpacing.md)
+        .padding([.vertical, .leading], AppSpacing.md)
         .offset(x: viewModel.isAnyZoomActive ? 0 : swipeOffsetX)
         .rotationEffect(.degrees(rotationDegrees))
         .contentShape(Rectangle())
@@ -182,67 +196,6 @@ package struct TinderCardStackView: View {
             }
             .allowsHitTesting(false)
         }
-    }
-
-    private func minimalistHudOverlay(for item: PhotoItem) -> some View {
-        HStack(alignment: .bottom, spacing: AppSpacing.md) {
-            VStack(alignment: .leading, spacing: AppSpacing.xs) {
-                HStack(spacing: AppSpacing.sm) {
-                    Text(item.filename)
-                        .font(AppTypography.monoCounter)
-                        .foregroundStyle(AppColors.textPrimary)
-
-                    Text(item.formatExtension)
-                        .font(AppTypography.monoMicro)
-                        .foregroundStyle(item.formatKind == .raw ? AppColors.warningAmber : AppColors.infoBlue)
-                        .padding(.horizontal, AppSpacing.xs)
-                        .padding(.vertical, 2)
-                        .background(item.formatKind == .raw ? AppColors.warningAmberTint : AppColors.infoBlueTint)
-                        .clipShape(RoundedRectangle(cornerRadius: AppRadius.xs, style: .continuous))
-
-                    if let alias = item.sourceDeviceAlias, !alias.isEmpty {
-                        Text(alias)
-                            .font(AppTypography.caption)
-                            .foregroundStyle(AppColors.textSecondary)
-                    }
-                }
-
-                HStack(spacing: AppSpacing.sm) {
-                    Text(item.exif.compactHudSummary)
-                        .font(AppTypography.monoCaption)
-                        .foregroundStyle(AppColors.textSecondary)
-
-                    if let dimensions = item.exif.formattedDimensions {
-                        Text("· \(dimensions)")
-                            .font(AppTypography.monoCaption)
-                            .foregroundStyle(AppColors.textTertiary)
-                    }
-                }
-
-                VisionHudTagChips(tags: item.visionTags) { customTag in
-                    viewModel.addCustomTag(customTag, to: item)
-                }
-            }
-
-            Spacer()
-
-            Text("Foto \(viewModel.currentIndex + 1) de \(viewModel.visiblePendingItems.count) pendientes")
-                .font(AppTypography.monoCaption)
-                .foregroundStyle(AppColors.textPrimary)
-                .padding(.horizontal, AppSpacing.md)
-                .padding(.vertical, AppSpacing.xs)
-                .background(AppColors.elevatedSurface)
-                .clipShape(Capsule())
-        }
-        .padding(.horizontal, AppSpacing.lg)
-        .padding(.vertical, AppSpacing.md)
-        .background(AppColors.hudBackdrop)
-        .clipShape(RoundedRectangle(cornerRadius: AppRadius.md, style: .continuous))
-        .overlay(
-            RoundedRectangle(cornerRadius: AppRadius.md, style: .continuous)
-                .stroke(AppColors.borderSubtle, lineWidth: AppSpacing.hairline)
-        )
-        .padding(AppSpacing.lg)
     }
 
     private var emptyQueueState: some View {

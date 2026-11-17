@@ -72,6 +72,7 @@ class DeviceCategory(str, Enum):
 class PhotoExifMetadata:
     camera_make: str | None = None
     camera_model: str | None = None
+    lens_model: str | None = None
     iso: int | None = None
     aperture: float | None = None
     shutter_seconds: float | None = None
@@ -80,20 +81,38 @@ class PhotoExifMetadata:
     pixel_height: int | None = None
 
     @property
-    def compact_hud_summary(self) -> str:
-        parts: list[str] = []
-        if self.iso:
-            parts.append(f"ISO {self.iso}")
+    def formatted_iso(self) -> str | None:
+        return f"ISO {self.iso}" if self.iso else None
+
+    @property
+    def formatted_aperture(self) -> str | None:
         if self.aperture and self.aperture > 0:
-            parts.append(f"f/{self.aperture:.1f}".rstrip("0").rstrip("."))
+            return f"f/{self.aperture:.1f}".rstrip("0").rstrip(".")
+        return None
+
+    @property
+    def formatted_shutter(self) -> str | None:
         if self.shutter_seconds and self.shutter_seconds > 0:
             if self.shutter_seconds >= 1.0:
-                parts.append(f"{self.shutter_seconds:.1f}s")
-            else:
-                denom = max(1, round(1.0 / self.shutter_seconds))
-                parts.append(f"1/{denom}s")
-        if self.focal_length_mm and self.focal_length_mm > 0:
-            parts.append(f"{round(self.focal_length_mm)}mm")
+                return f"{self.shutter_seconds:.1f}s"
+            denom = max(1, round(1.0 / self.shutter_seconds))
+            return f"1/{denom}s"
+        return None
+
+    @property
+    def formatted_focal(self) -> str | None:
+        return f"{round(self.focal_length_mm)}mm" if self.focal_length_mm and self.focal_length_mm > 0 else None
+
+    @property
+    def formatted_dimensions(self) -> str | None:
+        if self.pixel_width and self.pixel_height and self.pixel_width > 0 and self.pixel_height > 0:
+            mp = (self.pixel_width * self.pixel_height) / 1_000_000.0
+            return f"{self.pixel_width}×{self.pixel_height} ({mp:.1f} MP)"
+        return None
+
+    @property
+    def compact_hud_summary(self) -> str:
+        parts = [p for p in (self.formatted_iso, self.formatted_aperture, self.formatted_shutter, self.formatted_focal) if p]
         return " · ".join(parts) if parts else "Sin metadatos EXIF"
 
 
@@ -158,6 +177,10 @@ class SessionDiskCounts:
     archived: int = 0
     companion_jpgs: int = 0
 
+    @property
+    def total_all_images(self) -> int:
+        return self.pending + self.for_editing + self.archived
+
 
 @dataclass
 class PhotoSession:
@@ -165,6 +188,9 @@ class PhotoSession:
     directory: Path
     created_at: float = 0.0
     counts: SessionDiskCounts = field(default_factory=SessionDiskCounts)
+    group_name: str | None = None
+    tags: list[str] = field(default_factory=list)
+    formatted_duration: str | None = None
 
     @property
     def raw_folder(self) -> Path:

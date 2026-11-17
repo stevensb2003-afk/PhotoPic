@@ -98,18 +98,20 @@ _HELP_TOPICS: list[dict] = [
     {
         "code": "DOC-04",
         "cat": "Carpetas y Límites",
-        "title": "Pares RAW + JPG, Atajos y Archivadas",
-        "kw": "raw jpg para_edicion archivadas eliminar popover vaciar zoom undo",
-        "summary": "Aprobar o archivar mueve juntos el RAW (+ .xmp) y su JPG asociado a Para_Edicion/{RAW,JPG} o Archivadas/{RAW,JPG}.",
+        "title": "Grupos Máster, Timer, Inspector y Borrado",
+        "kw": "raw jpg para_edicion archivadas eliminar grupo master timer temporizador exif buscar tags",
+        "summary": "Aprobar o archivar mueve RAW (+ .xmp) y JPG juntos; ahora además podés agrupar sesiones en Carpetas Máster, cronometrar la sesión desde la 1ª foto, inspeccionar EXIF sin tapar la foto y eliminar proyectos completos con confirmación.",
         "can_do": [
-            "Recuperar descartes hacia Para_Edicion o borrarlos definitivamente con Popover de confirmación.",
+            "Filtrar sesiones por texto, Carpeta Máster o #etiquetas siendo 100% retrocompatible con sesiones planas antiguas.",
+            "Ver ISO, apertura, obturación, focal, lente, MP y etiquetas en el panel flotante lateral derecho sin estorbar la foto.",
+            "Recuperar descartes en Archivadas o borrar definitivamente un proyecto entero tras confirmar el total de fotos.",
         ],
         "limits": [
-            "El borrado definitivo en Archivadas no va a la Papelera ni se deshace con Ctrl+Z.",
+            "El borrado definitivo de proyectos o archivos en Archivadas no va a la Papelera ni se deshace con Ctrl+Z.",
         ],
         "steps": [
-            "Usá ↑/↓ para navegar, → aprobar, ← archivar, Espacio para Zoom 1:1 y Ctrl+Z para deshacer.",
-            "En Archivadas usá 'Eliminar archivo...' o 'Vaciar Archivadas...' cuando necesités liberar disco.",
+            "Usá ↑/↓ para navegar, → aprobar, ← archivar, Espacio para Zoom 1:1 y arrastrá con el mouse sobre la foto para swipe.",
+            "El timer arranca solo con la 1ª foto (desactivable en 'Rendimiento e IA...') o manualmente arriba.",
         ],
     },
 ]

@@ -72,12 +72,22 @@ class _AuditConfigPanel(QWidget):
         self._chk_pose.toggled.connect(self._on_toggles_changed)
         cl.addWidget(self._chk_pose)
 
+        self._chk_auto_timer = QCheckBox(
+            "Auto-iniciar temporizador de sesión con la hora de captura de la primera foto"
+        )
+        self._chk_auto_timer.setChecked(prefs.auto_start_session_timer)
+        cl.addWidget(self._chk_auto_timer)
+
         layout.addWidget(card)
 
     def current_preferences(self, completed_setup: bool) -> PerformancePreferences:
         tier_val = self._tier_combo.currentData() or PerformanceTier.BALANCED_AI.value
         tier = PerformanceTier(tier_val)
-        preset = PerformancePreferences.preset(tier, completed=completed_setup)
+        preset = PerformancePreferences.preset(
+            tier,
+            completed=completed_setup,
+            auto_start_timer=self._chk_auto_timer.isChecked(),
+        )
         preset.enable_vision_autotagging = self._chk_ai.isChecked()
         preset.detect_body_poses = self._chk_ai.isChecked() and self._chk_pose.isChecked()
         return preset

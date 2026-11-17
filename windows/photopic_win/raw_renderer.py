@@ -57,6 +57,7 @@ class RawImageRendererWin:
             meta.shutter_seconds = meta.shutter_seconds or comp.shutter_seconds
             meta.focal_length_mm = meta.focal_length_mm or comp.focal_length_mm
             meta.camera_model = meta.camera_model or comp.camera_model
+            meta.lens_model = meta.lens_model or comp.lens_model
         return meta
 
     @staticmethod
@@ -69,8 +70,12 @@ class RawImageRendererWin:
                 if not exif:
                     return meta
                 tag_map = {ExifTags.TAGS.get(k, k): v for k, v in exif.items()}
+                exif_ifd = exif.get_ifd(0x8769) if hasattr(exif, "get_ifd") else {}
+                for k, v in (exif_ifd or {}).items():
+                    tag_map.setdefault(ExifTags.TAGS.get(k, k), v)
                 meta.camera_make = str(tag_map.get("Make", "")).strip() or None
                 meta.camera_model = str(tag_map.get("Model", "")).strip() or None
+                meta.lens_model = str(tag_map.get("LensModel", "")).strip() or None
                 if "ISOSpeedRatings" in tag_map:
                     val = tag_map["ISOSpeedRatings"]
                     meta.iso = int(val[0] if isinstance(val, (tuple, list)) else val)

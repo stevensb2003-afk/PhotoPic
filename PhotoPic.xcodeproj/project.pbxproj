@@ -24,6 +24,7 @@
 		888C9B6BFEFD79403045B100 = {isa = PBXBuildFile; fileRef = D90D3F74091EF71FB3E0E705; };
 		8D953CD13D4E83D8897807B9 = {isa = PBXBuildFile; fileRef = 8C16B9355E794580FDD4A3BE; };
 		A1AB4F323175310B1D7D7370 = {isa = PBXBuildFile; fileRef = 748657D8DB2C8E303BAF5F61; };
+		5D5BF46BA0C2899444CA7366 = {isa = PBXBuildFile; fileRef = B2F0A7A1F8DFF475C6C97D36; };
 		C81612BE235E98ECBC38F603 = {isa = PBXBuildFile; fileRef = 68AF38D25200E29B10A232BA; };
 		85B99EBC0A3C5BF49071DB68 = {isa = PBXBuildFile; fileRef = C601FA496CB695F931BDBCE5; };
 		F99D3D9D550ABCABBF5DECE8 = {isa = PBXBuildFile; fileRef = 4A59295FCA5F8C7493D411FB; };
@@ -40,6 +41,7 @@
 		268D2BC7DDCD8C0705D8C28C = {isa = PBXBuildFile; fileRef = C360E583E2FE4ADBF7E3FC1D; };
 		90F0E614D5BF728929415794 = {isa = PBXBuildFile; fileRef = 224D93481AE544CC5D55A6C1; };
 		BE3E59C8E287DBFF245FF7CE = {isa = PBXBuildFile; fileRef = C7617A8D85FB81C02EC52A49; };
+		4733A9BC9C3893DC300A4585 = {isa = PBXBuildFile; fileRef = 66FECD22AD4B16759085C5F6; };
 		816722AD7E477A4BE849EB53 = {isa = PBXBuildFile; fileRef = 1416ACDEDF51223DB098A676; };
 		B942ACE53A29022DE4967441 = {isa = PBXBuildFile; fileRef = 2CC45DCDD19238BEB17B36A4; };
 		4FF3BBC330D7D16FC6EE6CD0 = {isa = PBXBuildFile; fileRef = 3B26714214F6CC205D610127; };
@@ -48,6 +50,7 @@
 		E093783792C5D2D98FD52D67 = {isa = PBXBuildFile; fileRef = D0EA9A9477388B5C29678516; };
 		43DA01E5E7B74A25C565536D = {isa = PBXBuildFile; fileRef = 7974B0FB0A2B0B6A1E46E70F; };
 		87336FD68B18F6D1368C0A1F = {isa = PBXBuildFile; fileRef = CA690CFF7642B208508C88C0; };
+		134DEFC9B22A9A0447DADCEC = {isa = PBXBuildFile; fileRef = 6DF5BAD7AF00DF70C2C133B8; };
 		B55B36590947BB22636BFE14 = {isa = PBXBuildFile; fileRef = 6DDF9E0AD651A2AE92E949D0; };
 		88219A3D795CD62ABFD418DB = {isa = PBXBuildFile; fileRef = 88B4BDC80090D85E070F8A51; };
 		11BBD49B660FE4233C04A972 = {isa = PBXBuildFile; fileRef = EABF0EA26A1CE896B03AB75B; };
@@ -57,8 +60,10 @@
 		C10986FB1427A596CC78F55D = {isa = PBXBuildFile; fileRef = 54BA2C65F7BD620303F6BC39; };
 		D44B7CA9BFDC1519B443474E = {isa = PBXBuildFile; fileRef = 95DFB68CB1D2D81C55A55E56; };
 		DD775DA670A7C1D41BAA719B = {isa = PBXBuildFile; fileRef = 8514D213D664E212B8D37F6E; };
+		F749A4795F269BCDB16F303D = {isa = PBXBuildFile; fileRef = F963F4B2F4064A2925529AAA; };
 		E37FBBCE1ED5816C5188511B = {isa = PBXBuildFile; fileRef = 43B75330EAE54853AA0DC2CF; };
 		0E75F0DD85B8659E26C4A341 = {isa = PBXBuildFile; fileRef = 097553DC273550BB3C75963C; };
+		5D0F1BB77112DFA812C9F5CF = {isa = PBXBuildFile; fileRef = 204CABAC968EC13877A03B15; };
 		B96E8F72E776E46CDA59E2D4 = {isa = PBXBuildFile; fileRef = DBAEB4C41EFD86CF8CA8E7EC; };
 		CEA6B205CB548851D4C71DC2 = {isa = PBXBuildFile; fileRef = BC764AEEF3393C41ADC3EC3E; };
 		EFBDF0D23664E66C6EC7A052 = {isa = PBXBuildFile; fileRef = 4B2037734F6CC9CBC12C226D; };
@@ -72,7 +77,9 @@
 		0D4502C0C9F6A3C0F7418BBF = {isa = PBXBuildFile; fileRef = 4F46B8B8C6E8E759B1574F6A; };
 		F594C6B0E79A5262D18E8B79 = {isa = PBXBuildFile; fileRef = BD32DC6989B736F990D28327; };
 		198E29D3EAF996B2D0040E33 = {isa = PBXBuildFile; fileRef = A507C3EDDE985B32CF8391E7; };
+		AA9AE3720D4CCBDA0ADF653E = {isa = PBXBuildFile; fileRef = 72AF3CE2126C16A6CD61BB1C; };
 		06C6AB1EBAB0B652DFDBCFB9 = {isa = PBXBuildFile; fileRef = DB0673973EDFACEB6B99D15D; };
+		E0AAB8651983C1741B054516 = {isa = PBXBuildFile; fileRef = 09DBC7B0FFF1C336215E285D; };
 		A2AC169CE752A44D45BED10D = {isa = PBXBuildFile; fileRef = 4F4AE5391A71FC7BF1F2D449; };
 		B3ADC962E8E139213E64F278 = {isa = PBXBuildFile; fileRef = 2D905F685D63EB6DFFD568D8; };
 		3A6B420AB7217193F292F97B = {isa = PBXBuildFile; fileRef = 74A85BE872C289FE3EDA88D6; };
@@ -107,6 +114,7 @@
 		D90D3F74091EF71FB3E0E705 = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = "PhotoItem.swift"; path = "macos/PhotoPic/Models/PhotoItem.swift"; sourceTree = "<group>"; };
 		8C16B9355E794580FDD4A3BE = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = "PhotoSession.swift"; path = "macos/PhotoPic/Models/PhotoSession.swift"; sourceTree = "<group>"; };
 		748657D8DB2C8E303BAF5F61 = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = "PhotoVisionTags.swift"; path = "macos/PhotoPic/Models/PhotoVisionTags.swift"; sourceTree = "<group>"; };
+		B2F0A7A1F8DFF475C6C97D36 = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = "SessionMetadata.swift"; path = "macos/PhotoPic/Models/SessionMetadata.swift"; sourceTree = "<group>"; };
 		68AF38D25200E29B10A232BA = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = "BookmarkManager.swift"; path = "macos/PhotoPic/Services/BookmarkManager.swift"; sourceTree = "<group>"; };
 		C601FA496CB695F931BDBCE5 = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = "DeviceDiscoveryService+Delegate.swift"; path = "macos/PhotoPic/Services/DeviceDiscoveryService+Delegate.swift"; sourceTree = "<group>"; };
 		4A59295FCA5F8C7493D411FB = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = "DeviceDiscoveryService.swift"; path = "macos/PhotoPic/Services/DeviceDiscoveryService.swift"; sourceTree = "<group>"; };
@@ -123,6 +131,7 @@
 		C360E583E2FE4ADBF7E3FC1D = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = "RawImageRenderer.swift"; path = "macos/PhotoPic/Services/RawImageRenderer.swift"; sourceTree = "<group>"; };
 		224D93481AE544CC5D55A6C1 = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = "SessionArchiveCleaner.swift"; path = "macos/PhotoPic/Services/SessionArchiveCleaner.swift"; sourceTree = "<group>"; };
 		C7617A8D85FB81C02EC52A49 = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = "SessionFileManager+BucketSync.swift"; path = "macos/PhotoPic/Services/SessionFileManager+BucketSync.swift"; sourceTree = "<group>"; };
+		66FECD22AD4B16759085C5F6 = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = "SessionFileManager+GroupsAndDelete.swift"; path = "macos/PhotoPic/Services/SessionFileManager+GroupsAndDelete.swift"; sourceTree = "<group>"; };
 		1416ACDEDF51223DB098A676 = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = "SessionFileManager.swift"; path = "macos/PhotoPic/Services/SessionFileManager.swift"; sourceTree = "<group>"; };
 		2CC45DCDD19238BEB17B36A4 = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = "SessionIngestRouter.swift"; path = "macos/PhotoPic/Services/SessionIngestRouter.swift"; sourceTree = "<group>"; };
 		3B26714214F6CC205D610127 = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = "TetherBaselineGate.swift"; path = "macos/PhotoPic/Services/TetherBaselineGate.swift"; sourceTree = "<group>"; };
@@ -131,6 +140,7 @@
 		D0EA9A9477388B5C29678516 = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = "USBHardwareMonitor.swift"; path = "macos/PhotoPic/Services/USBHardwareMonitor.swift"; sourceTree = "<group>"; };
 		7974B0FB0A2B0B6A1E46E70F = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = "CullingSessionViewModel+Actions.swift"; path = "macos/PhotoPic/ViewModels/CullingSessionViewModel+Actions.swift"; sourceTree = "<group>"; };
 		CA690CFF7642B208508C88C0 = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = "CullingSessionViewModel+Rendering.swift"; path = "macos/PhotoPic/ViewModels/CullingSessionViewModel+Rendering.swift"; sourceTree = "<group>"; };
+		6DF5BAD7AF00DF70C2C133B8 = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = "CullingSessionViewModel+Timer.swift"; path = "macos/PhotoPic/ViewModels/CullingSessionViewModel+Timer.swift"; sourceTree = "<group>"; };
 		6DDF9E0AD651A2AE92E949D0 = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = "CullingSessionViewModel+Vision.swift"; path = "macos/PhotoPic/ViewModels/CullingSessionViewModel+Vision.swift"; sourceTree = "<group>"; };
 		88B4BDC80090D85E070F8A51 = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = "CullingSessionViewModel.swift"; path = "macos/PhotoPic/ViewModels/CullingSessionViewModel.swift"; sourceTree = "<group>"; };
 		EABF0EA26A1CE896B03AB75B = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = "DeviceManagerViewModel.swift"; path = "macos/PhotoPic/ViewModels/DeviceManagerViewModel.swift"; sourceTree = "<group>"; };
@@ -140,8 +150,10 @@
 		54BA2C65F7BD620303F6BC39 = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = "VisionTagBarView.swift"; path = "macos/PhotoPic/Views/Components/VisionTagBarView.swift"; sourceTree = "<group>"; };
 		95DFB68CB1D2D81C55A55E56 = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = "HelpCenterView.swift"; path = "macos/PhotoPic/Views/Help/HelpCenterView.swift"; sourceTree = "<group>"; };
 		8514D213D664E212B8D37F6E = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = "HomeDashboardView.swift"; path = "macos/PhotoPic/Views/Home/HomeDashboardView.swift"; sourceTree = "<group>"; };
+		F963F4B2F4064A2925529AAA = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = "HomeFilterAndGroupBar.swift"; path = "macos/PhotoPic/Views/Home/HomeFilterAndGroupBar.swift"; sourceTree = "<group>"; };
 		43B75330EAE54853AA0DC2CF = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = "NewSessionSheet.swift"; path = "macos/PhotoPic/Views/Home/NewSessionSheet.swift"; sourceTree = "<group>"; };
 		097553DC273550BB3C75963C = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = "SessionCardView.swift"; path = "macos/PhotoPic/Views/Home/SessionCardView.swift"; sourceTree = "<group>"; };
+		204CABAC968EC13877A03B15 = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = "SessionModalsView.swift"; path = "macos/PhotoPic/Views/Home/SessionModalsView.swift"; sourceTree = "<group>"; };
 		DBAEB4C41EFD86CF8CA8E7EC = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = "TopDeviceStatusBar.swift"; path = "macos/PhotoPic/Views/Home/TopDeviceStatusBar.swift"; sourceTree = "<group>"; };
 		BC764AEEF3393C41ADC3EC3E = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = "GuidedSetupWizardView.swift"; path = "macos/PhotoPic/Views/Onboarding/GuidedSetupWizardView.swift"; sourceTree = "<group>"; };
 		4B2037734F6CC9CBC12C226D = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = "RootFolderOnboardingView.swift"; path = "macos/PhotoPic/Views/Onboarding/RootFolderOnboardingView.swift"; sourceTree = "<group>"; };
@@ -155,7 +167,9 @@
 		4F46B8B8C6E8E759B1574F6A = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = "CullingControlsBar.swift"; path = "macos/PhotoPic/Views/Workspace/CullingControlsBar.swift"; sourceTree = "<group>"; };
 		BD32DC6989B736F990D28327 = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = "LiveViewCompatibilityCard.swift"; path = "macos/PhotoPic/Views/Workspace/LiveViewCompatibilityCard.swift"; sourceTree = "<group>"; };
 		A507C3EDDE985B32CF8391E7 = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = "LiveViewWorkspacePane.swift"; path = "macos/PhotoPic/Views/Workspace/LiveViewWorkspacePane.swift"; sourceTree = "<group>"; };
+		72AF3CE2126C16A6CD61BB1C = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = "PhotoInspectorCardView.swift"; path = "macos/PhotoPic/Views/Workspace/PhotoInspectorCardView.swift"; sourceTree = "<group>"; };
 		DB0673973EDFACEB6B99D15D = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = "RawZoomableImageView.swift"; path = "macos/PhotoPic/Views/Workspace/RawZoomableImageView.swift"; sourceTree = "<group>"; };
+		09DBC7B0FFF1C336215E285D = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = "SessionTimerPillView.swift"; path = "macos/PhotoPic/Views/Workspace/SessionTimerPillView.swift"; sourceTree = "<group>"; };
 		4F4AE5391A71FC7BF1F2D449 = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = "SessionWorkspaceView.swift"; path = "macos/PhotoPic/Views/Workspace/SessionWorkspaceView.swift"; sourceTree = "<group>"; };
 		2D905F685D63EB6DFFD568D8 = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = "TinderCardStackView.swift"; path = "macos/PhotoPic/Views/Workspace/TinderCardStackView.swift"; sourceTree = "<group>"; };
 		74A85BE872C289FE3EDA88D6 = {isa = PBXFileReference; lastKnownFileType = image.icns; name = "AppIcon.icns"; path = "macos/Resources/AppIcon.icns"; sourceTree = "<group>"; };
@@ -220,6 +234,7 @@
 				D90D3F74091EF71FB3E0E705,
 				8C16B9355E794580FDD4A3BE,
 				748657D8DB2C8E303BAF5F61,
+				B2F0A7A1F8DFF475C6C97D36,
 				68AF38D25200E29B10A232BA,
 				C601FA496CB695F931BDBCE5,
 				4A59295FCA5F8C7493D411FB,
@@ -236,6 +251,7 @@
 				C360E583E2FE4ADBF7E3FC1D,
 				224D93481AE544CC5D55A6C1,
 				C7617A8D85FB81C02EC52A49,
+				66FECD22AD4B16759085C5F6,
 				1416ACDEDF51223DB098A676,
 				2CC45DCDD19238BEB17B36A4,
 				3B26714214F6CC205D610127,
@@ -244,6 +260,7 @@
 				D0EA9A9477388B5C29678516,
 				7974B0FB0A2B0B6A1E46E70F,
 				CA690CFF7642B208508C88C0,
+				6DF5BAD7AF00DF70C2C133B8,
 				6DDF9E0AD651A2AE92E949D0,
 				88B4BDC80090D85E070F8A51,
 				EABF0EA26A1CE896B03AB75B,
@@ -253,8 +270,10 @@
 				54BA2C65F7BD620303F6BC39,
 				95DFB68CB1D2D81C55A55E56,
 				8514D213D664E212B8D37F6E,
+				F963F4B2F4064A2925529AAA,
 				43B75330EAE54853AA0DC2CF,
 				097553DC273550BB3C75963C,
+				204CABAC968EC13877A03B15,
 				DBAEB4C41EFD86CF8CA8E7EC,
 				BC764AEEF3393C41ADC3EC3E,
 				4B2037734F6CC9CBC12C226D,
@@ -268,7 +287,9 @@
 				4F46B8B8C6E8E759B1574F6A,
 				BD32DC6989B736F990D28327,
 				A507C3EDDE985B32CF8391E7,
+				72AF3CE2126C16A6CD61BB1C,
 				DB0673973EDFACEB6B99D15D,
+				09DBC7B0FFF1C336215E285D,
 				4F4AE5391A71FC7BF1F2D449,
 				2D905F685D63EB6DFFD568D8,
 		); name = Sources; sourceTree = "<group>"; };
@@ -311,6 +332,7 @@
 				888C9B6BFEFD79403045B100,
 				8D953CD13D4E83D8897807B9,
 				A1AB4F323175310B1D7D7370,
+				5D5BF46BA0C2899444CA7366,
 				C81612BE235E98ECBC38F603,
 				85B99EBC0A3C5BF49071DB68,
 				F99D3D9D550ABCABBF5DECE8,
@@ -327,6 +349,7 @@
 				268D2BC7DDCD8C0705D8C28C,
 				90F0E614D5BF728929415794,
 				BE3E59C8E287DBFF245FF7CE,
+				4733A9BC9C3893DC300A4585,
 				816722AD7E477A4BE849EB53,
 				B942ACE53A29022DE4967441,
 				4FF3BBC330D7D16FC6EE6CD0,
@@ -335,6 +358,7 @@
 				E093783792C5D2D98FD52D67,
 				43DA01E5E7B74A25C565536D,
 				87336FD68B18F6D1368C0A1F,
+				134DEFC9B22A9A0447DADCEC,
 				B55B36590947BB22636BFE14,
 				88219A3D795CD62ABFD418DB,
 				11BBD49B660FE4233C04A972,
@@ -344,8 +368,10 @@
 				C10986FB1427A596CC78F55D,
 				D44B7CA9BFDC1519B443474E,
 				DD775DA670A7C1D41BAA719B,
+				F749A4795F269BCDB16F303D,
 				E37FBBCE1ED5816C5188511B,
 				0E75F0DD85B8659E26C4A341,
+				5D0F1BB77112DFA812C9F5CF,
 				B96E8F72E776E46CDA59E2D4,
 				CEA6B205CB548851D4C71DC2,
 				EFBDF0D23664E66C6EC7A052,
@@ -359,7 +385,9 @@
 				0D4502C0C9F6A3C0F7418BBF,
 				F594C6B0E79A5262D18E8B79,
 				198E29D3EAF996B2D0040E33,
+				AA9AE3720D4CCBDA0ADF653E,
 				06C6AB1EBAB0B652DFDBCFB9,
+				E0AAB8651983C1741B054516,
 				A2AC169CE752A44D45BED10D,
 				B3ADC962E8E139213E64F278,
 		); runOnlyForDeploymentPostprocessing = 0; };

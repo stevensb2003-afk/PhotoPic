@@ -109,7 +109,8 @@ package final class AppState {
     package func selectPerformanceTier(_ tier: PerformanceTier) {
         performancePrefs = PerformancePreferences.preset(
             for: tier,
-            completedSetup: performancePrefs.hasCompletedGuidedSetup
+            completedSetup: performancePrefs.hasCompletedGuidedSetup,
+            autoStartTimer: performancePrefs.autoStartSessionTimerOnFirstShot
         )
     }
 
@@ -118,15 +119,36 @@ package final class AppState {
         hardwareAudit = freshAudit
         performancePrefs = PerformancePreferences.preset(
             for: freshAudit.recommendedTier,
-            completedSetup: performancePrefs.hasCompletedGuidedSetup
+            completedSetup: performancePrefs.hasCompletedGuidedSetup,
+            autoStartTimer: performancePrefs.autoStartSessionTimerOnFirstShot
         )
         showTransientNotice("Auditoría completada: \(freshAudit.recommendedTier.shortBadge)")
     }
 
-    package func createAndOpenSession(named name: String) {
+    package func createAndOpenSession(
+        named name: String,
+        groupName: String? = nil,
+        rawTags: String = ""
+    ) {
         guard let rootFolderURL else { return }
-        if let created = homeViewModel.createSession(named: name, in: rootFolderURL) {
+        if let created = homeViewModel.createSession(
+            named: name,
+            groupName: groupName,
+            rawTags: rawTags,
+            in: rootFolderURL
+        ) {
             openSession(created)
+        }
+    }
+
+    package func deleteSessionPermanently(_ session: PhotoSession) {
+        guard let rootFolderURL else { return }
+        if activeSessionViewModel?.session.id == session.id {
+            stopAllLiveView()
+            activeSessionViewModel = nil
+        }
+        if homeViewModel.permanentlyDeleteSession(session, in: rootFolderURL) {
+            showTransientNotice("Proyecto \"\(session.name)\" eliminado permanentemente.")
         }
     }
 

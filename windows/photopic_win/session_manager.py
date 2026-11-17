@@ -15,6 +15,15 @@ from .models import (
     PhotoSession,
     SessionDiskCounts,
 )
+from .session_metadata import (
+    SessionMetadata,
+    SessionMetadataStore,
+    load_all_sessions_with_counts,
+    move_session_dir_to_group,
+    permanently_delete_session_dir,
+    resolve_group_parent,
+    sanitize_folder_name,
+)
 from .tag_store import PhotoTagStore
 
 
@@ -40,12 +49,19 @@ class SessionFileManager:
     SUBFOLDERS = ("RAW", "JPG", "Para_Edicion", "Archivadas")
 
     @classmethod
-    def create_session(cls, raw_name: str, root_dir: Path) -> PhotoSession:
-        sanitized = re.sub(r'[<>:"/\\|?*]', "-", raw_name).strip()
+    def create_session(
+        cls,
+        raw_name: str,
+        root_dir: Path,
+        group_name: str | None = None,
+        initial_tags: list[str] | None = None,
+    ) -> PhotoSession:
+        sanitized = sanitize_folder_name(raw_name)
         if not sanitized:
             raise ValueError("El nombre de la sesión no puede estar vacío.")
 
-        session_dir = cls._unique_dir(root_dir, sanitized)
+        parent_dir, resolved_group = resolve_group_parent(group_name, root_dir)
+        session_dir = cls._unique_dir(parent_dir, sanitized)
         session_dir.mkdir(parents=True, exist_ok=True)
         for sub in cls.SUBFOLDERS:
             (session_dir / sub).mkdir(parents=True, exist_ok=True)
@@ -53,8 +69,20 @@ class SessionFileManager:
             (session_dir / dest / "RAW").mkdir(parents=True, exist_ok=True)
             (session_dir / dest / "JPG").mkdir(parents=True, exist_ok=True)
 
+        meta = SessionMetadata()
+        for t in (initial_tags or []):
+            meta.add_tag(t)
+        if meta.tags:
+            SessionMetadataStore.save(meta, session_dir)
+
         stat = session_dir.stat()
-        return PhotoSession(name=session_dir.name, directory=session_dir, created_at=stat.st_mtime)
+        return PhotoSession(
+            name=session_dir.name,
+            directory=session_dir,
+            created_at=stat.st_mtime,
+            group_name=resolved_group,
+            tags=list(meta.tags),
+        )
 
     @classmethod
     def ensure_subfolders(cls, session: PhotoSession) -> None:
@@ -70,19 +98,15 @@ class SessionFileManager:
 
     @classmethod
     def load_sessions(cls, root_dir: Path) -> list[PhotoSession]:
-        if not root_dir.exists():
-            return []
-        sessions: list[PhotoSession] = []
-        for entry in root_dir.iterdir():
-            if entry.is_dir() and (entry / "RAW").exists():
-                session = PhotoSession(
-                    name=entry.name,
-                    directory=entry,
-                    created_at=entry.stat().st_mtime,
-                )
-                session.counts = cls.read_disk_counts(session)
-                sessions.append(session)
-        return sorted(sessions, key=lambda s: s.created_at, reverse=True)
+        return load_all_sessions_with_counts(root_dir, cls.read_disk_counts)
+
+    @classmethod
+    def move_session_to_group(cls, session: PhotoSession, group_name: str | None, root_dir: Path) -> PhotoSession:
+        return move_session_dir_to_group(session, group_name, root_dir, cls._unique_dir, cls.read_disk_counts)
+
+    @classmethod
+    def permanently_delete_session(cls, session: PhotoSession, root_dir: Path) -> None:
+        permanently_delete_session_dir(session.directory, root_dir)
 
     @classmethod
     def read_disk_counts(cls, session: PhotoSession) -> SessionDiskCounts:

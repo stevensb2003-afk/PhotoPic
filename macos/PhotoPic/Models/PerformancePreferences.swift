@@ -90,22 +90,49 @@ package struct PerformancePreferences: Codable, Sendable, Equatable {
     package var detectBodyPoses: Bool
     package var viewportMaxDimension: Double
     package var hasCompletedGuidedSetup: Bool
+    package var autoStartSessionTimerOnFirstShot: Bool
+
+    private enum CodingKeys: String, CodingKey {
+        case tier
+        case enableVisionAutoTagging
+        case detectBodyPoses
+        case viewportMaxDimension
+        case hasCompletedGuidedSetup
+        case autoStartSessionTimerOnFirstShot
+    }
 
     package init(
         tier: PerformanceTier,
         enableVisionAutoTagging: Bool,
         detectBodyPoses: Bool,
         viewportMaxDimension: Double,
-        hasCompletedGuidedSetup: Bool = false
+        hasCompletedGuidedSetup: Bool = false,
+        autoStartSessionTimerOnFirstShot: Bool = true
     ) {
         self.tier = tier
         self.enableVisionAutoTagging = enableVisionAutoTagging
         self.detectBodyPoses = detectBodyPoses
         self.viewportMaxDimension = viewportMaxDimension
         self.hasCompletedGuidedSetup = hasCompletedGuidedSetup
+        self.autoStartSessionTimerOnFirstShot = autoStartSessionTimerOnFirstShot
     }
 
-    package static func preset(for tier: PerformanceTier, completedSetup: Bool = false) -> PerformancePreferences {
+    package init(from decoder: Decoder) throws {
+        let c = try decoder.container(keyedBy: CodingKeys.self)
+        self.tier = try c.decodeIfPresent(PerformanceTier.self, forKey: .tier) ?? .balancedAI
+        self.enableVisionAutoTagging = try c.decodeIfPresent(Bool.self, forKey: .enableVisionAutoTagging) ?? true
+        self.detectBodyPoses = try c.decodeIfPresent(Bool.self, forKey: .detectBodyPoses) ?? false
+        self.viewportMaxDimension = try c.decodeIfPresent(Double.self, forKey: .viewportMaxDimension) ?? 1920
+        self.hasCompletedGuidedSetup = try c.decodeIfPresent(Bool.self, forKey: .hasCompletedGuidedSetup) ?? false
+        self.autoStartSessionTimerOnFirstShot =
+            try c.decodeIfPresent(Bool.self, forKey: .autoStartSessionTimerOnFirstShot) ?? true
+    }
+
+    package static func preset(
+        for tier: PerformanceTier,
+        completedSetup: Bool = false,
+        autoStartTimer: Bool = true
+    ) -> PerformancePreferences {
         switch tier {
         case .fullAI:
             return PerformancePreferences(
@@ -113,7 +140,8 @@ package struct PerformancePreferences: Codable, Sendable, Equatable {
                 enableVisionAutoTagging: true,
                 detectBodyPoses: true,
                 viewportMaxDimension: 2400,
-                hasCompletedGuidedSetup: completedSetup
+                hasCompletedGuidedSetup: completedSetup,
+                autoStartSessionTimerOnFirstShot: autoStartTimer
             )
         case .balancedAI:
             return PerformancePreferences(
@@ -121,7 +149,8 @@ package struct PerformancePreferences: Codable, Sendable, Equatable {
                 enableVisionAutoTagging: true,
                 detectBodyPoses: false,
                 viewportMaxDimension: 1920,
-                hasCompletedGuidedSetup: completedSetup
+                hasCompletedGuidedSetup: completedSetup,
+                autoStartSessionTimerOnFirstShot: autoStartTimer
             )
         case .lightweightNoAI:
             return PerformancePreferences(
@@ -129,7 +158,8 @@ package struct PerformancePreferences: Codable, Sendable, Equatable {
                 enableVisionAutoTagging: false,
                 detectBodyPoses: false,
                 viewportMaxDimension: 1600,
-                hasCompletedGuidedSetup: completedSetup
+                hasCompletedGuidedSetup: completedSetup,
+                autoStartSessionTimerOnFirstShot: autoStartTimer
             )
         }
     }

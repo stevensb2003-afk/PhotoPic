@@ -1,6 +1,7 @@
 import SwiftUI
 
-/// Screen 2: Home & Session Manager with persistent USB bar, New Session action, and disk history grid.
+/// Screen 2: Home & Session Manager with persistent USB bar, Master Groups, search/tag filters,
+/// New Session sheet, and permanent project deletion confirmation.
 package struct HomeDashboardView: View {
     @Bindable var appState: AppState
 
@@ -49,10 +50,33 @@ package struct HomeDashboardView: View {
                     get: { appState.homeViewModel.newSessionNameDraft },
                     set: { appState.homeViewModel.newSessionNameDraft = $0 }
                 ),
+                selectedGroup: Binding(
+                    get: { appState.homeViewModel.newSessionGroupDraft },
+                    set: { appState.homeViewModel.newSessionGroupDraft = $0 }
+                ),
+                tagsDraft: Binding(
+                    get: { appState.homeViewModel.newSessionTagsDraft },
+                    set: { appState.homeViewModel.newSessionTagsDraft = $0 }
+                ),
+                availableGroups: appState.homeViewModel.masterGroups,
                 rootFolderURL: appState.rootFolderURL,
                 errorMessage: appState.homeViewModel.errorMessage,
                 onCancel: { appState.homeViewModel.isPresentingNewSessionSheet = false },
-                onCreate: { name in appState.createAndOpenSession(named: name) }
+                onCreate: { name, groupName, rawTags in
+                    appState.createAndOpenSession(named: name, groupName: groupName, rawTags: rawTags)
+                }
+            )
+        }
+        .sheet(item: Binding(
+            get: { appState.homeViewModel.sessionPendingDeletion },
+            set: { appState.homeViewModel.sessionPendingDeletion = $0 }
+        )) { pendingSession in
+            DeleteSessionConfirmationSheet(
+                session: pendingSession,
+                onCancel: { appState.homeViewModel.sessionPendingDeletion = nil },
+                onConfirmPermanentDelete: {
+                    appState.deleteSessionPermanently(pendingSession)
+                }
             )
         }
     }
@@ -63,7 +87,7 @@ package struct HomeDashboardView: View {
                 Text("Sesiones de Estudio")
                     .font(AppTypography.displayTitle)
                     .foregroundStyle(AppColors.textPrimary)
-                Text("Creá una sesión en vivo para recibir disparos por USB o reabrí cualquier carpeta previa.")
+                Text("Creá una sesión o carpeta máster para organizar clientes, etiquetas y disparos en vivo.")
                     .font(AppTypography.body)
                     .foregroundStyle(AppColors.textSecondary)
             }
@@ -89,32 +113,85 @@ package struct HomeDashboardView: View {
 
     @ViewBuilder
     private var sessionsHistorySection: some View {
-        if appState.homeViewModel.sessions.isEmpty {
+        let vm = appState.homeViewModel
+        let visibleSessions = vm.filteredSessions
+
+        if vm.sessions.isEmpty && vm.masterGroups.isEmpty {
             emptySessionsState
         } else {
             VStack(alignment: .leading, spacing: AppSpacing.md) {
+                HomeFilterAndGroupBar(
+                    searchQuery: Binding(get: { vm.searchQuery }, set: { vm.searchQuery = $0 }),
+                    groupFilter: Binding(get: { vm.groupFilter }, set: { vm.groupFilter = $0 }),
+                    selectedTagFilter: Binding(get: { vm.selectedTagFilter }, set: { vm.selectedTagFilter = $0 }),
+                    masterGroups: vm.masterGroups,
+                    availableTags: vm.availableProjectTags,
+                    totalSessionCount: vm.sessions.count,
+                    hasUngroupedSessions: vm.hasUngroupedSessions,
+                    groupSessionCount: { group in
+                        vm.sessions.filter { $0.groupName?.caseInsensitiveCompare(group) == .orderedSame }.count
+                    },
+                    onCreateMasterGroup: { groupName in
+                        guard let root = appState.rootFolderURL else { return }
+                        if let created = vm.createMasterGroup(named: groupName, in: root) {
+                            vm.groupFilter = .group(created)
+                        }
+                    }
+                )
+
                 HStack {
                     Text("Historial en Carpeta Raíz")
                         .font(AppTypography.sectionTitle)
                         .foregroundStyle(AppColors.textPrimary)
                     Spacer()
-                    Text("\(appState.homeViewModel.sessions.count) sesiones")
+                    Text("\(visibleSessions.count) de \(vm.sessions.count) sesiones")
                         .font(AppTypography.monoCaption)
                         .foregroundStyle(AppColors.textTertiary)
                 }
 
-                LazyVGrid(
-                    columns: [GridItem(.adaptive(minimum: AppSpacing.cardGridMinWidth), spacing: AppSpacing.md)],
-                    spacing: AppSpacing.md
-                ) {
-                    ForEach(appState.homeViewModel.sessions) { session in
-                        SessionCardView(session: session) {
-                            appState.openSession(session)
+                if visibleSessions.isEmpty {
+                    filteredEmptyState
+                } else {
+                    LazyVGrid(
+                        columns: [GridItem(.adaptive(minimum: AppSpacing.cardGridMinWidth), spacing: AppSpacing.md)],
+                        spacing: AppSpacing.md
+                    ) {
+                        ForEach(visibleSessions) { session in
+                            SessionCardView(
+                                session: session,
+                                availableGroups: vm.masterGroups,
+                                onOpen: { appState.openSession(session) },
+                                onAddTag: { tag in vm.addTag(tag, to: session) },
+                                onRemoveTag: { tag in vm.removeTag(tag, from: session) },
+                                onMoveToGroup: { targetGroup in
+                                    guard let root = appState.rootFolderURL else { return }
+                                    vm.moveSession(session, toGroup: targetGroup, in: root)
+                                },
+                                onRequestDelete: { vm.sessionPendingDeletion = session }
+                            )
                         }
                     }
                 }
             }
         }
+    }
+
+    private var filteredEmptyState: some View {
+        VStack(spacing: AppSpacing.sm) {
+            Text("Ninguna sesión coincide con los filtros actuales")
+                .font(AppTypography.cardTitle)
+                .foregroundStyle(AppColors.textPrimary)
+            Button("Limpiar búsqueda y filtros") {
+                appState.homeViewModel.searchQuery = ""
+                appState.homeViewModel.groupFilter = .all
+                appState.homeViewModel.selectedTagFilter = nil
+            }
+            .buttonStyle(StudioButtonStyle(.secondaryDark, compact: true))
+        }
+        .padding(.vertical, AppSpacing.xl)
+        .frame(maxWidth: .infinity)
+        .background(AppColors.panelSurface)
+        .clipShape(RoundedRectangle(cornerRadius: AppRadius.lg, style: .continuous))
     }
 
     private var emptySessionsState: some View {

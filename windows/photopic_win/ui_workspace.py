@@ -1,4 +1,4 @@
-"""Real-time RAW culling workspace widget with 1:1 zoom, AI tags, and Archived cleanup."""
+"""Real-time RAW culling workspace widget with isolated floating EXIF inspector, timer, and 1:1 zoom."""
 
 from __future__ import annotations
 
@@ -7,23 +7,25 @@ from PySide6.QtCore import Qt, QTimer
 from PySide6.QtGui import QImage, QKeyEvent, QPixmap
 from PySide6.QtWidgets import (
     QFileDialog,
-    QFrame,
     QHBoxLayout,
     QInputDialog,
-    QLabel,
-    QPushButton,
     QStackedWidget,
     QVBoxLayout,
     QWidget,
 )
 
-from .design_system import AppColors, AppSpacing
+from .design_system import AppSpacing
 from .hardware_auditor import PerformancePreferences
 from .models import DeviceCategory, KnownDevice, PhotoItem, PhotoSession, PhotoVisionTags
 from .raw_renderer import RawImageRendererWin
 from .session_manager import MoveRecord, SessionFileManager
 from .tag_store import PhotoTagStore
 from .ui_archived_tab import ArchivedTabWidget
+from .ui_inspector_and_timer import (
+    FloatingPhotoInspectorCard,
+    SessionTimerBarWidget,
+    SwipeablePhotoStage,
+)
 from .ui_live_view import LiveViewTabWidget
 from .ui_workspace_bars import build_workspace_bottom_controls, build_workspace_topbar
 from .vision_autotagger import VisionAutoTaggerWin
@@ -62,8 +64,14 @@ class SessionWorkspaceWidget(QWidget):
         root.setContentsMargins(0, 0, 0, 0)
         root.setSpacing(0)
 
+        self._timer_bar = SessionTimerBarWidget(self.session)
         top, refs = build_workspace_topbar(
-            self.session.name, self.on_back, self._switch_tab, self._attach_watch_folder, self._open_help
+            self.session.name,
+            self._handle_back,
+            self._switch_tab,
+            self._attach_watch_folder,
+            self._open_help,
+            timer_widget=self._timer_bar,
         )
         self._tab_cull_btn = refs["tab_cull"]
         self._tab_arch_btn = refs["tab_arch"]
@@ -71,10 +79,22 @@ class SessionWorkspaceWidget(QWidget):
         root.addWidget(top)
 
         self._stack = QStackedWidget()
-        self._stage_label = QLabel("Cola de pendientes vacía")
-        self._stage_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
-        self._stage_label.setStyleSheet(f"background: {AppColors.STAGE_BG};")
-        self._stack.addWidget(self._stage_label)
+
+        cull_page = QWidget()
+        cull_lay = QHBoxLayout(cull_page)
+        cull_lay.setContentsMargins(AppSpacing.MD, AppSpacing.MD, AppSpacing.LG, AppSpacing.MD)
+        cull_lay.setSpacing(AppSpacing.MD)
+
+        self._stage_label = SwipeablePhotoStage(
+            on_swipe_left=self.archive_current,
+            on_swipe_right=self.approve_current,
+        )
+        self._stage_label.setText("Cola de pendientes vacía")
+        cull_lay.addWidget(self._stage_label, stretch=1)
+
+        self._inspector_card = FloatingPhotoInspectorCard(on_add_custom_tag=self._prompt_custom_tag)
+        cull_lay.addWidget(self._inspector_card)
+        self._stack.addWidget(cull_page)
 
         self._live_tab = LiveViewTabWidget(on_reference_saved=self.handle_staged_file)
         self._stack.addWidget(self._live_tab)
@@ -82,21 +102,6 @@ class SessionWorkspaceWidget(QWidget):
         self._archived_tab = ArchivedTabWidget(self.session, on_items_changed=self._on_archived_changed)
         self._stack.addWidget(self._archived_tab)
         root.addWidget(self._stack, stretch=1)
-
-        hud = QFrame()
-        hud.setObjectName("PanelSurface")
-        hud_l = QHBoxLayout(hud)
-        self._hud_info = QLabel("Sin imagen")
-        self._hud_tags = QLabel("")
-        self._hud_tags.setStyleSheet(f"color: {AppColors.INFO_BLUE}; font-size: 12px;")
-        add_tag_btn = QPushButton("+ Etiqueta")
-        add_tag_btn.clicked.connect(self._prompt_custom_tag)
-        hud_l.addWidget(self._hud_info)
-        hud_l.addSpacing(AppSpacing.MD)
-        hud_l.addWidget(self._hud_tags)
-        hud_l.addStretch()
-        hud_l.addWidget(add_tag_btn)
-        root.addWidget(hud)
 
         ctrl, _ = build_workspace_bottom_controls({
             "prev": self.navigate_prev,
@@ -108,6 +113,10 @@ class SessionWorkspaceWidget(QWidget):
             "follow": lambda v: setattr(self, "follow_latest", v),
         })
         root.addWidget(ctrl)
+
+    def _handle_back(self) -> None:
+        self._timer_bar.stop_ticker()
+        self.on_back()
 
     def reload_from_disk(self) -> None:
         tag_map = PhotoTagStore.load_all(self.session)
@@ -130,6 +139,10 @@ class SessionWorkspaceWidget(QWidget):
         )
         if outcome.item is not None:
             self.pending_items.append(outcome.item)
+            self._timer_bar.auto_start_if_first_shot(
+                outcome.item.captured_at,
+                self.perf_prefs.auto_start_session_timer,
+            )
             if self.perf_prefs.enable_vision_autotagging:
                 self._analyze_item(outcome.item)
             if self.follow_latest or len(self.pending_items) == 1:
@@ -216,22 +229,14 @@ class SessionWorkspaceWidget(QWidget):
         if not (0 <= self.current_index < len(self.pending_items)):
             self._stage_label.setPixmap(QPixmap())
             self._stage_label.setText("Cola de pendientes vacía")
-            self._hud_info.setText("Sin imagen en cola")
-            self._hud_tags.setText("")
+            self._inspector_card.clear_state()
             return
 
         current = self.pending_items[self.current_index]
         exif = RawImageRendererWin.read_exif(current.file_path, current.paired_compressed_path)
-        self._hud_info.setText(
-            f"{current.filename} [{current.format_extension}] · {exif.compact_hud_summary} "
-            f"· Foto {self.current_index + 1} de {len(self.pending_items)}"
+        self._inspector_card.update_item(
+            current, exif, self.current_index, len(self.pending_items), self.perf_prefs.enable_vision_autotagging
         )
-        tag_text = (
-            "  ".join(f"[{t}]" for t in current.vision_tags.all_tags)
-            if current.vision_tags
-            else ("Analizando IA..." if self.perf_prefs.enable_vision_autotagging else "IA desactivada (Modo Ligero)")
-        )
-        self._hud_tags.setText(tag_text)
 
         payload = self.renderer.render_image(
             current,
@@ -259,10 +264,7 @@ class SessionWorkspaceWidget(QWidget):
         payload = self.renderer.render_image(item, max_dimension=960, full_sensor=False)
         if payload:
             tags = self.tagger.analyze_rgb_bytes(
-                payload.rgb_bytes,
-                payload.width,
-                payload.height,
-                include_body_pose=self.perf_prefs.detect_body_poses,
+                payload.rgb_bytes, payload.width, payload.height, include_body_pose=self.perf_prefs.detect_body_poses
             )
             item.vision_tags = tags
             PhotoTagStore.save(tags, item, self.session, write_xmp=True)

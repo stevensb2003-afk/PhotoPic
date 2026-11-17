@@ -32,9 +32,19 @@ package enum UISnapshotVerification {
         )
         knownStore.saveOrUpdate(canonDevice)
 
-        // Populate realistic studio sessions
-        let s1 = try SessionFileManager.createSession(named: "Editorial_Maria_Studio", in: tempRoot)
-        let s2 = try SessionFileManager.createSession(named: "Lookbook_Otono_2026", in: tempRoot)
+        // Populate realistic studio sessions (grouped + flat for retrocompatibility showcase)
+        let s1 = try SessionFileManager.createSession(
+            named: "Editorial_Maria_Studio",
+            groupName: "Sesiones Navidenas 2026",
+            initialTags: ["Editorial", "VIP"],
+            in: tempRoot
+        )
+        let s2 = try SessionFileManager.createSession(
+            named: "Lookbook_Otono_2026",
+            groupName: nil,
+            initialTags: ["Exterior"],
+            in: tempRoot
+        )
         let stage = tempRoot.appendingPathComponent("StageUI", isDirectory: true)
         try FileManager.default.createDirectory(at: stage, withIntermediateDirectories: true)
 
@@ -124,6 +134,7 @@ package enum UISnapshotVerification {
             PhotoTagStore.save(tags: demoTags, for: ws.pendingItems[idx], in: s1, writeSidecarAndFinderTags: true)
         }
         ws.reloadFromDisk()
+        ws.startSessionTimerManual()
         try await waitUntil { ws.activeViewportImage != nil }
 
         try renderSnapshot(

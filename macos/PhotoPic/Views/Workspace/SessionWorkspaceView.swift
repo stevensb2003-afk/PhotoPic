@@ -67,9 +67,11 @@ package struct SessionWorkspaceView: View {
         .background(AppColors.stageBackground)
         .onAppear {
             installKeyMonitor()
+            viewModel.syncTimerTicker()
         }
         .onDisappear {
             removeKeyMonitor()
+            viewModel.cancelTimerTicker()
         }
         .background(
             Button("") {
@@ -169,6 +171,8 @@ package struct SessionWorkspaceView: View {
             Spacer()
 
             HStack(spacing: AppSpacing.sm) {
+                SessionTimerPillView(viewModel: viewModel)
+
                 if viewModel.session.counts.companionJpgs > 0 {
                     HStack(spacing: AppSpacing.xs) {
                         Text("JPG Separados:")

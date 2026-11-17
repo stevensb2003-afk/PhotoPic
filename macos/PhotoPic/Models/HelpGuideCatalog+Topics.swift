@@ -175,27 +175,27 @@ extension HelpGuideCatalog {
             id: "archived-cleanup",
             docCode: "DOC-06",
             category: .foldersLimits,
-            title: "Recuperación y Limpieza en Archivadas",
-            subtitle: "Rescatar descartes o eliminar archivos del disco",
+            title: "Grupos Máster, Temporizador y Borrado",
+            subtitle: "Carpetas contenedoras, timer por sesión, inspector EXIF y eliminación segura",
             iconSystemName: "trash",
-            keywords: ["archivar", "archivadas", "eliminar", "borrar", "popover", "vaciar", "recuperar", "espacio"],
-            summary: "La pestaña Archivadas permite inspeccionar descartes antes de borrarlos del disco con seguridad.",
+            keywords: ["archivar", "archivadas", "eliminar", "borrar", "grupo", "carpeta master", "timer", "temporizador", "exif", "etiquetas", "buscar"],
+            summary: "Organizá proyectos en Carpetas Máster, medí la duración de cada sesión desde la 1ª foto, revisá EXIF en el panel lateral sin tapar la foto, y borrá descartes o proyectos completos con confirmación.",
             steps: [
-                "1. Abrí la pestaña 'Archivadas' dentro de tu sesión.",
-                "2. Para rescatar una foto: seleccionala y pulsá 'Recuperar para Edición' (mueve RAW + JPG a Para_Edicion/).",
-                "3. Para borrar una foto del disco: pulsá 'Eliminar archivo...' y confirmá en el Popover.",
-                "4. Para vaciar toda la carpeta: pulsá 'Vaciar carpeta...' y confirmá en el Popover."
+                "1. Inicio → '+ Nueva Carpeta Máster' o creá una sesión eligiendo su Carpeta Máster (ej. Sesiones Navideñas 2026) y etiquetas.",
+                "2. Temporizador: se auto-inicia con la hora de la primera foto recibida (configurable en Configuración → General) o manual con 'Iniciar Timer' / 'Finalizar'.",
+                "3. Inspector EXIF flotante: aparece aislado a la derecha para ver ISO, f/, obturación, focal, lente, MP y etiquetas sin tapar tu fotografía.",
+                "4. Borrado permanente: en cada tarjeta de proyecto (o en Archivadas) pulsá el ícono de papelera y confirmá la destrucción de las imágenes totales."
             ],
             canDo: [
-                "Elimina físicamente el RAW en Archivadas/RAW/, su .XMP, su entrada JSON y también su par en Archivadas/JPG/.",
-                "Bloquea cualquier borrado fuera de Archivadas/ para proteger tus fotos en RAW/ y Para_Edicion/."
+                "Detectar automáticamente sesiones planas antiguas (carpeta raíz) y sesiones agrupadas dentro de Carpetas Máster.",
+                "Filtrar sesiones en Inicio por texto, Carpeta Máster o #etiqueta de proyecto.",
+                "Validar estrictamente que toda eliminación de proyecto ocurra únicamente dentro de la Carpeta Raíz Global."
             ],
             limitations: [
-                "La eliminación definitiva borra directo del sistema de archivos (no va a la Papelera ni se deshace con ⌘Z).",
-                "No desinstala la aplicación ni borra otras sesiones fuera de la actual."
+                "La eliminación definitiva de fotos o proyectos completos no va a la Papelera ni se deshace con ⌘Z."
             ],
             tips: [
-                "Revisá siempre el tamaño y nombre en el Popover rojo antes de pulsar 'Eliminar para siempre'."
+                "Si desactivás el auto-inicio del temporizador en Configuración → General y Rendimiento, el reloj queda en 00:00:00 hasta que pulses Iniciar."
             ]
         )
     ]
