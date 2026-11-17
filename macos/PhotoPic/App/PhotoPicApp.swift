@@ -50,6 +50,12 @@ package struct PhotoPicApp: App {
                 .keyboardShortcut(",", modifiers: .command)
             }
 
+            CommandGroup(after: .appInfo) {
+                Button("Buscar actualizaciones en la nube...") {
+                    Task { await appState.cloudUpdater.checkForUpdates(userInitiated: true) }
+                }
+            }
+
             CommandGroup(replacing: .help) {
                 Button("Centro de Ayuda de PhotoPic...") {
                     appState.isPresentingHelp = true
@@ -70,13 +76,16 @@ package struct RootShellView: View {
 
     package var body: some View {
         ZStack(alignment: .top) {
-            Group {
-                if appState.needsOnboarding {
-                    GuidedSetupWizardView(appState: appState)
-                } else if let workspaceVM = appState.activeSessionViewModel {
-                    SessionWorkspaceView(appState: appState, viewModel: workspaceVM)
-                } else {
-                    HomeDashboardView(appState: appState)
+            VStack(spacing: 0) {
+                CloudUpdateTopBanner(appState: appState)
+                Group {
+                    if appState.needsOnboarding {
+                        GuidedSetupWizardView(appState: appState)
+                    } else if let workspaceVM = appState.activeSessionViewModel {
+                        SessionWorkspaceView(appState: appState, viewModel: workspaceVM)
+                    } else {
+                        HomeDashboardView(appState: appState)
+                    }
                 }
             }
 

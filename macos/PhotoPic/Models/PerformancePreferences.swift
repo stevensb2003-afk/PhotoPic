@@ -91,6 +91,8 @@ package struct PerformancePreferences: Codable, Sendable, Equatable {
     package var viewportMaxDimension: Double
     package var hasCompletedGuidedSetup: Bool
     package var autoStartSessionTimerOnFirstShot: Bool
+    package var autoCheckForUpdates: Bool
+    package var autoDownloadUpdates: Bool
 
     private enum CodingKeys: String, CodingKey {
         case tier
@@ -99,6 +101,8 @@ package struct PerformancePreferences: Codable, Sendable, Equatable {
         case viewportMaxDimension
         case hasCompletedGuidedSetup
         case autoStartSessionTimerOnFirstShot
+        case autoCheckForUpdates
+        case autoDownloadUpdates
     }
 
     package init(
@@ -107,7 +111,9 @@ package struct PerformancePreferences: Codable, Sendable, Equatable {
         detectBodyPoses: Bool,
         viewportMaxDimension: Double,
         hasCompletedGuidedSetup: Bool = false,
-        autoStartSessionTimerOnFirstShot: Bool = true
+        autoStartSessionTimerOnFirstShot: Bool = true,
+        autoCheckForUpdates: Bool = true,
+        autoDownloadUpdates: Bool = true
     ) {
         self.tier = tier
         self.enableVisionAutoTagging = enableVisionAutoTagging
@@ -115,6 +121,8 @@ package struct PerformancePreferences: Codable, Sendable, Equatable {
         self.viewportMaxDimension = viewportMaxDimension
         self.hasCompletedGuidedSetup = hasCompletedGuidedSetup
         self.autoStartSessionTimerOnFirstShot = autoStartSessionTimerOnFirstShot
+        self.autoCheckForUpdates = autoCheckForUpdates
+        self.autoDownloadUpdates = autoDownloadUpdates
     }
 
     package init(from decoder: Decoder) throws {
@@ -126,12 +134,18 @@ package struct PerformancePreferences: Codable, Sendable, Equatable {
         self.hasCompletedGuidedSetup = try c.decodeIfPresent(Bool.self, forKey: .hasCompletedGuidedSetup) ?? false
         self.autoStartSessionTimerOnFirstShot =
             try c.decodeIfPresent(Bool.self, forKey: .autoStartSessionTimerOnFirstShot) ?? true
+        self.autoCheckForUpdates =
+            try c.decodeIfPresent(Bool.self, forKey: .autoCheckForUpdates) ?? true
+        self.autoDownloadUpdates =
+            try c.decodeIfPresent(Bool.self, forKey: .autoDownloadUpdates) ?? true
     }
 
     package static func preset(
         for tier: PerformanceTier,
         completedSetup: Bool = false,
-        autoStartTimer: Bool = true
+        autoStartTimer: Bool = true,
+        autoCheckUpdates: Bool = true,
+        autoDownloadUpdates: Bool = true
     ) -> PerformancePreferences {
         switch tier {
         case .fullAI:
@@ -141,7 +155,9 @@ package struct PerformancePreferences: Codable, Sendable, Equatable {
                 detectBodyPoses: true,
                 viewportMaxDimension: 2400,
                 hasCompletedGuidedSetup: completedSetup,
-                autoStartSessionTimerOnFirstShot: autoStartTimer
+                autoStartSessionTimerOnFirstShot: autoStartTimer,
+                autoCheckForUpdates: autoCheckUpdates,
+                autoDownloadUpdates: autoDownloadUpdates
             )
         case .balancedAI:
             return PerformancePreferences(
@@ -150,7 +166,9 @@ package struct PerformancePreferences: Codable, Sendable, Equatable {
                 detectBodyPoses: false,
                 viewportMaxDimension: 1920,
                 hasCompletedGuidedSetup: completedSetup,
-                autoStartSessionTimerOnFirstShot: autoStartTimer
+                autoStartSessionTimerOnFirstShot: autoStartTimer,
+                autoCheckForUpdates: autoCheckUpdates,
+                autoDownloadUpdates: autoDownloadUpdates
             )
         case .lightweightNoAI:
             return PerformancePreferences(
@@ -159,7 +177,9 @@ package struct PerformancePreferences: Codable, Sendable, Equatable {
                 detectBodyPoses: false,
                 viewportMaxDimension: 1600,
                 hasCompletedGuidedSetup: completedSetup,
-                autoStartSessionTimerOnFirstShot: autoStartTimer
+                autoStartSessionTimerOnFirstShot: autoStartTimer,
+                autoCheckForUpdates: autoCheckUpdates,
+                autoDownloadUpdates: autoDownloadUpdates
             )
         }
     }

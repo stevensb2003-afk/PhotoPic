@@ -25,7 +25,7 @@ _HELP_TOPICS: list[dict] = [
         "summary": "PhotoPic lee y ordena directamente tus carpetas del disco sin encerrar tus fotos en un catálogo interno.",
         "can_do": [
             "Abrir cualquier carpeta de sesión en Lightroom, Capture One o Affinity.",
-            "Trabajar 100% offline sin internet ni servidores localhost.",
+            "Trabajar 100% offline para captura/culling, y recibir actualizaciones automáticas desde GitHub Cloud.",
         ],
         "limits": [
             "No aplica edición de color destructiva: su objetivo es captura, revisión 1:1, etiquetado y clasificación física.",

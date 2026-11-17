@@ -20,7 +20,7 @@ extension HelpGuideCatalog {
             ],
             canDo: [
                 "Abrir cualquier carpeta de sesión directo en Lightroom Classic, Capture One o Affinity.",
-                "Trabajar 100% sin internet ni servidores web locales."
+                "Trabajar 100% sin internet para captura/culling, y actualizarse automáticamente desde GitHub Cloud cuando haya conexión."
             ],
             limitations: [
                 "PhotoPic no es un editor de color ni revela ajustes permanentes sobre el RAW (solo clasifica, etiqueta y previsualiza en GPU).",

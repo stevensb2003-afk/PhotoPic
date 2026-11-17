@@ -56,6 +56,7 @@ class PerformancePreferences:
     preview_max_dimension: int = 1600
     has_completed_guided_setup: bool = False
     auto_start_session_timer: bool = True
+    auto_check_updates: bool = True
 
     @classmethod
     def preset(
@@ -63,12 +64,13 @@ class PerformancePreferences:
         tier: PerformanceTier,
         completed: bool = False,
         auto_start_timer: bool = True,
+        auto_check_updates: bool = True,
     ) -> PerformancePreferences:
         if tier == PerformanceTier.FULL_AI:
-            return cls(tier.value, True, True, 1800, completed, auto_start_timer)
+            return cls(tier.value, True, True, 1800, completed, auto_start_timer, auto_check_updates)
         if tier == PerformanceTier.BALANCED_AI:
-            return cls(tier.value, True, False, 1500, completed, auto_start_timer)
-        return cls(tier.value, False, False, 1280, completed, auto_start_timer)
+            return cls(tier.value, True, False, 1500, completed, auto_start_timer, auto_check_updates)
+        return cls(tier.value, False, False, 1280, completed, auto_start_timer, auto_check_updates)
 
 
 class _MemoryStatusEx(ctypes.Structure):
@@ -170,6 +172,7 @@ class WindowsConfigStore:
                 preview_max_dimension=int(perf_raw.get("preview_max_dimension", 1600)),
                 has_completed_guided_setup=bool(perf_raw.get("has_completed_guided_setup", root_dir is not None)),
                 auto_start_session_timer=bool(perf_raw.get("auto_start_session_timer", True)),
+                auto_check_updates=bool(perf_raw.get("auto_check_updates", True)),
             )
         else:
             prefs = PerformancePreferences.preset(default_audit.recommended_tier, completed=root_dir is not None)

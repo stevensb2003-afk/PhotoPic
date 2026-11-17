@@ -30,6 +30,7 @@ let package = Package(
                 .linkedFramework("AVFoundation"),
                 .linkedFramework("CoreImage"),
                 .linkedFramework("CoreMedia"),
+                .linkedFramework("CryptoKit"),
                 .linkedFramework("ImageCaptureCore"),
                 .linkedFramework("ImageIO"),
                 .linkedFramework("IOKit"),

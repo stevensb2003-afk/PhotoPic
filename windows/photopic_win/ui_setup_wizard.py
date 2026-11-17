@@ -164,15 +164,34 @@ class GuidedSetupWizardWidget(QWidget):
 
 
 class HardwareSettingsDialog(QDialog):
-    """Settings modal allowing re-configuration of AI / hardware tiers anytime."""
+    """Settings modal allowing re-configuration of AI / hardware tiers and Cloud OTA anytime."""
 
-    def __init__(self, audit: HardwareAuditReport, prefs: PerformancePreferences, on_apply, parent=None) -> None:
+    def __init__(
+        self,
+        audit: HardwareAuditReport,
+        prefs: PerformancePreferences,
+        on_apply,
+        updater=None,
+        on_install_update=None,
+        parent=None,
+    ) -> None:
         super().__init__(parent)
-        self.setWindowTitle("Auditoría de Hardware y Rendimiento IA")
-        self.setFixedWidth(600)
+        self.setWindowTitle("Auditoría de Hardware, IA y Actualizaciones")
+        self.setFixedWidth(620)
         lay = QVBoxLayout(self)
         self._panel = _AuditConfigPanel(audit, prefs)
         lay.addWidget(self._panel)
+
+        self._update_card = None
+        if updater is not None:
+            from .ui_cloud_update import CloudUpdateSettingsSection
+
+            self._update_card = CloudUpdateSettingsSection(
+                updater,
+                auto_check_enabled=prefs.auto_check_updates,
+                on_install_now=lambda: (on_install_update() if on_install_update else None),
+            )
+            lay.addWidget(self._update_card)
 
         btns = QHBoxLayout()
         btns.addStretch()
@@ -180,10 +199,23 @@ class HardwareSettingsDialog(QDialog):
         cancel_btn.clicked.connect(self.reject)
         save_btn = QPushButton("Aplicar Cambios")
         save_btn.setObjectName("PrimaryButton")
-        save_btn.clicked.connect(lambda: (on_apply(self._panel.current_preferences(True)), self.accept()))
+        save_btn.clicked.connect(lambda: (on_apply(self._build_updated_prefs(prefs)), self.accept()))
         btns.addWidget(cancel_btn)
         btns.addWidget(save_btn)
         lay.addLayout(btns)
+
+    def _build_updated_prefs(self, old_prefs: PerformancePreferences) -> PerformancePreferences:
+        updated = self._panel.current_preferences(True)
+        updated.auto_check_updates = (
+            self._update_card.auto_check_checked
+            if self._update_card is not None
+            else old_prefs.auto_check_updates
+        )
+        return updated
+
+    def forward_update_event(self, event) -> None:
+        if self._update_card is not None:
+            self._update_card.apply_event(event)
 
 
 class ArchiveDeletePopover(QFrame):

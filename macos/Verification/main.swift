@@ -10,6 +10,7 @@ private func runVerification() async {
         try await CorePipelineVerification.runAll()
         try await HardwareAndArchiveDeleteVerification.runAll()
         try await SessionGroupsTimerAndInspectorVerification.runAll()
+        try CloudUpdateVerification.runAll()
 
         let repoRoot = URL(fileURLWithPath: #filePath)
             .deletingLastPathComponent()

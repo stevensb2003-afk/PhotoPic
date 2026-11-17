@@ -26,6 +26,8 @@
 		A1AB4F323175310B1D7D7370 = {isa = PBXBuildFile; fileRef = 748657D8DB2C8E303BAF5F61; };
 		5D5BF46BA0C2899444CA7366 = {isa = PBXBuildFile; fileRef = B2F0A7A1F8DFF475C6C97D36; };
 		C81612BE235E98ECBC38F603 = {isa = PBXBuildFile; fileRef = 68AF38D25200E29B10A232BA; };
+		6C7ABE44327284E862DD6F28 = {isa = PBXBuildFile; fileRef = 97480E0D71A928BADEEAD110; };
+		56337E02A8AF0DB748517B75 = {isa = PBXBuildFile; fileRef = EC8700BE05E8D00CAAC875FF; };
 		85B99EBC0A3C5BF49071DB68 = {isa = PBXBuildFile; fileRef = C601FA496CB695F931BDBCE5; };
 		F99D3D9D550ABCABBF5DECE8 = {isa = PBXBuildFile; fileRef = 4A59295FCA5F8C7493D411FB; };
 		74D95543104C96135EFD5764 = {isa = PBXBuildFile; fileRef = 1906D3B4DDE63186E90DEF85; };
@@ -55,6 +57,7 @@
 		88219A3D795CD62ABFD418DB = {isa = PBXBuildFile; fileRef = 88B4BDC80090D85E070F8A51; };
 		11BBD49B660FE4233C04A972 = {isa = PBXBuildFile; fileRef = EABF0EA26A1CE896B03AB75B; };
 		4F9C6688ECDE8E12733CF082 = {isa = PBXBuildFile; fileRef = AFED7C01EBDA02744B83F736; };
+		5702CC3578D0F6DE23635FB3 = {isa = PBXBuildFile; fileRef = EBC47C94AEB8D158CD706C63; };
 		621EF53B3013CB1EA08A547A = {isa = PBXBuildFile; fileRef = AE9AA4F9E60B8654670FA92D; };
 		B88ECF05506390BE18B1C55F = {isa = PBXBuildFile; fileRef = EC54E4E3625DB5B33662029B; };
 		C10986FB1427A596CC78F55D = {isa = PBXBuildFile; fileRef = 54BA2C65F7BD620303F6BC39; };
@@ -116,6 +119,8 @@
 		748657D8DB2C8E303BAF5F61 = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = "PhotoVisionTags.swift"; path = "macos/PhotoPic/Models/PhotoVisionTags.swift"; sourceTree = "<group>"; };
 		B2F0A7A1F8DFF475C6C97D36 = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = "SessionMetadata.swift"; path = "macos/PhotoPic/Models/SessionMetadata.swift"; sourceTree = "<group>"; };
 		68AF38D25200E29B10A232BA = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = "BookmarkManager.swift"; path = "macos/PhotoPic/Services/BookmarkManager.swift"; sourceTree = "<group>"; };
+		97480E0D71A928BADEEAD110 = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = "CloudUpdateModels.swift"; path = "macos/PhotoPic/Services/CloudUpdateModels.swift"; sourceTree = "<group>"; };
+		EC8700BE05E8D00CAAC875FF = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = "CloudUpdateService.swift"; path = "macos/PhotoPic/Services/CloudUpdateService.swift"; sourceTree = "<group>"; };
 		C601FA496CB695F931BDBCE5 = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = "DeviceDiscoveryService+Delegate.swift"; path = "macos/PhotoPic/Services/DeviceDiscoveryService+Delegate.swift"; sourceTree = "<group>"; };
 		4A59295FCA5F8C7493D411FB = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = "DeviceDiscoveryService.swift"; path = "macos/PhotoPic/Services/DeviceDiscoveryService.swift"; sourceTree = "<group>"; };
 		1906D3B4DDE63186E90DEF85 = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = "DeviceFingerprintMatcher.swift"; path = "macos/PhotoPic/Services/DeviceFingerprintMatcher.swift"; sourceTree = "<group>"; };
@@ -145,6 +150,7 @@
 		88B4BDC80090D85E070F8A51 = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = "CullingSessionViewModel.swift"; path = "macos/PhotoPic/ViewModels/CullingSessionViewModel.swift"; sourceTree = "<group>"; };
 		EABF0EA26A1CE896B03AB75B = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = "DeviceManagerViewModel.swift"; path = "macos/PhotoPic/ViewModels/DeviceManagerViewModel.swift"; sourceTree = "<group>"; };
 		AFED7C01EBDA02744B83F736 = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = "HomeViewModel.swift"; path = "macos/PhotoPic/ViewModels/HomeViewModel.swift"; sourceTree = "<group>"; };
+		EBC47C94AEB8D158CD706C63 = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = "CloudUpdateViews.swift"; path = "macos/PhotoPic/Views/Components/CloudUpdateViews.swift"; sourceTree = "<group>"; };
 		AE9AA4F9E60B8654670FA92D = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = "HardwareAuditSettingsBlock.swift"; path = "macos/PhotoPic/Views/Components/HardwareAuditSettingsBlock.swift"; sourceTree = "<group>"; };
 		EC54E4E3625DB5B33662029B = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = "StudioPrimitives.swift"; path = "macos/PhotoPic/Views/Components/StudioPrimitives.swift"; sourceTree = "<group>"; };
 		54BA2C65F7BD620303F6BC39 = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = "VisionTagBarView.swift"; path = "macos/PhotoPic/Views/Components/VisionTagBarView.swift"; sourceTree = "<group>"; };
@@ -236,6 +242,8 @@
 				748657D8DB2C8E303BAF5F61,
 				B2F0A7A1F8DFF475C6C97D36,
 				68AF38D25200E29B10A232BA,
+				97480E0D71A928BADEEAD110,
+				EC8700BE05E8D00CAAC875FF,
 				C601FA496CB695F931BDBCE5,
 				4A59295FCA5F8C7493D411FB,
 				1906D3B4DDE63186E90DEF85,
@@ -265,6 +273,7 @@
 				88B4BDC80090D85E070F8A51,
 				EABF0EA26A1CE896B03AB75B,
 				AFED7C01EBDA02744B83F736,
+				EBC47C94AEB8D158CD706C63,
 				AE9AA4F9E60B8654670FA92D,
 				EC54E4E3625DB5B33662029B,
 				54BA2C65F7BD620303F6BC39,
@@ -334,6 +343,8 @@
 				A1AB4F323175310B1D7D7370,
 				5D5BF46BA0C2899444CA7366,
 				C81612BE235E98ECBC38F603,
+				6C7ABE44327284E862DD6F28,
+				56337E02A8AF0DB748517B75,
 				85B99EBC0A3C5BF49071DB68,
 				F99D3D9D550ABCABBF5DECE8,
 				74D95543104C96135EFD5764,
@@ -363,6 +374,7 @@
 				88219A3D795CD62ABFD418DB,
 				11BBD49B660FE4233C04A972,
 				4F9C6688ECDE8E12733CF082,
+				5702CC3578D0F6DE23635FB3,
 				621EF53B3013CB1EA08A547A,
 				B88ECF05506390BE18B1C55F,
 				C10986FB1427A596CC78F55D,

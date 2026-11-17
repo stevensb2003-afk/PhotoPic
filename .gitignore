@@ -12,3 +12,4 @@ build/
 *.spec
 PhotoPic.xcodeproj/xcuserdata/
 PhotoPic.xcodeproj/project.xcworkspace/xcuserdata/
+windows/build_version.json

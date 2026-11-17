@@ -26,6 +26,7 @@ package final class AppState {
     package let liveViewService: LiveViewCameraService
     package let gphotoBridge: GPhoto2LiveBridge
     package let networkStreamService = NetworkMJPEGStreamService()
+    package let cloudUpdater: CloudUpdateService
     package let rawRenderer: RawImageRenderer
     package let visionAnalyzer: PhotoVisionAnalyzer
     package let homeViewModel: HomeViewModel
@@ -37,6 +38,13 @@ package final class AppState {
         didSet {
             performanceStore.save(performancePrefs)
             activeSessionViewModel?.applyPerformancePreferences(performancePrefs)
+            cloudUpdater.autoCheckEnabled = performancePrefs.autoCheckForUpdates
+            cloudUpdater.autoDownloadEnabled = performancePrefs.autoDownloadUpdates
+            if performancePrefs.autoCheckForUpdates {
+                cloudUpdater.startAutomaticLifecycle()
+            } else {
+                cloudUpdater.stopAutomaticLifecycle()
+            }
         }
     }
     package private(set) var rootFolderURL: URL?
@@ -60,7 +68,12 @@ package final class AppState {
         self.performanceStore = resolvedPerfStore
         let audit = HardwareCapabilityAuditor.auditCurrentMac()
         self.hardwareAudit = audit
-        self.performancePrefs = resolvedPerfStore.loadOrSeed(from: audit)
+        let loadedPrefs = resolvedPerfStore.loadOrSeed(from: audit)
+        self.performancePrefs = loadedPrefs
+        self.cloudUpdater = CloudUpdateService(
+            autoCheckEnabled: loadedPrefs.autoCheckForUpdates,
+            autoDownloadEnabled: loadedPrefs.autoDownloadUpdates
+        )
 
         let capture = TetherCaptureService()
         let discovery = DeviceDiscoveryService(knownStore: knownDevicesStore, captureService: capture)
@@ -81,6 +94,7 @@ package final class AppState {
         wireCapturePipeline()
         if startDeviceBrowser {
             discovery.startBrowsing()
+            cloudUpdater.startAutomaticLifecycle()
         }
     }
 
@@ -110,7 +124,9 @@ package final class AppState {
         performancePrefs = PerformancePreferences.preset(
             for: tier,
             completedSetup: performancePrefs.hasCompletedGuidedSetup,
-            autoStartTimer: performancePrefs.autoStartSessionTimerOnFirstShot
+            autoStartTimer: performancePrefs.autoStartSessionTimerOnFirstShot,
+            autoCheckUpdates: performancePrefs.autoCheckForUpdates,
+            autoDownloadUpdates: performancePrefs.autoDownloadUpdates
         )
     }
 
@@ -120,7 +136,9 @@ package final class AppState {
         performancePrefs = PerformancePreferences.preset(
             for: freshAudit.recommendedTier,
             completedSetup: performancePrefs.hasCompletedGuidedSetup,
-            autoStartTimer: performancePrefs.autoStartSessionTimerOnFirstShot
+            autoStartTimer: performancePrefs.autoStartSessionTimerOnFirstShot,
+            autoCheckUpdates: performancePrefs.autoCheckForUpdates,
+            autoDownloadUpdates: performancePrefs.autoDownloadUpdates
         )
         showTransientNotice("Auditoría completada: \(freshAudit.recommendedTier.shortBadge)")
     }

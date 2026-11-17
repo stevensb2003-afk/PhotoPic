@@ -14,6 +14,7 @@ package struct GeneralSettingsView: View {
     package var body: some View {
         ScrollView {
             VStack(alignment: .leading, spacing: AppSpacing.xl) {
+                CloudUpdateSettingsCard(appState: appState)
                 hardwareAndAISection
                 sessionTimerSection
                 rootFolderSection

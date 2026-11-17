@@ -7,12 +7,17 @@ on:
     branches: [ main ]
   workflow_dispatch:
 
+permissions:
+  contents: write
+
 jobs:
   macos:
     name: macOS (Apple Silicon DMG + Verify)
     runs-on: macos-15
     steps:
       - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
 
       - name: Compile macOS Swift Targets
         run: |
@@ -46,22 +51,26 @@ jobs:
       - name: Run PhotoPicVerify
         run: swift run --skip-build PhotoPicVerify
 
-      - name: Build & Package PhotoPic.dmg
+      - name: Build & Package PhotoPic.dmg + OTA Zip
         run: |
           chmod +x macos/Scripts/package_macos_app.sh
           bash macos/Scripts/package_macos_app.sh
 
-      - name: Upload macOS Installer Artifact
+      - name: Upload macOS Installer & OTA Artifact
         uses: actions/upload-artifact@v4
         with:
           name: PhotoPic-macOS-arm64
-          path: dist/PhotoPic-Installer.dmg
+          path: |
+            dist/PhotoPic-Installer.dmg
+            dist/PhotoPic-macOS-arm64.zip
 
   windows:
     name: Windows (x64 EXE + Core Tests)
     runs-on: windows-latest
     steps:
       - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
 
       - uses: actions/setup-python@v5
         with:
@@ -82,3 +91,84 @@ jobs:
         with:
           name: PhotoPic-Windows-x64
           path: dist/PhotoPic-Windows-x64.zip
+
+  publish_release:
+    name: Cloud Release (OTA Appcast & Binaries)
+    needs: [macos, windows]
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Download Built Binaries
+        uses: actions/download-artifact@v4
+        with:
+          pattern: PhotoPic-*
+          merge-multiple: true
+          path: release_assets
+
+      - name: Generate latest.json Cloud Manifest & Publish Release
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          REPO: ${{ github.repository }}
+        run: |
+          ls -la release_assets
+          BASE_VER=$(tr -d '[:space:]' < VERSION)
+          BUILD_NUM=$(git rev-list --count HEAD)
+          COMMIT_SHA=$(git rev-parse --short HEAD)
+          TAG="v${BASE_VER}.${BUILD_NUM}"
+          NOTES=$(git log -1 --pretty=%s)
+
+          python3 - <<PY
+          import datetime, hashlib, json, os, pathlib, subprocess
+
+          assets = pathlib.Path("release_assets")
+          repo = os.environ["REPO"]
+          tag = "${TAG}"
+          notes = subprocess.check_output(["git", "log", "-1", "--pretty=%s"], text=True).strip()
+
+          def file_info(filename: str):
+              p = assets / filename
+              h = hashlib.sha256()
+              with p.open("rb") as f:
+                  for chunk in iter(lambda: f.read(1024 * 1024), b""):
+                      h.update(chunk)
+              return h.hexdigest(), p.stat().st_size
+
+          mac_sha, mac_size = file_info("PhotoPic-macOS-arm64.zip")
+          win_sha, win_size = file_info("PhotoPic-Windows-x64.zip")
+          manifest = {
+              "version": "${BASE_VER}.${BUILD_NUM}",
+              "buildNumber": int("${BUILD_NUM}"),
+              "commitSHA": "${COMMIT_SHA}",
+              "publishedAt": datetime.datetime.now(datetime.timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ"),
+              "releaseNotes": notes,
+              "macosZipURL": f"https://github.com/{repo}/releases/download/{tag}/PhotoPic-macOS-arm64.zip",
+              "macosSha256": mac_sha,
+              "macosSizeBytes": mac_size,
+              "macosDmgURL": f"https://github.com/{repo}/releases/download/{tag}/PhotoPic-Installer.dmg",
+              "windowsZipURL": f"https://github.com/{repo}/releases/download/{tag}/PhotoPic-Windows-x64.zip",
+              "windowsSha256": win_sha,
+              "windowsSizeBytes": win_size,
+          }
+          (assets / "latest.json").write_text(json.dumps(manifest, indent=2), encoding="utf-8")
+          print(json.dumps(manifest, indent=2))
+          PY
+
+          gh release delete "$TAG" -y 2>/dev/null || true
+          gh release create "$TAG" \
+            release_assets/latest.json \
+            release_assets/PhotoPic-macOS-arm64.zip \
+            release_assets/PhotoPic-Installer.dmg \
+            release_assets/PhotoPic-Windows-x64.zip \
+            --title "PhotoPic $TAG" \
+            --notes "$NOTES (commit $COMMIT_SHA)" \
+            --latest
+
+          # Keep the latest 10 automated cloud releases to avoid cluttering GitHub Releases
+          OLD_TAGS=$(gh release list --limit 30 --json tagName -q '.[10:][].tagName' || true)
+          for old in $OLD_TAGS; do
+            gh release delete "$old" -y --cleanup-tag || true
+          done
