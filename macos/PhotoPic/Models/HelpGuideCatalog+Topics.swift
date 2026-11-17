@@ -64,17 +64,19 @@ extension HelpGuideCatalog {
             title: "Conexión USB, Android PTP y Wi-Fi",
             subtitle: "Cable directo, Bonjour PTP/IP y Watchfolder",
             iconSystemName: "cable.connector",
-            keywords: ["usb", "thunderbolt", "android", "ptp", "mtp", "iphone", "wifi", "bluetooth", "ptpcamera", "watchfolder", "ftp", "expert raw", "tethering", "midi"],
-            summary: "Recibe capturas por cable USB-C/Thunderbolt 4, cámaras Bonjour Wi-Fi PTP/IP (macOS) y Watchfolder para transmisores inalámbricos o FTP.",
+            keywords: ["usb", "thunderbolt", "android", "ptp", "mtp", "iphone", "wifi", "bluetooth", "ptpcamera", "watchfolder", "ftp", "expert raw", "tethering", "midi", "canon", "sony", "validador"],
+            summary: "Recibe capturas por cable USB-C/Thunderbolt 4, cámaras Bonjour Wi-Fi PTP/IP (macOS) y Watchfolder, con Validador USB físico (IOKit) por marca.",
             steps: [
-                "1. Cámara DSLR/Mirrorless: conectá por cable USB. Si muestra 'Ocupado por macOS', tocá la píldora superior → Liberar macOS.",
-                "2. Android USB: elegí 'Transferir imágenes (PTP)' (NO 'USB Tethering' ni 'MIDI'). Usá Modo Pro (RAW/DNG) para transferencia casi instantánea (~1s).",
-                "3. iPhone / iPad: desbloqueá el teléfono y tocá 'Confiar en esta computadora'.",
-                "4. Transmisor Wi-Fi / FTP / Air Direct: pulsá 'Vincular Carpeta / Wi-Fi...' para vigilar la carpeta donde bajan las fotos nuevas."
+                "1. Cámara Canon / Nikon: apagá el Wi-Fi/NFC interno de la cámara (en Canon desactiva el puerto USB) y cerrá EOS Utility; si macOS la captura, tocá Liberar macOS.",
+                "2. Cámara Sony / Fujifilm: poné Conexión USB en 'MTP' o 'PTP' (no Mass Storage ni PC Remote sin driver).",
+                "3. Android USB: elegí 'Transferir imágenes (PTP)' (NO 'USB Tethering' ni 'MIDI'). Usá Modo Pro (RAW/DNG) para descarga ~1s.",
+                "4. iPhone / iPad: desbloqueá, tocá 'Confiar' e ingresá tu código; si activás Apple ProRAW (.DNG), PhotoPic fuerza activos originales.",
+                "5. Si conectaste el cable y no monta, abrí Configuración → Dispositivos para usar el Validador de 3 etapas y despertar el diálogo de permiso."
             ],
             canDo: [
-                "Escudo Anti-Galería Vieja: nunca descarga fotos viejas del carrete ni miniaturas ocultas (.thumbnails).",
-                "Auto-conecta cámaras guardadas en menos de 1 segundo."
+                "Escudo Anti-Galería Vieja y cero pérdidas: acepta disparos en vivo aunque la cámara tenga la pila de fecha/reloj reiniciada.",
+                "Si llega una foto en el Dashboard sin sesión abierta, PhotoPic crea/abre 'Sesion_Rapida_AAAA-MM-DD' automáticamente para no perder el RAW.",
+                "Detecta físicamente teléfonos en 'Solo carga' o cámaras ocultas vía IOKit y muestra la guía exacta de esa marca."
             ],
             limitations: [
                 "Bluetooth NO sirve para transferir RAWs de cámara a full calidad por falta de ancho de banda.",

@@ -16,6 +16,7 @@ package enum HardwareAndArchiveDeleteVerification {
         try await testPermanentArchiveDeletionAndSafetyGuard(rootURL: tempRoot)
         try testHelpSearchAndLiveViewDefaults()
         try await testAndroidPermissionAndOffMainWriteQueueSafety()
+        try testUSBValidatorIOSAndZeroLostShotShield(rootURL: tempRoot)
 
         print("ALL PHOTOPIC V2.1 HARDWARE & ARCHIVE DELETE VERIFICATIONS PASSED")
     }
@@ -234,5 +235,53 @@ package enum HardwareAndArchiveDeleteVerification {
         }
         try assertTrue(capturedFilename == "verified_off_main.jpg", "Off-main ICDeviceWriteQueue callback completed without @MainActor SIGTRAP")
         print("[PASS] 13. Android permission state & off-main ICDeviceWriteQueue completion safety verified")
+    }
+
+    private static func testUSBValidatorIOSAndZeroLostShotShield(rootURL: URL) throws {
+        try assertTrue(DeviceFingerprintMatcher.detectImagingHardware(vendorID: 0x04E8, productName: "SM-F966B", vendorName: "SAMSUNG") == .androidPTP, "Samsung phone classified as .androidPTP")
+        try assertTrue(DeviceFingerprintMatcher.detectImagingHardware(vendorID: 0x18D1, productName: "Pixel 9", vendorName: "Google") == .androidPTP, "Pixel classified as .androidPTP")
+        try assertTrue(DeviceFingerprintMatcher.detectImagingHardware(vendorID: 0x05AC, productName: "iPhone 16 Pro", vendorName: "Apple") == .iPhoneIOS, "iPhone classified as .iPhoneIOS")
+        try assertTrue(DeviceFingerprintMatcher.detectImagingHardware(vendorID: 0x04A9, productName: "Canon EOS R5", vendorName: "Canon") == .dslrMirrorless, "Canon DSLR classified as .dslrMirrorless")
+        try assertTrue(DeviceFingerprintMatcher.detectImagingHardware(vendorID: 0x054C, productName: "ILCE-7M4", vendorName: "Sony") == .dslrMirrorless, "Sony Alpha classified as .dslrMirrorless")
+        try assertTrue(DeviceFingerprintMatcher.detectImagingHardware(vendorID: 0x05AC, productName: "Magic Keyboard", vendorName: "Apple") == nil, "Apple keyboard ignored")
+        try assertTrue(DeviceFingerprintMatcher.detectImagingHardware(vendorID: 0x04E8, productName: "Portable SSD T7", vendorName: "Samsung") == nil, "Samsung SSD ignored")
+        try assertTrue(DeviceFingerprintMatcher.detectImagingHardware(vendorID: 0x054C, productName: "DualSense Wireless Controller", vendorName: "Sony") == nil, "Sony DualSense ignored")
+
+        let samsungUSB = PhysicalUSBDevice(
+            id: "iokit:04e8:6865:demo", vendorID: 0x04E8, productID: 0x6865,
+            vendorName: "SAMSUNG", productName: "SM-F966B", serialNumber: "demo", category: .androidPTP
+        )
+        let diag = DeviceConnectionDiagnostics.evaluate(physical: [samsungUSB], connected: [], conflictingApps: [])
+        try assertTrue(diag.hasUnmountedHardware && diag.recommendedGuide == .samsungAndroid, "Validator flags unmounted Samsung hardware")
+
+        var gate = TetherBaselineGate(connectedAtTimestamp: Date())
+        gate.markCatalogComplete()
+        let deadClockDate = Date(timeIntervalSince1970: 946_684_800) // 2000-01-01
+        let liveKey = TetherBaselineGate.itemKey(ptpHandle: 42, filename: "DSC00042.ARW", fileSize: 25_000_000)
+        try assertTrue(gate.shouldDownloadLiveItem(key: liveKey, itemDate: deadClockDate, wasAddedAfterCatalog: true), "Dead-clock DSLR live shot accepted")
+
+        let autoRoot = rootURL.appendingPathComponent("AutoQuickRoot", isDirectory: true)
+        try FileManager.default.createDirectory(at: autoRoot, withIntermediateDirectories: true)
+        let suite = "com.kairosvisuals.photopic.verify.\(UUID().uuidString)"
+        let defs = UserDefaults(suiteName: suite) ?? .standard
+        defer { UserDefaults.standard.removePersistentDomain(forName: suite) }
+
+        let state = AppState(
+            bookmarkManager: BookmarkManager(defaults: defs),
+            knownDevicesStore: KnownDevicesStore(storageURL: autoRoot.appendingPathComponent("known.json")),
+            performanceStore: PerformancePreferencesStore(defaults: defs),
+            startDeviceBrowser: false
+        )
+        state.setRootFolderURL(autoRoot)
+        let stageDNG = rootURL.appendingPathComponent("AUTO_01.DNG")
+        try SyntheticDNGGenerator.writeSyntheticDNG(to: stageDNG, width: 160, height: 120)
+        let result = state.routeStagedCapture(
+            stagedURL: stageDNG,
+            originalFilename: "AUTO_01.DNG",
+            deviceProfile: KnownDevice(id: "cam", displayName: "Canon EOS", alias: "Canon", category: .dslrMirrorless)
+        )
+        let savedInQuick = state.activeSessionViewModel?.session.rawFolderURL.appendingPathComponent("AUTO_01.DNG")
+        try assertTrue(result != nil && savedInQuick.map { FileManager.default.fileExists(atPath: $0.path) } == true, "Auto-opened quick session preserved staged RAW")
+        print("[PASS] 14. Physical USB validator, iOS/DSLR dead-clock shield & auto-session rescue verified")
     }
 }

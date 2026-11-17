@@ -16,9 +16,10 @@ from photopic_win.hardware_auditor import (
     PerformanceTier,
     WindowsConfigStore,
 )
-from photopic_win.models import MediaFormatClassifier, MediaFormatKind, PhotoVisionTags
+from photopic_win.models import DeviceCategory, KnownDevice, MediaFormatClassifier, MediaFormatKind, PhotoVisionTags
 from photopic_win.session_manager import SessionFileManager
 from photopic_win.tag_store import PhotoTagStore
+from photopic_win.wpd_tether_service import WindowsTetherService
 
 
 class TestWindowsCorePipeline(unittest.TestCase):
@@ -165,6 +166,33 @@ class TestWindowsCorePipeline(unittest.TestCase):
             counts = SessionFileManager.read_disk_counts(session)
             self.assertEqual(counts.for_editing, 1)
             self.assertEqual(counts.archived, 0)
+
+    def test_watch_folder_skips_hidden_thumbnails_and_zero_byte_files(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            watch_dir = Path(tmp) / "watch"
+            thumbs_dir = watch_dir / ".thumbnails"
+            thumbs_dir.mkdir(parents=True)
+            dcim_dir = watch_dir / "DCIM"
+            dcim_dir.mkdir(parents=True)
+
+            staged: list[str] = []
+            svc = WindowsTetherService(on_file_staged=lambda p, name, _prof: staged.append(name))
+            prof = KnownDevice(fingerprint="dev1", display_name="Pixel 9", alias="Pixel 9", category=DeviceCategory.ANDROID_PTP)
+            svc.attach_watch_folder(watch_dir, prof)
+
+            # Hidden thumbnail and 0-byte placeholder must be skipped on poll
+            (thumbs_dir / "thumb.jpg").write_bytes(b"\xff\xd8\xff" * 10)
+            zero_dng = dcim_dir / "IMG_100.DNG"
+            zero_dng.write_bytes(b"")
+            svc._scan_watch_folders()
+            self.assertEqual(staged, [])
+
+            # Fill 0-byte DNG -> first poll sees new size (staging waits 1 cycle for write stability), second poll stages it
+            zero_dng.write_bytes(b"DNG_PAYLOAD_12345")
+            svc._scan_watch_folders()
+            self.assertEqual(staged, [])
+            svc._scan_watch_folders()
+            self.assertEqual(staged, ["IMG_100.DNG"])
 
 
 if __name__ == "__main__":

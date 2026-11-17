@@ -11,8 +11,10 @@ package final class TetherCaptureService: NSObject {
         var profile: KnownDevice
         var gate: TetherBaselineGate
         var openTimeoutTask: Task<Void, Never>?
+        var catalogTimeoutTask: Task<Void, Never>?
         var deltaTask: Task<Void, Never>?
         var activeDownloads: Int = 0
+        var lastStatus: DeviceConnectionStatus = .connecting
     }
 
     let logger = Logger(subsystem: "com.kairosvisuals.photopic", category: "TetherCapture")
@@ -25,19 +27,14 @@ package final class TetherCaptureService: NSObject {
 
     package func openSession(for camera: ICCameraDevice, profile: KnownDevice) {
         let fingerprint = profile.fingerprint
-        if let previous = contexts[fingerprint] {
-            previous.openTimeoutTask?.cancel()
-            previous.deltaTask?.cancel()
-        }
+        cancelWatchdogs(for: fingerprint)
+        contexts[fingerprint]?.deltaTask?.cancel()
 
+        let isRestrictedApple = camera.isAccessRestrictedAppleDevice
+        let initialStatus: DeviceConnectionStatus = isRestrictedApple ? .accessRestrictedLocked : .connecting
         let gate = TetherBaselineGate(connectedAtTimestamp: Date())
-        let timeoutTask = Task { @MainActor [weak self] in
-            try? await Task.sleep(for: .milliseconds(4500))
-            guard !Task.isCancelled else { return }
-            self?.handleOpenSessionTimeout(for: fingerprint, category: profile.category)
-        }
         contexts[fingerprint] = ActiveCameraContext(
-            camera: camera, profile: profile, gate: gate, openTimeoutTask: timeoutTask
+            camera: camera, profile: profile, gate: gate, lastStatus: initialStatus
         )
         cameraToFingerprint[ObjectIdentifier(camera)] = fingerprint
 
@@ -46,13 +43,17 @@ package final class TetherCaptureService: NSObject {
             camera.mediaPresentation = .originalAssets
         }
 
-        onStatusChanged?(fingerprint, .connecting, batteryValue(for: camera))
+        onStatusChanged?(fingerprint, initialStatus, batteryValue(for: camera))
+        if !isRestrictedApple {
+            startOpenWatchdog(for: fingerprint, category: profile.category)
+        }
         camera.requestOpenSession()
     }
 
     package func closeSession(for fingerprint: String) {
         guard let ctx = contexts.removeValue(forKey: fingerprint) else { return }
         ctx.openTimeoutTask?.cancel()
+        ctx.catalogTimeoutTask?.cancel()
         ctx.deltaTask?.cancel()
         cameraToFingerprint.removeValue(forKey: ObjectIdentifier(ctx.camera))
         if ctx.camera.hasOpenSession {
@@ -91,8 +92,7 @@ package final class TetherCaptureService: NSObject {
     }
 
     func finalizeCatalogAndStartWatcher(for fingerprint: String, camera: ICCameraDevice) {
-        contexts[fingerprint]?.openTimeoutTask?.cancel()
-        contexts[fingerprint]?.openTimeoutTask = nil
+        cancelWatchdogs(for: fingerprint)
 
         if let ctx = contexts[fingerprint],
            ctx.profile.category == .androidPTP,
@@ -109,6 +109,7 @@ package final class TetherCaptureService: NSObject {
         indexExistingCatalog(for: fingerprint, camera: camera)
         guard var ctx = contexts[fingerprint] else { return }
         ctx.gate.markCatalogComplete()
+        ctx.lastStatus = .connectedReady
         ctx.deltaTask?.cancel()
         ctx.deltaTask = Task { [weak self, weak camera] in
             while !Task.isCancelled {
@@ -151,7 +152,7 @@ package final class TetherCaptureService: NSObject {
             } else if ctx.gate.shouldDownloadLiveItem(
                 key: key,
                 itemDate: date,
-                wasAddedAfterCatalog: fromLiveCallback && file.wasAddedAfterContentCatalogCompleted
+                wasAddedAfterCatalog: fromLiveCallback && ctx.gate.isCatalogComplete
             ) {
                 approved.append(file)
             }
@@ -241,19 +242,6 @@ package final class TetherCaptureService: NSObject {
                 self.finishDownloadState(fingerprint: fingerprint, camera: activeCamera, stagingDir: stagingDir)
             }
         }
-    }
-
-    private func handleOpenSessionTimeout(for fingerprint: String, category: DeviceCategory) {
-        guard let ctx = contexts[fingerprint], !ctx.gate.isCatalogComplete else { return }
-        contexts.removeValue(forKey: fingerprint)
-        cameraToFingerprint.removeValue(forKey: ObjectIdentifier(ctx.camera))
-        if ctx.camera.hasOpenSession {
-            ctx.camera.requestCloseSession()
-        }
-        let nextStatus: DeviceConnectionStatus = category == .androidPTP
-            ? .androidPermissionRequired
-            : .error(message: "Tiempo de espera agotado al abrir sesión PTP.")
-        onStatusChanged?(fingerprint, nextStatus, batteryValue(for: ctx.camera))
     }
 
     private func completeDownload(stagedURL: URL, filename: String, stagingDir: URL, fingerprint: String, camera: ICCameraDevice?) {

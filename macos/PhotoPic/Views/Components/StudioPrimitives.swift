@@ -188,6 +188,49 @@ package struct UnknownDeviceTopBanner: View {
     }
 }
 
+/// Amber alert banner shown when `IOKit` detects a USB phone/camera hidden from `ImageCaptureCore`
+/// (e.g. Android in Charging-only/MTP, locked iPhone, or Canon with Wi-Fi enabled).
+package struct UnmountedUSBTopBanner: View {
+    let device: PhysicalUSBDevice
+    let onOpenValidator: () -> Void
+
+    package init(device: PhysicalUSBDevice, onOpenValidator: @escaping () -> Void) {
+        self.device = device
+        self.onOpenValidator = onOpenValidator
+    }
+
+    package var body: some View {
+        HStack(spacing: AppSpacing.md) {
+            Image(systemName: device.category.sfSymbolName)
+                .font(AppTypography.sectionTitle)
+                .foregroundStyle(AppColors.warningAmber)
+
+            VStack(alignment: .leading, spacing: 2) {
+                Text("Detectado por USB: \(device.displayName) — Modo USB incompatible o bloqueado")
+                    .font(AppTypography.bodyMedium)
+                    .foregroundStyle(AppColors.textPrimary)
+                Text("Cambiá de 'Solo carga' / 'Mass Storage' a PTP o desbloqueá tu teléfono para habilitar la captura.")
+                    .font(AppTypography.caption)
+                    .foregroundStyle(AppColors.textSecondary)
+            }
+
+            Spacer()
+
+            Button("Abrir Guía y Validar", action: onOpenValidator)
+                .buttonStyle(StudioButtonStyle(.secondaryDark, compact: true))
+        }
+        .padding(.horizontal, AppSpacing.lg)
+        .padding(.vertical, AppSpacing.sm)
+        .background(AppColors.warningAmberTint)
+        .overlay(
+            Rectangle()
+                .frame(height: AppSpacing.hairline)
+                .foregroundStyle(AppColors.warningAmber.opacity(0.45)),
+            alignment: .bottom
+        )
+    }
+}
+
 /// Non-intrusive top-center toast notification (e.g. auto-connected saved device).
 package struct FloatingToastBanner: View {
     let message: String

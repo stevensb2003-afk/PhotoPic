@@ -186,22 +186,52 @@ package final class AppState {
         }
     }
 
+    @discardableResult
+    package func routeStagedCapture(
+        stagedURL: URL,
+        originalFilename: String,
+        deviceProfile: KnownDevice
+    ) -> IngestResult? {
+        if let workspace = activeSessionViewModel {
+            let result = workspace.handleCapturedFileStaged(
+                stagedURL: stagedURL,
+                originalFilename: originalFilename,
+                deviceProfile: deviceProfile
+            )
+            homeViewModel.updateSessionCounts(workspace.session)
+            return result
+        }
+
+        if let rootFolderURL {
+            let formatter = DateFormatter()
+            formatter.dateFormat = "yyyy-MM-dd"
+            let quickName = "Sesion_Rapida_\(formatter.string(from: Date()))"
+            let existing = homeViewModel.sessions.first { $0.name == quickName }
+            guard let targetSession = existing ?? homeViewModel.createSession(named: quickName, in: rootFolderURL) else {
+                try? FileManager.default.removeItem(at: stagedURL)
+                return nil
+            }
+            openSession(targetSession)
+            let result = activeSessionViewModel?.handleCapturedFileStaged(
+                stagedURL: stagedURL,
+                originalFilename: originalFilename,
+                deviceProfile: deviceProfile
+            )
+            if let workspace = activeSessionViewModel {
+                homeViewModel.updateSessionCounts(workspace.session)
+            }
+            showTransientNotice("Sesión abierta automáticamente para guardar \(originalFilename)")
+            return result
+        }
+
+        try? FileManager.default.removeItem(at: stagedURL)
+        showTransientNotice("Captura recibida (\(originalFilename)). Completá el asistente inicial.")
+        return nil
+    }
+
     private func wireCapturePipeline() {
         let routeFile: @MainActor (URL, String, KnownDevice) -> Void = { [weak self] stagedURL, filename, profile in
-            guard let self else { return }
-            if let workspace = self.activeSessionViewModel {
-                _ = workspace.handleCapturedFileStaged(
-                    stagedURL: stagedURL,
-                    originalFilename: filename,
-                    deviceProfile: profile
-                )
-                self.homeViewModel.updateSessionCounts(workspace.session)
-            } else {
-                try? FileManager.default.removeItem(at: stagedURL)
-                self.showTransientNotice(
-                    "Captura recibida (\(filename)). Abrí o creá una sesión para guardarla en RAW/."
-                )
-            }
+            _ = self?.routeStagedCapture(stagedURL: stagedURL, originalFilename: filename, deviceProfile: profile)
         }
         discoveryService.onCapturedFileReady = routeFile
         folderWatchService.onFileReady = routeFile

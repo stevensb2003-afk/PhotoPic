@@ -18,6 +18,7 @@ package final class DeviceDiscoveryService: NSObject {
 
     package var connectedDevices: [ConnectedDeviceState] = []
     package private(set) var savedDevices: [KnownDevice] = []
+    package let usbMonitor = USBHardwareMonitor()
     package var unknownDeviceBanner: ConnectedDeviceState?
     package var statusToastMessage: String?
 
@@ -35,6 +36,7 @@ package final class DeviceDiscoveryService: NSObject {
     }
 
     package func startBrowsing() {
+        usbMonitor.startMonitoring()
         guard !browser.isBrowsing else { return }
         browser.delegate = self
         let maskValue =
@@ -48,6 +50,7 @@ package final class DeviceDiscoveryService: NSObject {
     }
 
     package func stopBrowsing() {
+        usbMonitor.stopMonitoring()
         browser.stop()
     }
 
@@ -247,6 +250,8 @@ package final class DeviceDiscoveryService: NSObject {
                 self.statusToastMessage = "Conectado por USB: \(alias)"
             } else if status == .androidPermissionRequired && previousStatus == .connecting {
                 self.statusToastMessage = "Android sin permiso PTP: cambiá 'Solo carga' a 'Transferir imágenes (PTP)' y tocá Permitir."
+            } else if status == .accessRestrictedLocked && previousStatus != .accessRestrictedLocked {
+                self.statusToastMessage = "Dispositivo bloqueado: desbloqueá tu iPhone y tocá 'Confiar' para conectar."
             }
         }
         captureService.onFileStaged = { [weak self] stagedURL, filename, profile in

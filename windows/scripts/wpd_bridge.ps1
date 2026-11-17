@@ -36,14 +36,17 @@ if ($Action -eq "scan") {
     $stack.Push(@{ Folder = $devFolder; Prefix = "" })
     while ($stack.Count -gt 0) {
         $curr = $stack.Pop()
+        $isRootLevel = [string]::IsNullOrEmpty($curr.Prefix)
         foreach ($child in $curr.Folder.Items()) {
-            $rel = if ($curr.Prefix) { "$($curr.Prefix)/$($child.Name)" } else { $child.Name }
+            $name = $child.Name
+            $rel = if ($curr.Prefix) { "$($curr.Prefix)/$name" } else { $name }
             if ($child.IsFolder) {
-                if ($child.Name -match "DCIM|Camera|Pictures|Card|Storage|Almacenamiento" -or $curr.Prefix -match "DCIM") {
+                if ($name -match "^\.|^thumbnails$") { continue }
+                if ($isRootLevel -or $name -match "DCIM|Camera|Pictures|Expert|RAW|10\d|Storage|Almacenamiento|Phone|Tel|Card|Slot" -or $curr.Prefix -match "DCIM") {
                     $stack.Push(@{ Folder = $child.GetFolder; Prefix = $rel })
                 }
             } else {
-                $results += @{ Name = $child.Name; Size = $child.Size; SubPath = $rel }
+                $results += @{ Name = $name; Size = $child.Size; SubPath = $rel }
             }
         }
     }

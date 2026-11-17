@@ -26,7 +26,11 @@ package enum DeviceFingerprintMatcher {
         0x22B8, // Motorola
         0x0FCE, // Sony Mobile
         0x12D1, // Huawei
-        0x0B05  // ASUS
+        0x0B05, // ASUS
+        0x2D95, // Vivo
+        0x2BDE, // Nothing
+        0x3426, // Honor
+        0x19D2  // ZTE / Nubia
     ]
     private static let actionVendorIDs: Set<Int> = [
         0x2672, // GoPro
@@ -115,5 +119,43 @@ package enum DeviceFingerprintMatcher {
         }
 
         return .dslrMirrorless
+    }
+
+    /// Strict USB hardware filter for `IOKit` physical enumeration (excludes hubs, SSDs, mice, audio, keyboards).
+    package static func detectImagingHardware(
+        vendorID: Int,
+        productName: String,
+        vendorName: String
+    ) -> DeviceCategory? {
+        guard vendorID != 0 else { return nil }
+        let combined = "\(vendorName) \(productName)".lowercased()
+
+        let excludedKeywords = [
+            "ssd", "t7", "t9", "flash", "hub", "controller", "dualsense",
+            "headset", "audio", "mouse", "keyboard", "receiver", "lan", "ethernet"
+        ]
+        if excludedKeywords.contains(where: { combined.contains($0) }) {
+            return nil
+        }
+
+        if vendorID == appleVendorID {
+            let lowerProduct = productName.lowercased()
+            return (lowerProduct.contains("iphone") || lowerProduct.contains("ipad")) ? .iPhoneIOS : nil
+        }
+
+        if actionVendorIDs.contains(vendorID) {
+            return .compactAction
+        }
+        if dslrVendorIDs.contains(vendorID) {
+            return .dslrMirrorless
+        }
+        if androidVendorIDs.contains(vendorID)
+            || combined.contains("android")
+            || combined.contains("pixel")
+            || combined.contains("galaxy")
+            || combined.contains("xiaomi") {
+            return .androidPTP
+        }
+        return nil
     }
 }

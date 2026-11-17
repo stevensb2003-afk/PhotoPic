@@ -33,6 +33,10 @@ package struct SessionWorkspaceView: View {
                     onConnectAndSave: { appState.discoveryService.connectAndSaveDevice(fingerprint: unknown.fingerprint) },
                     onDismiss: { appState.discoveryService.dismissUnknownBanner() }
                 )
+            } else if let unmounted = appState.discoveryService.unmountedPhysicalDevices.first {
+                UnmountedUSBTopBanner(device: unmounted) {
+                    appState.openSettings(tab: .devices)
+                }
             }
 
             workspaceSubHeader

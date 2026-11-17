@@ -77,4 +77,12 @@ package final class DeviceManagerViewModel {
     package func liveState(for savedDevice: KnownDevice) -> ConnectedDeviceState? {
         discoveryService.connectedDevices.first { $0.fingerprint == savedDevice.fingerprint }
     }
+
+    package var validationReport: ConnectionValidationReport {
+        discoveryService.validationReport
+    }
+
+    package func runDiagnosticProbe() async {
+        await discoveryService.runConnectionProbeAndWakePrompts()
+    }
 }

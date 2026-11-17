@@ -34,6 +34,7 @@ class WindowsTetherService:
         self.known_devices: dict[str, KnownDevice] = {}
         self.gates: dict[str, TetherBaselineGate] = {}
         self.active_watch_folders: dict[str, Path] = {}
+        self._pending_sizes: dict[str, int] = {}
         self._stop_event = threading.Event()
         self._thread: threading.Thread | None = None
         self._script_path = Path(__file__).resolve().parents[1] / "scripts" / "wpd_bridge.ps1"
@@ -48,13 +49,21 @@ class WindowsTetherService:
     def stop(self) -> None:
         self._stop_event.set()
 
+    @staticmethod
+    def _is_hidden_path(path_parts: tuple[str, ...] | list[str]) -> bool:
+        return any(part.startswith(".") or part.lower() == "thumbnails" for part in path_parts)
+
     def attach_watch_folder(self, folder: Path, profile: KnownDevice) -> None:
         """Indexes pre-existing files in a tethered watch/SD folder so old files never import."""
         gate = TetherBaselineGate(connected_at_epoch=time.time())
         if folder.exists():
             for path in folder.rglob("*"):
                 if path.is_file() and MediaFormatClassifier.is_supported_image(path):
+                    if self._is_hidden_path(path.relative_to(folder).parts):
+                        continue
                     stat = path.stat()
+                    if stat.st_size <= 0:
+                        continue
                     key = gate.item_key(str(path), path.name, stat.st_size)
                     gate.record_pre_catalog_item(key, stat.st_mtime)
         gate.mark_catalog_complete()
@@ -79,9 +88,18 @@ class WindowsTetherService:
             for path in folder.rglob("*"):
                 if not path.is_file() or not MediaFormatClassifier.is_supported_image(path):
                     continue
+                if self._is_hidden_path(path.relative_to(folder).parts):
+                    continue
                 stat = path.stat()
-                key = gate.item_key(str(path), path.name, stat.st_size)
+                if stat.st_size <= 0:
+                    continue
+                path_key = str(path)
+                if self._pending_sizes.get(path_key) != stat.st_size:
+                    self._pending_sizes[path_key] = stat.st_size
+                    continue
+                key = gate.item_key(path_key, path.name, stat.st_size)
                 if gate.should_download_live_item(key, stat.st_mtime, was_added_after_catalog=False):
+                    self._pending_sizes.pop(path_key, None)
                     staging = Path(tempfile.gettempdir()) / "PhotoPicStaging" / str(uuid.uuid4())
                     staging.mkdir(parents=True, exist_ok=True)
                     staged_file = staging / path.name
@@ -133,13 +151,18 @@ class WindowsTetherService:
             for item in items:
                 name = str(item.get("Name", ""))
                 size = int(item.get("Size", 0))
+                sub_path = str(item.get("SubPath", name))
+                if self._is_hidden_path(sub_path.split("/")):
+                    continue
                 if not MediaFormatClassifier.classify(name):
+                    continue
+                if not first_pass and size <= 0:
                     continue
                 key = gate.item_key(dev.fingerprint, name, size)
                 if first_pass:
                     gate.record_pre_catalog_item(key, None)
                 elif gate.should_download_live_item(key, time.time(), was_added_after_catalog=True):
-                    self._copy_wpd_item(dev.name, str(item.get("SubPath", name)), name, profile)
+                    self._copy_wpd_item(dev.name, sub_path, name, profile)
             if first_pass:
                 gate.mark_catalog_complete()
         except Exception:

@@ -13,7 +13,7 @@ package struct DeviceManagerView: View {
             VStack(alignment: .leading, spacing: AppSpacing.xl) {
                 liveUsbSection
                 savedDevicesSection
-                mobileHelpNotice
+                ConnectionValidatorCard(viewModel: viewModel)
             }
             .padding(AppSpacing.xl)
         }
@@ -168,26 +168,5 @@ package struct DeviceManagerView: View {
                 }
             }
         }
-    }
-
-    private var mobileHelpNotice: some View {
-        HStack(alignment: .top, spacing: AppSpacing.md) {
-            Image(systemName: "info.circle.fill")
-                .font(AppTypography.sectionTitle)
-                .foregroundStyle(AppColors.infoBlue)
-
-            Text("Para usar un teléfono Android por cable, seleccioná 'Transferir imágenes (PTP)' en la notificación USB del celular. Para capturar RAW desde el móvil, usá el modo Pro / Expert RAW (.DNG).")
-                .font(AppTypography.caption)
-                .foregroundStyle(AppColors.textSecondary)
-                .fixedSize(horizontal: false, vertical: true)
-        }
-        .padding(AppSpacing.md)
-        .frame(maxWidth: .infinity, alignment: .leading)
-        .background(AppColors.infoBlueTint)
-        .clipShape(RoundedRectangle(cornerRadius: AppRadius.md, style: .continuous))
-        .overlay(
-            RoundedRectangle(cornerRadius: AppRadius.md, style: .continuous)
-                .stroke(AppColors.infoBlue.opacity(0.35), lineWidth: AppSpacing.hairline)
-        )
     }
 }

@@ -59,17 +59,20 @@ _HELP_TOPICS: list[dict] = [
         "code": "DOC-03",
         "cat": "Conexión y Vivo",
         "title": "Tethering USB WPD y Watchfolder Wi-Fi",
-        "kw": "usb wpd mtp ptp android iphone wifi watchfolder ftp",
-        "summary": "Windows recibe capturas vía WPD (MTP/PTP) y monitoreo en vivo de carpetas (Watchfolder).",
+        "kw": "usb wpd mtp ptp android iphone wifi watchfolder ftp canon sony zadig validador",
+        "summary": "Windows recibe capturas vía WPD (MTP/PTP) y monitoreo Watchfolder, con botón 'Validar USB...' por marca.",
         "can_do": [
-            "Soporta Android tanto en MTP como en PTP, iPhone y lectores SD/CFexpress.",
-            "Protege carretes y tarjetas SD llenas con el Escudo Anti-Galería Vieja.",
+            "Soporta Android tanto en MTP como en PTP, iPhone (tras tocar 'Confiar') y lectores SD/CFexpress.",
+            "Protege carretes llenos con el Escudo Anti-Galería Vieja e ignora carpetas ocultas (.thumbnails).",
         ],
         "limits": [
             "Bluetooth no soporta transferencia RAW en vivo; para transmisores inalámbricos usá Watchfolder.",
+            "En Canon EOS apagá el Wi-Fi interno para reactivar USB; en Sony elegí USB MTP (evitá Zadig WinUSB).",
+            "Samsung Expert RAW puede demorar ~40s procesando HDR; para disparo rápido usá Modo Pro (.DNG).",
         ],
         "steps": [
-            "Conectá el cable USB o pulsá 'Vincular Carpeta/SD USB...' para vigilar la salida de tu transmisor Wi-Fi/FTP.",
+            "Conectá el cable USB (cambiá Android de 'Solo carga' a MTP/PTP o desbloqueá iPhone y tocá 'Confiar').",
+            "Si no aparece, abrí 'Validar USB...' arriba en Inicio o vinculá un Watchfolder Wi-Fi/SD.",
         ],
     },
     {

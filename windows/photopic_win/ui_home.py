@@ -57,7 +57,12 @@ class HomeDashboardWidget(QWidget):
             f"background: {AppColors.ELEVATED_SURFACE}; border: 1px solid {AppColors.BORDER_SUBTLE}; "
             "border-radius: 12px; padding: 5px 12px; font-size: 12px;"
         )
+        self._last_device_status_text = "Esperando cámara USB / WPD..."
         bar_layout.addWidget(self._device_pill)
+
+        usb_guide_btn = QPushButton("Validar USB...")
+        usb_guide_btn.clicked.connect(self._open_connection_validator)
+        bar_layout.addWidget(usb_guide_btn)
 
         change_root_btn = QPushButton("Carpeta Raíz...")
         change_root_btn.clicked.connect(self._pick_root)
@@ -107,6 +112,7 @@ class HomeDashboardWidget(QWidget):
         self.reload_sessions()
 
     def update_live_device_text(self, text: str, live: bool) -> None:
+        self._last_device_status_text = text
         color = AppColors.APPROVE_GREEN if live else AppColors.TEXT_TERTIARY
         self._device_pill.setText(f"<span style='color:{color};'>●</span> {text}")
 
@@ -163,6 +169,10 @@ class HomeDashboardWidget(QWidget):
     def _open_help(self) -> None:
         from .ui_help_dialog import HelpCenterDialog
         HelpCenterDialog(parent=self).exec()
+
+    def _open_connection_validator(self) -> None:
+        from .ui_connection_guide import ConnectionValidatorDialog
+        ConnectionValidatorDialog(self._last_device_status_text, parent=self).exec()
 
     def _create_new_session(self) -> None:
         if self.root_dir is None:
