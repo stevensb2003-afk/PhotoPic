@@ -11,9 +11,9 @@
 | :--- | :--- | :--- | :--- |
 | 1 | 1. Protocolo de Lectura Eficiente por Perfil | `REFERENCIA-RBAC` | `L019-L024` |
 | 2 | 2. Matriz Rápida de Módulos y Perfiles del Sistema | `REFERENCIA-RBAC` | `L025-L036` |
-| 3 | 3. Directorio Global de Archivos y Coordenadas de Línea | `TODOS` | `L037-L077` |
+| 3 | 3. Directorio Global de Archivos y Coordenadas de Línea | `TODOS` | `L037-L078` |
 | 4 | ↳ Catálogo Maestro de Archivos de Documentación | `TODOS` | `L040-L051` |
-| 5 | ↳ Mapa Directo de Secciones `H2` y Coordenadas de Línea por Archivo | `TODOS` | `L052-L077` |
+| 5 | ↳ Mapa Directo de Secciones `H2` y Coordenadas de Línea por Archivo | `TODOS` | `L052-L078` |
 <!-- TOC:END -->
 
 ## 1. Protocolo de Lectura Eficiente por Perfil [ROL: REFERENCIA-RBAC]
@@ -41,11 +41,11 @@
 
 | Archivo | ID | Módulo Sistema | Líneas | Contenido Funcional Principal |
 | :--- | :--- | :--- | :--- | :--- |
-| `01-arquitectura-global-y-perfiles.md` | `DOC-01` | `global` | `46` | Explica la navegación general de PhotoPic, perfiles de uso en estudio y operación del Centro de Ayuda interno. |
+| `01-arquitectura-global-y-perfiles.md` | `DOC-01` | `global` | `48` | Explica la navegación general de PhotoPic, perfiles de uso en estudio y operación del Centro de Ayuda interno. |
 | `02-modulo-asistente-y-auditoria-hardware.md` | `DOC-02` | `hardware-auditor` | `49` | Detalla cómo PhotoPic audita CPU, RAM, GPU Metal y Apple Neural Engine, y cómo desactivar o regular la IA. |
 | `03-modulo-captura-usb-wifi-y-watchfolder.md` | `DOC-03` | `tether-discovery` | `46` | Guía paso a paso para conectar cámaras DSLR/Mirrorless, smartphones Android/iPhone, transmisores Wi-Fi y Watchfolders. |
-| `04-modulo-culling-raw-ia-y-archivadas.md` | `DOC-04` | `culling-workspace` | `55` | Explica paso a paso el visor RAW GPU, Zoom 1:1, filtros IA, movimiento sincronizado RAW+JPG y borrado definitivo. |
-| `05-automatizaciones-flujos-y-carpetas.md` | `DOC-05` | `automations` | `36` | Documenta las reglas automáticas en segundo plano y el flujo completo End-to-End desde la captura hasta la entrega. |
+| `04-modulo-culling-raw-ia-y-archivadas.md` | `DOC-04` | `culling-workspace` | `63` | Explica paso a paso el visor RAW GPU, Zoom 1:1, rotación persistente `Shift`, filtros IA manuales/automáticos, módulo `Seleccionadas` y borrado definitivo. |
+| `05-automatizaciones-flujos-y-carpetas.md` | `DOC-05` | `automations` | `40` | Documenta las reglas automáticas en segundo plano y el flujo completo End-to-End desde la captura hasta la entrega. |
 | `06-modulo-vista-en-vivo-y-limitaciones.md` | `DOC-07` | `live-view` | `46` | Documenta paso a paso la pestaña Vista en Vivo en macOS y Windows, el disparo remoto PTP/gphoto2 y todas las limitaciones reales por sistema operativo. |
 | `07-mapa-capas-egm-referencia.md` | `DOC-08` | `egm-reference` | `31` | Vincula cada documento funcional `DOC-XX` con las rutas exactas de código en `macos/` y `windows/`. |
 
@@ -56,7 +56,7 @@
 | `01-arquitectura-global-y-perfiles.md` | 1. Propósito de Negocio y Principio Sin Catálogo Cerrado | `TODOS` | `L019-L022` |
 | `01-arquitectura-global-y-perfiles.md` | 2. Matriz de Perfiles de Trabajo en Estudio | `REFERENCIA-RBAC` | `L023-L030` |
 | `01-arquitectura-global-y-perfiles.md` | 3. Navegación Principal y Centro de Ayuda Interno | `TODOS` | `L031-L037` |
-| `01-arquitectura-global-y-perfiles.md` | 4. Estructura de Carpetas por Sesión | `TODOS` | `L038-L046` |
+| `01-arquitectura-global-y-perfiles.md` | 4. Estructura de Carpetas, Grupos y Renombrado en Disco | `TODOS` | `L038-L048` |
 | `02-modulo-asistente-y-auditoria-hardware.md` | 1. Propósito y Origen del Motor Neural Engine | `TODOS` | `L020-L023` |
 | `02-modulo-asistente-y-auditoria-hardware.md` | 2. Qué Inspecciona el Auditor al Arrancar | `SISTEMA-AUTO` | `L024-L030` |
 | `02-modulo-asistente-y-auditoria-hardware.md` | 3. Reglas de Recomendación Automática de Perfiles | `SISTEMA-AUTO` | `L031-L036` |
@@ -64,11 +64,12 @@
 | `03-modulo-captura-usb-wifi-y-watchfolder.md` | 1. Propósito de Negocio y Modos de Captura | `TODOS` | `L020-L023` |
 | `03-modulo-captura-usb-wifi-y-watchfolder.md` | 2. Procesos Operativos Paso a Paso | `FOTOGRAFO` | `L024-L040` |
 | `03-modulo-captura-usb-wifi-y-watchfolder.md` | 3. Reglas de Perfil de Dispositivo y Escudo Anti-Galería Vieja | `ADMIN-EQUIPO` | `L041-L046` |
-| `04-modulo-culling-raw-ia-y-archivadas.md` | 1. Visor Central RAW GPU y Atajos de Estudio | `FOTOGRAFO` | `L021-L032` |
-| `04-modulo-culling-raw-ia-y-archivadas.md` | 2. Filtros de IA Offline y Etiquetas Personalizadas | `FOTOGRAFO` | `L033-L043` |
-| `04-modulo-culling-raw-ia-y-archivadas.md` | 3. Gestión de `Archivadas`: Recuperar o Eliminar Definitivamente | `ADMIN-EQUIPO` | `L044-L055` |
-| `05-automatizaciones-flujos-y-carpetas.md` | 1. Automatizaciones en Segundo Plano | `SISTEMA-AUTO` | `L016-L029` |
-| `05-automatizaciones-flujos-y-carpetas.md` | 2. Flujo End-to-End (E2E) Completo en Estudio | `TODOS` | `L030-L036` |
+| `04-modulo-culling-raw-ia-y-archivadas.md` | 1. Visor Central RAW GPU y Atajos de Estudio | `FOTOGRAFO` | `L022-L035` |
+| `04-modulo-culling-raw-ia-y-archivadas.md` | 2. Filtros de IA Offline, Análisis por Lotes y Etiquetas Personalizadas | `FOTOGRAFO` | `L036-L046` |
+| `04-modulo-culling-raw-ia-y-archivadas.md` | 3. Módulo `Seleccionadas` (`Para_Edicion`) | `FOTOGRAFO` | `L047-L051` |
+| `04-modulo-culling-raw-ia-y-archivadas.md` | 4. Gestión de `Archivadas`: Recuperar o Eliminar Definitivamente | `ADMIN-EQUIPO` | `L052-L063` |
+| `05-automatizaciones-flujos-y-carpetas.md` | 1. Automatizaciones en Segundo Plano | `SISTEMA-AUTO` | `L016-L033` |
+| `05-automatizaciones-flujos-y-carpetas.md` | 2. Flujo End-to-End (E2E) Completo en Estudio | `TODOS` | `L034-L040` |
 | `06-modulo-vista-en-vivo-y-limitaciones.md` | 1. Propósito de Negocio y Selección de Motor por Sistema Operativo | `TODOS` | `L019-L022` |
 | `06-modulo-vista-en-vivo-y-limitaciones.md` | 2. Procesos Operativos Paso a Paso | `FOTOGRAFO` | `L023-L036` |
 | `06-modulo-vista-en-vivo-y-limitaciones.md` | 3. Matriz Honesta de Capacidades y Limitaciones Reales | `TODOS` | `L037-L046` |

@@ -9,8 +9,8 @@
 
 | # | Sección / Subtema / Proceso | Nivel de Rol | Líneas |
 | :--- | :--- | :--- | :--- |
-| 1 | 1. Automatizaciones en Segundo Plano | `SISTEMA-AUTO` | `L016-L029` |
-| 2 | 2. Flujo End-to-End (E2E) Completo en Estudio | `TODOS` | `L030-L036` |
+| 1 | 1. Automatizaciones en Segundo Plano | `SISTEMA-AUTO` | `L016-L033` |
+| 2 | 2. Flujo End-to-End (E2E) Completo en Estudio | `TODOS` | `L034-L040` |
 <!-- TOC:END -->
 
 ## 1. Automatizaciones en Segundo Plano [ROL: SISTEMA-AUTO]
@@ -26,11 +26,15 @@
    - Espera un ciclo completo (`900 ms`) verificando que el tamaño en bytes del archivo no cambie antes de copiarlo e ingerirlo, evitando leer RAWs truncados durante transferencias inalámbricas.
 4. **Resiliencia de cola en vivo (`CullingSessionViewModel`):**
    - Cuando entra un disparo nuevo mientras el usuario inspecciona una foto anterior, se agrega al final sin interrumpir la pantalla actual (a menos que esté activo el switch **`Seguir última captura`**).
+5. **Importación de carpetas existentes en 2 pasadas (`SessionFolderImporter`):**
+   - Al elegir **`Importar carpeta` (`⌘I` / `Ctrl+I`)**, escanea la carpeta (con o sin subcarpetas, omitiendo sesiones ya inicializadas y validando que origen y destino no se superpongan).
+   - Pasada 1 empareja `RAW + JPG` dentro del mismo directorio; Pasada 2 empareja `RAW/` + `JPG/` entre subcarpetas separadas; Pasada 3 envía fotos comprimidas sueltas directo a `RAW/` (`Filtrar`).
+   - Resuelve nombres repetidos asignando sufijos sincronizados (`_2`) a ambos archivos del par, conserva `.xmp` existentes, sugiere el nombre de la carpeta padre si se importa una subcarpeta genérica (`RAW`, `JPG`, `DCIM`, `Fotos`) y puede disparar detección facial IA en lote al abrir.
 
 ## 2. Flujo End-to-End (E2E) Completo en Estudio [ROL: TODOS]
 
 1. **Instalación limpia:** Abrir `PhotoPic-Installer.dmg` (macOS) o `PhotoPic.exe` (Windows).
 2. **Asistente Inicial:** Revisar diagnóstico de hardware, mantener IA activa o seleccionar `Modo Ligero (Sin IA)` y elegir Carpeta Raíz Global.
-3. **Conexión:** Enchufar cámara o Android en modo PTP por USB/Thunderbolt 4, o vincular carpeta de transmisor Wi-Fi con `Vincular Carpeta / Wi-Fi...`.
-4. **Sesión y Captura:** Crear sesión, disparar fotos nuevas y confirmar que las fotos antiguas del carrete/SD no se descargan.
-5. **Culling y Entrega:** Inspeccionar al Zoom 1:1 (`Espacio`), filtrar por etiquetas IA, aprobar con `→` (obteniendo carpetas limpias `Para_Edicion/RAW/` + `Para_Edicion/JPG/`) y limpiar descartes desde `Archivadas` con el Popover de confirmación.
+3. **Conexión o Importación:** Enchufar cámara o Android en modo PTP por USB/Thunderbolt 4, vincular una **`Carpeta puente`**, o importar una carpeta existente del disco con **`Importar carpeta` (`⌘I` / `Ctrl+I`)**.
+4. **Sesión y Grupos:** Organizar clientes con **`Crear grupo`**, crear con **`Nueva sesión`** (`⌘N` / `Ctrl+N`) o renombrar carpetas directo desde la interfaz.
+5. **Culling, Rotación y Entrega:** Inspeccionar al Zoom 1:1 (`Espacio`), rotar 90° persistente en disco con **`Shift`**, filtrar por etiquetas IA (`Detectar rostros`), aprobar con `→` hacia **`Seleccionadas`** (`Para_Edicion/RAW/` + `Para_Edicion/JPG/`) y limpiar descartes desde **`Archivadas`** con el Popover de confirmación.

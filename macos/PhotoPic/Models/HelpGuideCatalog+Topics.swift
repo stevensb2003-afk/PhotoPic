@@ -122,16 +122,18 @@ extension HelpGuideCatalog {
             title: "Filtrar, Seleccionadas y Zoom",
             subtitle: "Atajos rápidos, Zoom 1:1 y módulo de Seleccionadas",
             iconSystemName: "plus.magnifyingglass",
-            keywords: ["zoom", "1:1", "atajos", "flechas", "para_edicion", "seleccionadas", "raw", "jpg", "deshacer", "cmd+z", "formatos"],
-            summary: "Cada clasificación mueve en disco tanto el RAW (+.xmp) como su pareja JPG entre Filtrar, Seleccionadas y Archivadas across 36 formatos compatibles.",
+            keywords: ["zoom", "1:1", "atajos", "flechas", "para_edicion", "seleccionadas", "raw", "jpg", "deshacer", "cmd+z", "formatos", "rotar", "shift", "vertical", "horizontal", "orientacion"],
+            summary: "Cada clasificación mueve en disco tanto el RAW (+.xmp) como su pareja JPG entre Filtrar, Seleccionadas y Archivadas en 36 formatos compatibles, con rotación 90° persistente mediante Shift.",
             steps: [
-                "1. ↑ y ↓: recorrer fotos pendientes sin mover archivos.",
+                "1. ↑ y ↓: recorrer fotos pendientes sin mover archivos (también navega dentro de Seleccionadas y Archivadas).",
                 "2. → o Edición →: aprueba hacia el módulo Seleccionadas (Para_Edicion/{RAW,JPG}).",
                 "3. ← o ← Archivar: descarta hacia Archivadas/{RAW,JPG}.",
                 "4. Espacio o clic sostenido + arrastrar: Zoom 1:1 píxel real sobre el sensor revelado.",
-                "5. En Seleccionadas podés inspeccionar tus elegidas, abrirlas en Finder, devolverlas a Filtrar o moverlas a Archivadas; ⌘Z deshace la última acción."
+                "5. Shift (toque rápido) o botón ↻ Rotar: rota la foto 90° a la derecha y guarda la orientación EXIF (0x0112) directo en el archivo RAW, su JPG asociado y .xmp para que Finder y Lightroom la abran ya rotada.",
+                "6. En Seleccionadas podés inspeccionar tus elegidas, abrirlas en Finder, devolverlas a Filtrar o moverlas a Archivadas; ⌘Z deshace la última acción."
             ],
             canDo: [
+                "Rotar sin pérdida archivos RAW TIFF (.CR2/.DNG/.NEF/.ARW), Canon .CR3 y .JPG/.HEIC guardando el cambio directo en disco.",
                 "Re-evaluar cualquier foto ya aprobada dentro de la pestaña Seleccionadas sin tocar Finder.",
                 "Revelar 25 formatos RAW desde sensor puro (CIRAWFilter Metal en Mac / LibRaw en Windows)."
             ],
@@ -150,13 +152,14 @@ extension HelpGuideCatalog {
             title: "Etiquetas IA y Lightroom",
             subtitle: "Caras, ojos cerrados, poses y sidecars .XMP",
             iconSystemName: "tag",
-            keywords: ["tags", "etiquetas", "xmp", "ojos cerrados", "ear", "poses", "pareja", "grupo", "finder"],
-            summary: "La IA local analiza cada foto al instante, habilita chips de filtrado en la barra superior y escribe sidecars .XMP estándar.",
+            keywords: ["tags", "etiquetas", "xmp", "ojos cerrados", "ear", "poses", "pareja", "grupo", "finder", "rostros", "detectar", "lote"],
+            summary: "La IA local analiza cada foto al instante o por lotes ('Detectar rostros'), habilita chips de filtrado en la barra superior y escribe sidecars .XMP estándar.",
             steps: [
                 "1. Conteo y encuadre: Sin personas, Individual, Pareja, Grupo, Primer plano, Plano medio o Cuerpo entero.",
                 "2. Detección de ojos (EAR): marca 'Ojos abiertos' o alerta ámbar 'Ojos cerrados'.",
                 "3. Poses corporales: De pie, Sentado, Brazos arriba, Manos en cintura, Pose dinámica.",
-                "4. Agregá etiquetas propias con '+ Etiqueta' para organizar tus entregas."
+                "4. Si importaste una carpeta o estás en Modo Ligero, pulsá 'Detectar rostros' en la barra IA: para analizar todas las fotos pendientes bajo demanda.",
+                "5. Agregá etiquetas propias con '+ Etiqueta' para organizar tus entregas."
             ],
             canDo: [
                 "Exporta sidecars .xmp compatibles con Adobe Lightroom Classic, Camera Raw y Capture One.",
@@ -177,14 +180,16 @@ extension HelpGuideCatalog {
             title: "Grupos, Timer y Borrado",
             subtitle: "Organización por cliente, cronómetro e inspector EXIF",
             iconSystemName: "folder.badge.gearshape",
-            keywords: ["archivar", "archivadas", "eliminar", "borrar", "grupo", "carpeta master", "timer", "temporizador", "exif", "etiquetas", "buscar"],
-            summary: "Creá Grupos visuales para clientes o campañas, medí automáticamente el tiempo de sesión y liberá espacio borrando descartes confirmados.",
+            keywords: ["archivar", "archivadas", "eliminar", "borrar", "grupo", "carpeta master", "timer", "temporizador", "exif", "etiquetas", "buscar", "renombrar", "editar"],
+            summary: "Creá y renombrá Grupos y Sesiones directo en disco, medí automáticamente el tiempo de sesión y liberá espacio borrando descartes confirmados.",
             steps: [
-                "1. En Inicio pulsá 'Crear grupo' para agrupar varias sesiones dentro de una vista limpia.",
-                "2. El cronómetro inicia solo con la primera captura (o manualmente) y se guarda por sesión.",
-                "3. En Archivadas podés 'Recuperar a Seleccionadas' o usar 'Eliminar archivo...' / 'Vaciar carpeta...'."
+                "1. En Inicio pulsá 'Crear grupo' para agrupar sesiones; hacé clic en el grupo para entrar y usá '< Regresar' para volver.",
+                "2. Usá el ícono de lápiz en cualquier Grupo o Sesión para renombrar su carpeta real en Finder/Explorador.",
+                "3. El cronómetro inicia solo con la primera captura (o manualmente) y se guarda por sesión.",
+                "4. En Archivadas podés 'Recuperar a Seleccionadas' o usar 'Eliminar archivo...' / 'Vaciar carpeta...'."
             ],
             canDo: [
+                "Renombrar grupos y sesiones desde PhotoPic manteniendo 100% sincronizadas las carpetas reales en Finder y Windows.",
                 "Navegar dentro de cada grupo para ver únicamente sus sesiones.",
                 "Filtrar sesiones por texto, grupo o #etiqueta de proyecto.",
                 "Proteger cada eliminación permanente con confirmación explícita en popover."

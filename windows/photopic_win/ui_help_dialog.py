@@ -21,20 +21,21 @@ _HELP_TOPICS: list[dict] = [
         "code": "DOC-01",
         "cat": "Inicio y Hardware",
         "title": "Flujo Completo de Estudio (E2E)",
-        "kw": "inicio e2e sesion carpeta raiz flujo lightroom exe",
-        "summary": "PhotoPic lee y ordena directamente tus carpetas del disco sin encerrar tus fotos en un catálogo interno.",
+        "kw": "inicio e2e sesion carpeta raiz flujo lightroom exe importar offline",
+        "summary": "PhotoPic lee y ordena directamente tus carpetas del disco sin encerrar tus fotos en un catálogo interno, tanto en vivo como al importar carpetas existentes.",
         "can_do": [
+            "Importar cualquier carpeta existente de tu PC ('Importar carpeta', Ctrl+I) segregando pares RAW + JPG y disparando detección de rostros en lote.",
             "Abrir cualquier carpeta de sesión en Lightroom, Capture One o Affinity.",
             "Trabajar 100% offline para captura/culling, y recibir actualizaciones automáticas desde GitHub Cloud.",
         ],
         "limits": [
-            "No aplica edición de color destructiva: su objetivo es captura, revisión 1:1, etiquetado y clasificación física.",
+            "No aplica edición de color destructiva: su objetivo es captura, revisión 1:1, rotación sin pérdida, etiquetado y clasificación física.",
         ],
         "steps": [
             "Completá la auditoría de hardware en el Asistente Inicial y elegí tu Carpeta Raíz Global.",
-            "Creá una sesión con '+ Nueva Sesión de Filtrado' para generar RAW/, JPG/, Para_Edicion/{RAW,JPG} y Archivadas/{RAW,JPG}.",
-            "Conectá tu cámara/celular o vinculá un Watchfolder Wi-Fi/SD.",
-            "Clasificá con → (Aprobar) o ← (Archivar) y validá foco 1:1 con Espacio.",
+            "Creá una sesión con 'Nueva sesión' (Ctrl+N) o importá una carpeta existente con 'Importar carpeta' (Ctrl+I).",
+            "Conectá tu cámara/celular o vinculá una 'Carpeta puente' Wi-Fi/SD.",
+            "Clasificá con → (Seleccionadas) o ← (Archivadas), validá foco 1:1 con Espacio y rotá 90° con Shift.",
         ],
     },
     {
@@ -98,20 +99,21 @@ _HELP_TOPICS: list[dict] = [
     {
         "code": "DOC-04",
         "cat": "Carpetas y Límites",
-        "title": "Grupos Máster, Timer, Inspector y Borrado",
-        "kw": "raw jpg para_edicion archivadas eliminar grupo master timer temporizador exif buscar tags",
-        "summary": "Aprobar o archivar mueve RAW (+ .xmp) y JPG juntos; ahora además podés agrupar sesiones en Carpetas Máster, cronometrar la sesión desde la 1ª foto, inspeccionar EXIF sin tapar la foto y eliminar proyectos completos con confirmación.",
+        "title": "Grupos, Seleccionadas, Renombrar y Rotar (Shift)",
+        "kw": "raw jpg para_edicion seleccionadas archivadas eliminar grupo master timer temporizador exif buscar tags renombrar rotar shift rostros",
+        "summary": "Organizá clientes en Grupos visuales con botón '< Regresar', renombrá grupos o sesiones directo en el Explorador, revisá tus aprobadas en 'Seleccionadas' y rotá 90° con Shift guardando la orientación en los archivos.",
         "can_do": [
-            "Filtrar sesiones por texto, Carpeta Máster o #etiquetas siendo 100% retrocompatible con sesiones planas antiguas.",
-            "Ver ISO, apertura, obturación, focal, lente, MP y etiquetas en el panel flotante lateral derecho sin estorbar la foto.",
-            "Recuperar descartes en Archivadas o borrar definitivamente un proyecto entero tras confirmar el total de fotos.",
+            "Renombrar grupos y sesiones desde la app actualizando la carpeta real en disco.",
+            "Rotar 90° con un toque a Shift (o botón '↻ Rotar') guardando la orientación EXIF en RAW TIFF, Canon .CR3, .JPG/.HEIC y .xmp.",
+            "Ejecutar 'Detectar rostros' bajo demanda sobre carpetas importadas incluso en Modo Ligero.",
+            "Inspeccionar Seleccionadas (abrir en Explorador, devolver a Filtrar o archivar) y recuperar o borrar descartes en Archivadas.",
         ],
         "limits": [
             "El borrado definitivo de proyectos o archivos en Archivadas no va a la Papelera ni se deshace con Ctrl+Z.",
         ],
         "steps": [
-            "Usá ↑/↓ para navegar, → aprobar, ← archivar, Espacio para Zoom 1:1 y arrastrá con el mouse sobre la foto para swipe.",
-            "El timer arranca solo con la 1ª foto (desactivable en 'Rendimiento e IA...') o manualmente arriba.",
+            "Usá ↑/↓ para navegar, → aprobar, ← archivar, Espacio para Zoom 1:1, Shift para rotar 90° y Ctrl+I para importar una carpeta.",
+            "Usá 'Crear grupo' y 'Renombrar' en Inicio; el timer arranca solo con la 1ª foto o manualmente arriba.",
         ],
     },
 ]
