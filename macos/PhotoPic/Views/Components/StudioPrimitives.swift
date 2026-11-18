@@ -286,10 +286,12 @@ package struct DynamicDeviceStatusBanner: View {
                     .controlSize(.small)
 
                 VStack(alignment: .leading, spacing: 2) {
-                    Text("Sincronizando índice SD de \(device.alias) — \(pct)% (\(count) archivos leídos, 0 descargados)")
+                    Text(pct == 0 && count == 0
+                        ? "Leyendo tabla de archivos de la SD en \(device.alias) (0% · 0 descargadas)..."
+                        : "Sincronizando índice SD de \(device.alias) — \(pct)% (\(count) archivos leídos, 0 descargados)")
                         .font(AppTypography.bodyMedium)
                         .foregroundStyle(AppColors.textPrimary)
-                    Text("macOS pone en cola tus fotos nuevas hasta completar el índice al 100%. Tip: Con una tarjeta SD vacía conecta en <1 seg.")
+                    Text("No desconectes ni apagues la cámara; macOS está catalogando las fotos previas de tu tarjeta SD. Con una SD vacía conecta en <1 seg.")
                         .font(AppTypography.caption)
                         .foregroundStyle(AppColors.textSecondary)
                 }

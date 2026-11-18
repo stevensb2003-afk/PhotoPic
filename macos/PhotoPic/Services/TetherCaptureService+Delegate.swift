@@ -227,8 +227,9 @@ extension TetherCaptureService: ICCameraDeviceDelegate {
 
     func startOpenWatchdog(for fingerprint: String, category: DeviceCategory) {
         contexts[fingerprint]?.openTimeoutTask?.cancel()
+        let timeoutMs = category == .androidPTP ? 10000 : 20000
         contexts[fingerprint]?.openTimeoutTask = Task { @MainActor [weak self] in
-            try? await Task.sleep(for: .milliseconds(10000))
+            try? await Task.sleep(for: .milliseconds(timeoutMs))
             guard !Task.isCancelled else { return }
             self?.handleSessionTimeout(for: fingerprint, category: category, isCatalogPhase: false)
         }
@@ -255,6 +256,10 @@ extension TetherCaptureService: ICCameraDeviceDelegate {
                     self.finalizeCatalogAndStartWatcher(for: fingerprint, camera: cam)
                     return
                 }
+                if !cam.hasOpenSession {
+                    self.handleSessionTimeout(for: fingerprint, category: category, isCatalogPhase: true)
+                    return
+                }
 
                 let pct = max(0, min(99, cam.contentCatalogPercentCompleted))
                 let count = (cam.mediaFiles ?? []).count
@@ -264,10 +269,11 @@ extension TetherCaptureService: ICCameraDeviceDelegate {
                     self.onStatusChanged?(fingerprint, status, self.batteryValue(for: cam))
                 }
 
-                if pct == 0 && count == 0 {
+                // Only Android PTP times out at 0% (Charging-only mode); DSLRs with full SD cards
+                // can stay at 0% for >30s while macOS ptpcamerad reads thousands of handles.
+                if category == .androidPTP && pct == 0 && count == 0 {
                     zeroProgressTicks += 1
-                    let maxStalledTicks = category == .androidPTP ? 30 : 60 // 15s Android, 30s DSLR
-                    if zeroProgressTicks >= maxStalledTicks {
+                    if zeroProgressTicks >= 30 {
                         self.handleSessionTimeout(for: fingerprint, category: category, isCatalogPhase: true)
                         return
                     }
