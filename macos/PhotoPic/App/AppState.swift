@@ -217,8 +217,13 @@ package final class AppState {
             self?.showTransientNotice(blockedReason)
         }
         if let watched = folderWatchService.watchedFolderURL {
-            showTransientNotice("Watchfolder Wi-Fi/SD activo: \(watched.lastPathComponent)")
+            showTransientNotice("Carpeta puente activa: \(watched.lastPathComponent)")
         }
+    }
+
+    package func detachWatchFolder() {
+        folderWatchService.detach()
+        showTransientNotice("Carpeta puente desvinculada")
     }
 
     package func showTransientNotice(_ message: String) {

@@ -38,7 +38,7 @@ package struct LiveViewCompatibilityCard: View {
                 if isOpticalHotShoeFlashMode {
                     opticalHotShoeStageCard
                 } else {
-                    Image(systemName: "video.viewfinder")
+                    Image(systemName: "camera.viewfinder")
                         .font(AppTypography.displayTitle)
                         .foregroundStyle(AppColors.textTertiary)
 
@@ -56,8 +56,6 @@ package struct LiveViewCompatibilityCard: View {
                         androidPtpWarningBanner
                     }
 
-                    compatibilityColumns
-
                     if let feedbackMessage {
                         Text(feedbackMessage)
                             .font(AppTypography.monoCaption)
@@ -68,15 +66,31 @@ package struct LiveViewCompatibilityCard: View {
                     HStack(spacing: AppSpacing.sm) {
                         Button(isActive ? "Detener" : "Iniciar Vista en Vivo", action: onToggle)
                             .buttonStyle(StudioButtonStyle(.primaryLight))
+                            .help(isActive ? "Detener Vista en Vivo" : "Iniciar transmisión en vivo del dispositivo conectado")
 
                         if connectedDevice == nil, let onActivateDemo {
                             Button(action: onActivateDemo) {
-                                Label("Ver Demo Interactiva de Controles (Canon EOS 70D)", systemImage: "slider.horizontal.3")
+                                Label("Ver demo interactiva", systemImage: "slider.horizontal.3")
                             }
                             .buttonStyle(StudioButtonStyle(.secondaryDark))
+                            .help("Explorar controles simulando una Canon EOS 70D")
                         }
                     }
                     .padding(.top, AppSpacing.xs)
+
+                    if connectedDevice != nil {
+                        compatibilityColumns
+                            .padding(.top, AppSpacing.sm)
+                    } else {
+                        DisclosureGroup("Ver guía de conexión por tipo de dispositivo") {
+                            compatibilityColumns
+                                .padding(.top, AppSpacing.sm)
+                        }
+                        .font(AppTypography.captionMedium)
+                        .foregroundStyle(AppColors.textSecondary)
+                        .frame(maxWidth: 780)
+                        .padding(.top, AppSpacing.md)
+                    }
                 }
             }
             .padding(AppSpacing.xl)
@@ -184,9 +198,9 @@ package struct LiveViewCompatibilityCard: View {
                 icon: "camera.fill",
                 title: "Cámaras DSLR / Mirrorless",
                 points: [
-                    "Cámaras modernas con USB Streaming (UVC) salen directas arriba.",
-                    "Capturadora HDMI→USB ($20): 30–60 fps sin cortar PTP.",
-                    "DSLRs clásicas (Canon 70D) por un cable: pestaña 'DSLR USB (gphoto2)'."
+                    "Canon EOS por cable USB directo (Live View, controles y zapata segura).",
+                    "DJI Osmo, GoPro o cámaras con USB Streaming salen directo en 'UVC / HDMI'.",
+                    "Capturadora HDMI→USB: 30–60 fps sin cortar la descarga RAW por PTP."
                 ]
             )
         }

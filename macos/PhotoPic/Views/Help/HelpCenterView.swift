@@ -27,25 +27,24 @@ package struct HelpCenterView: View {
             categoryStrip
             HSplitView {
                 sidebarPane
-                    .frame(minWidth: 245, maxWidth: 275)
+                    .frame(minWidth: 265, maxWidth: 295)
                 detailPane
                     .frame(minWidth: 500, maxWidth: .infinity)
             }
         }
-        .frame(width: 860, height: 620)
+        .frame(width: 880, height: 630)
         .background(AppColors.windowCanvas)
     }
 
     private var headerBar: some View {
         HStack(spacing: AppSpacing.md) {
-            PictogrammersIcon(.cameraIris, size: 18)
-                .foregroundStyle(AppColors.textPrimary)
+            PhotoPicBrandLogo(size: 28)
 
             VStack(alignment: .leading, spacing: 1) {
-                Text("Centro de Ayuda y Documentación PhotoPic")
+                Text("Centro de Ayuda")
                     .font(AppTypography.sectionTitle)
                     .foregroundStyle(AppColors.textPrimary)
-                Text("Guía 100% offline · Qué se puede hacer, limitaciones reales por SO, atajos y Live View")
+                Text("Guías rápidas, controles en vivo, atajos y compatibilidad")
                     .font(AppTypography.caption)
                     .foregroundStyle(AppColors.textSecondary)
             }
@@ -59,6 +58,7 @@ package struct HelpCenterView: View {
             Button("Listo") { dismiss() }
                 .buttonStyle(StudioButtonStyle(.primaryLight, compact: true))
                 .keyboardShortcut(.cancelAction)
+                .help("Cerrar Centro de Ayuda")
         }
         .padding(.horizontal, AppSpacing.xl)
         .padding(.vertical, AppSpacing.md)
@@ -69,19 +69,12 @@ package struct HelpCenterView: View {
         ScrollView(.horizontal, showsIndicators: false) {
             HStack(spacing: AppSpacing.xs) {
                 ForEach(HelpCategory.allCases) { category in
-                    let isSelected = selectedCategory == category
-                    Button {
+                    HelpCategoryPill(
+                        title: category.rawValue,
+                        isSelected: selectedCategory == category
+                    ) {
                         selectedCategory = category
-                    } label: {
-                        Text(category.rawValue)
-                            .font(AppTypography.captionMedium)
-                            .foregroundStyle(isSelected ? AppColors.textOnAccent : AppColors.textSecondary)
-                            .padding(.horizontal, AppSpacing.md)
-                            .padding(.vertical, 5)
-                            .background(isSelected ? AppColors.primaryActionFill : AppColors.elevatedSurface)
-                            .clipShape(Capsule())
                     }
-                    .buttonStyle(.plain)
                 }
             }
             .padding(.horizontal, AppSpacing.xl)
@@ -137,37 +130,12 @@ package struct HelpCenterView: View {
     }
 
     private func topicRow(_ topic: HelpTopic) -> some View {
-        let isSelected = activeTopic?.id == topic.id
-        return Button {
+        HelpTopicRowButton(
+            topic: topic,
+            isSelected: activeTopic?.id == topic.id
+        ) {
             selectedTopicID = topic.id
-        } label: {
-            HStack(spacing: AppSpacing.sm) {
-                Image(systemName: topic.iconSystemName)
-                    .font(AppTypography.captionMedium)
-                    .foregroundStyle(isSelected ? AppColors.textPrimary : AppColors.textTertiary)
-                    .frame(width: 18)
-                VStack(alignment: .leading, spacing: 2) {
-                    Text(topic.title)
-                        .font(AppTypography.captionMedium)
-                        .foregroundStyle(AppColors.textPrimary)
-                        .lineLimit(1)
-                    Text("\(topic.docCode) · \(topic.category.rawValue)")
-                        .font(AppTypography.monoMicro)
-                        .foregroundStyle(AppColors.textTertiary)
-                        .lineLimit(1)
-                }
-                Spacer()
-            }
-            .padding(.horizontal, AppSpacing.sm)
-            .padding(.vertical, AppSpacing.sm)
-            .background(isSelected ? AppColors.elevatedSurface : Color.clear)
-            .clipShape(RoundedRectangle(cornerRadius: AppRadius.sm, style: .continuous))
-            .overlay(
-                RoundedRectangle(cornerRadius: AppRadius.sm, style: .continuous)
-                    .stroke(isSelected ? AppColors.borderStrong : Color.clear, lineWidth: AppSpacing.hairline)
-            )
         }
-        .buttonStyle(.plain)
     }
 
     @ViewBuilder
@@ -276,5 +244,71 @@ package struct HelpCenterView: View {
             RoundedRectangle(cornerRadius: AppRadius.md, style: .continuous)
                 .stroke(tint.opacity(0.3), lineWidth: AppSpacing.hairline)
         )
+    }
+}
+
+private struct HelpCategoryPill: View {
+    let title: String
+    let isSelected: Bool
+    let action: () -> Void
+
+    @State private var isHovered = false
+
+    var body: some View {
+        Button(action: action) {
+            Text(title)
+                .font(AppTypography.captionMedium)
+                .foregroundStyle(isSelected ? AppColors.textOnAccent : (isHovered ? AppColors.textPrimary : AppColors.textSecondary))
+                .padding(.horizontal, AppSpacing.md)
+                .padding(.vertical, 5)
+                .background(isSelected ? AppColors.primaryActionFill : (isHovered ? AppColors.controlHover : AppColors.elevatedSurface))
+                .clipShape(Capsule())
+        }
+        .buttonStyle(.plain)
+        .onHover { isHovered = $0 }
+    }
+}
+
+private struct HelpTopicRowButton: View {
+    let topic: HelpTopic
+    let isSelected: Bool
+    let action: () -> Void
+
+    @State private var isHovered = false
+
+    var body: some View {
+        Button(action: action) {
+            HStack(spacing: AppSpacing.sm) {
+                Image(systemName: topic.iconSystemName)
+                    .font(.system(size: 12, weight: .semibold))
+                    .foregroundStyle(isSelected ? AppColors.infoBlue : AppColors.textSecondary)
+                    .frame(width: 26, height: 26)
+                    .background(isSelected ? AppColors.infoBlueTint : AppColors.stageBackground)
+                    .clipShape(RoundedRectangle(cornerRadius: AppRadius.xs, style: .continuous))
+
+                VStack(alignment: .leading, spacing: 2) {
+                    Text(topic.title)
+                        .font(AppTypography.captionMedium)
+                        .foregroundStyle(AppColors.textPrimary)
+                        .lineLimit(1)
+                    Text("\(topic.docCode) · \(topic.category.rawValue)")
+                        .font(AppTypography.monoMicro)
+                        .foregroundStyle(AppColors.textTertiary)
+                        .lineLimit(1)
+                }
+                Spacer()
+            }
+            .padding(.horizontal, AppSpacing.sm)
+            .padding(.vertical, AppSpacing.sm)
+            .background(isSelected ? AppColors.elevatedSurface : (isHovered ? AppColors.controlHover : Color.clear))
+            .clipShape(RoundedRectangle(cornerRadius: AppRadius.sm, style: .continuous))
+            .overlay(
+                RoundedRectangle(cornerRadius: AppRadius.sm, style: .continuous)
+                    .stroke(isSelected ? AppColors.borderStrong : (isHovered ? AppColors.borderSubtle : Color.clear), lineWidth: AppSpacing.hairline)
+            )
+        }
+        .buttonStyle(.plain)
+        .onHover { isHovered = $0 }
+        .help("\(topic.docCode): \(topic.subtitle)")
     }
 }

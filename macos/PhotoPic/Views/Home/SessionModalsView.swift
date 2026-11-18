@@ -164,7 +164,7 @@ package struct SessionOrganizationPopover: View {
                 .overlay(AppColors.borderSubtle)
 
             VStack(alignment: .leading, spacing: AppSpacing.xs) {
-                Text("Carpeta Máster / Categoría")
+                Text("Grupo")
                     .font(AppTypography.captionMedium)
                     .foregroundStyle(AppColors.textSecondary)
 
@@ -177,7 +177,7 @@ package struct SessionOrganizationPopover: View {
                         }
                     )
                 ) {
-                    Text("Sin grupo (Carpeta Raíz)").tag("")
+                    Text("Sin grupo").tag("")
                     ForEach(availableGroups, id: \.self) { group in
                         Text(group).tag(group)
                     }
@@ -185,7 +185,7 @@ package struct SessionOrganizationPopover: View {
                 .labelsHidden()
 
                 HStack(spacing: AppSpacing.xs) {
-                    TextField("O mover a nueva carpeta máster...", text: $newGroupDraft)
+                    TextField("O mover a nuevo grupo...", text: $newGroupDraft)
                         .textFieldStyle(.roundedBorder)
                         .onSubmit { submitNewGroupMove() }
                     Button("Mover") { submitNewGroupMove() }

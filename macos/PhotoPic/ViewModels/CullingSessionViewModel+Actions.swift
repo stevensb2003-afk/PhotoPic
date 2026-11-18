@@ -38,7 +38,7 @@ extension CullingSessionViewModel {
     }
 
     package func approveCurrentToEditing() {
-        moveCurrentItem(to: .forEditing, pillText: "Para Edición", kind: .approved)
+        moveCurrentItem(to: .forEditing, pillText: "Seleccionada", kind: .approved)
     }
 
     package func archiveCurrent() {
@@ -49,8 +49,13 @@ extension CullingSessionViewModel {
         guard let record = undoStack.popLast() else { return }
         do {
             let restored = try SessionFileManager.undoMove(record)
-            if record.destinationFolder == .archived {
+            switch record.destinationFolder {
+            case .archived:
                 archivedItems.removeAll { $0.id == record.item.id }
+            case .forEditing:
+                forEditingItems.removeAll { $0.id == record.item.id }
+            case .raw, .jpg:
+                break
             }
             let insertionIndex = min(max(0, currentIndex), pendingItems.count)
             pendingItems.insert(restored, at: insertionIndex)
@@ -60,7 +65,7 @@ extension CullingSessionViewModel {
             session.counts = SessionFileManager.readDiskCounts(for: session)
             resetZoomState()
             renderActivePhotoIfNeeded(force: true)
-            showFeedbackPill("Deshecho → RAW", kind: .undone)
+            showFeedbackPill("Deshecho → Filtrar", kind: .undone)
         } catch {
             errorMessage = error.localizedDescription
         }
@@ -68,9 +73,13 @@ extension CullingSessionViewModel {
 
     package func recoverArchivedItemToEditing(_ item: PhotoItem) {
         do {
-            _ = try SessionFileManager.moveItem(item, to: .forEditing, in: session)
+            let record = try SessionFileManager.moveItem(item, to: .forEditing, in: session)
             let removedIndex = archivedItems.firstIndex(where: { $0.id == item.id }) ?? 0
             archivedItems.removeAll { $0.id == item.id }
+            forEditingItems.append(record.item)
+            if selectedEditingID == nil {
+                selectedEditingID = record.item.id
+            }
             undoStack.removeAll { $0.item.id == item.id }
             if !archivedItems.isEmpty {
                 selectedArchivedID = archivedItems[min(removedIndex, archivedItems.count - 1)].id
@@ -79,9 +88,59 @@ extension CullingSessionViewModel {
                 archivedPreviewImage = nil
             }
             session.counts = SessionFileManager.readDiskCounts(for: session)
-            showFeedbackPill("Recuperada para Edición", kind: .recovered)
+            showFeedbackPill("Recuperada a Seleccionadas", kind: .recovered)
             if let next = selectedArchivedItem {
                 loadArchivedPreview(for: next)
+            }
+        } catch {
+            errorMessage = error.localizedDescription
+        }
+    }
+
+    package func moveEditingItemToArchived(_ item: PhotoItem) {
+        do {
+            let record = try SessionFileManager.moveItem(item, to: .archived, in: session)
+            let removedIndex = forEditingItems.firstIndex(where: { $0.id == item.id }) ?? 0
+            forEditingItems.removeAll { $0.id == item.id }
+            archivedItems.append(record.item)
+            if selectedArchivedID == nil {
+                selectedArchivedID = record.item.id
+            }
+            undoStack.removeAll { $0.item.id == item.id }
+            if !forEditingItems.isEmpty {
+                selectedEditingID = forEditingItems[min(removedIndex, forEditingItems.count - 1)].id
+            } else {
+                selectedEditingID = nil
+                editingPreviewImage = nil
+            }
+            session.counts = SessionFileManager.readDiskCounts(for: session)
+            showFeedbackPill("Movida a Archivadas", kind: .archived)
+            if let next = selectedEditingItem {
+                loadEditingPreview(for: next)
+            }
+        } catch {
+            errorMessage = error.localizedDescription
+        }
+    }
+
+    package func returnEditingItemToPending(_ item: PhotoItem) {
+        do {
+            let record = try SessionFileManager.moveItem(item, to: .raw, in: session)
+            let removedIndex = forEditingItems.firstIndex(where: { $0.id == item.id }) ?? 0
+            forEditingItems.removeAll { $0.id == item.id }
+            pendingItems.append(record.item)
+            undoStack.removeAll { $0.item.id == item.id }
+            if !forEditingItems.isEmpty {
+                selectedEditingID = forEditingItems[min(removedIndex, forEditingItems.count - 1)].id
+            } else {
+                selectedEditingID = nil
+                editingPreviewImage = nil
+            }
+            session.counts = SessionFileManager.readDiskCounts(for: session)
+            renderActivePhotoIfNeeded(force: false)
+            showFeedbackPill("Devuelta a Filtrar", kind: .recovered)
+            if let next = selectedEditingItem {
+                loadEditingPreview(for: next)
             }
         } catch {
             errorMessage = error.localizedDescription
@@ -159,6 +218,14 @@ extension CullingSessionViewModel {
             pendingItems.removeAll { $0.id == current.id }
             if folder == .archived {
                 archivedItems.append(record.item)
+                if selectedArchivedID == nil {
+                    selectedArchivedID = record.item.id
+                }
+            } else if folder == .forEditing {
+                forEditingItems.append(record.item)
+                if selectedEditingID == nil {
+                    selectedEditingID = record.item.id
+                }
             }
             clampCurrentIndex()
             session.counts = SessionFileManager.readDiskCounts(for: session)

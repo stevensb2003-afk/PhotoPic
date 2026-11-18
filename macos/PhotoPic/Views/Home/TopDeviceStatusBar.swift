@@ -8,9 +8,13 @@ package struct TopDeviceStatusBar: View {
     let watchedFolderName: String?
     let onBackAction: (() -> Void)?
     let onTapWatchFolder: (() -> Void)?
+    let onDetachWatchFolder: (() -> Void)?
     let onTapDevicePill: () -> Void
     let onTapSettings: () -> Void
     let onTapHelp: (() -> Void)?
+
+    @State private var isShowingWatchPopover = false
+    @State private var isDevicePillHovered = false
 
     package init(
         primaryDevice: ConnectedDeviceState?,
@@ -19,6 +23,7 @@ package struct TopDeviceStatusBar: View {
         watchedFolderName: String? = nil,
         onBackAction: (() -> Void)? = nil,
         onTapWatchFolder: (() -> Void)? = nil,
+        onDetachWatchFolder: (() -> Void)? = nil,
         onTapDevicePill: @escaping () -> Void,
         onTapSettings: @escaping () -> Void,
         onTapHelp: (() -> Void)? = nil
@@ -29,6 +34,7 @@ package struct TopDeviceStatusBar: View {
         self.watchedFolderName = watchedFolderName
         self.onBackAction = onBackAction
         self.onTapWatchFolder = onTapWatchFolder
+        self.onDetachWatchFolder = onDetachWatchFolder
         self.onTapDevicePill = onTapDevicePill
         self.onTapSettings = onTapSettings
         self.onTapHelp = onTapHelp
@@ -41,6 +47,9 @@ package struct TopDeviceStatusBar: View {
                     Label("Sesiones", systemImage: "chevron.left")
                 }
                 .buttonStyle(StudioButtonStyle(.ghost, compact: true))
+                .help("Volver a Sesiones de Fotografía")
+            } else {
+                PhotoPicBrandLogo(size: 24)
             }
 
             VStack(alignment: .leading, spacing: 1) {
@@ -59,14 +68,53 @@ package struct TopDeviceStatusBar: View {
             Spacer()
 
             if let onTapWatchFolder {
-                Button(action: onTapWatchFolder) {
+                Button {
+                    isShowingWatchPopover.toggle()
+                } label: {
                     Label(
-                        watchedFolderName.map { "Wi-Fi/SD: \($0)" } ?? "Vincular Carpeta / Wi-Fi...",
-                        systemImage: watchedFolderName == nil ? "wifi" : "folder.badge.gearshape"
+                        watchedFolderName.map { "Puente: \($0)" } ?? "Carpeta puente",
+                        systemImage: watchedFolderName == nil ? "folder.badge.plus" : "folder.badge.gearshape"
                     )
                 }
                 .buttonStyle(StudioButtonStyle(.secondaryDark, compact: true))
-                .help("Monitorear carpeta de transmisor Wi-Fi, FTP o lector SD/CFexpress")
+                .help("Importar fotos automáticamente desde una carpeta puente en tu Mac")
+                .popover(isPresented: $isShowingWatchPopover, arrowEdge: .bottom) {
+                    VStack(alignment: .leading, spacing: AppSpacing.sm) {
+                        Text("Carpeta puente automática")
+                            .font(AppTypography.captionMedium)
+                            .foregroundStyle(AppColors.textPrimary)
+
+                        Text("Importa al instante las fotos nuevas que caigan en cualquier carpeta de tu Mac (ideal si disparás con EOS Utility, Capture One, Lightroom o app Wi-Fi).")
+                            .font(AppTypography.caption)
+                            .foregroundStyle(AppColors.textSecondary)
+                            .fixedSize(horizontal: false, vertical: true)
+
+                        if let watchedFolderName {
+                            Text("Carpeta actual: \(watchedFolderName)")
+                                .font(AppTypography.monoMicro)
+                                .foregroundStyle(AppColors.approveGreen)
+                        }
+
+                        HStack(spacing: AppSpacing.xs) {
+                            Button("Seleccionar carpeta...") {
+                                isShowingWatchPopover = false
+                                onTapWatchFolder()
+                            }
+                            .buttonStyle(StudioButtonStyle(.primaryLight, compact: true))
+
+                            if watchedFolderName != nil, let onDetachWatchFolder {
+                                Button("Desvincular") {
+                                    isShowingWatchPopover = false
+                                    onDetachWatchFolder()
+                                }
+                                .buttonStyle(StudioButtonStyle(.ghost, compact: true))
+                            }
+                        }
+                    }
+                    .padding(AppSpacing.md)
+                    .frame(width: 310)
+                    .background(AppColors.panelSurface)
+                }
             }
 
             liveDevicePill
@@ -123,15 +171,16 @@ package struct TopDeviceStatusBar: View {
             }
             .padding(.horizontal, AppSpacing.md)
             .padding(.vertical, AppSpacing.xs)
-            .background(AppColors.elevatedSurface)
+            .background(isDevicePillHovered ? AppColors.controlHover : AppColors.elevatedSurface)
             .clipShape(Capsule())
             .overlay(
                 Capsule()
-                    .stroke(pillBorderColor, lineWidth: AppSpacing.hairline)
+                    .stroke(isDevicePillHovered ? AppColors.borderStrong : pillBorderColor, lineWidth: AppSpacing.hairline)
             )
         }
         .buttonStyle(.plain)
-        .help("Abrir Administrador de Dispositivos")
+        .onHover { isDevicePillHovered = $0 }
+        .help("Ver estado USB y configurar dispositivos conectados")
     }
 
     private var isDeviceLive: Bool {
@@ -162,7 +211,7 @@ package struct TopDeviceStatusBar: View {
 
     private var pillText: String {
         guard let device = primaryDevice else {
-            return "Esperando cámara o celular USB..."
+            return "Esperando dispositivo"
         }
         switch device.status {
         case .connectedReady:
@@ -184,7 +233,7 @@ package struct TopDeviceStatusBar: View {
         case .disconnected:
             return "\(device.alias) · Desconectado"
         case .waiting:
-            return "Esperando cámara o celular USB..."
+            return "Esperando dispositivo"
         case .error:
             return "\(device.alias) · Error USB"
         }

@@ -12,6 +12,8 @@ package struct SessionCardView: View {
     let onRequestDelete: () -> Void
 
     @State private var isHovering = false
+    @State private var isTagHovered = false
+    @State private var isDeleteHovered = false
     @State private var isPresentingOrgPopover = false
 
     private static let dateFormatter: DateFormatter = {
@@ -42,58 +44,53 @@ package struct SessionCardView: View {
     package var body: some View {
         VStack(alignment: .leading, spacing: AppSpacing.md) {
             HStack(alignment: .top, spacing: AppSpacing.sm) {
-                Button(action: onOpen) {
-                    HStack(alignment: .top, spacing: AppSpacing.sm) {
-                        Image(systemName: session.groupName == nil ? "folder.fill" : "folder.fill.badge.gearshape")
-                            .font(AppTypography.sectionTitle)
-                            .foregroundStyle(AppColors.textSecondary)
+                VStack(alignment: .leading, spacing: 3) {
+                    if let group = session.groupName {
+                        HStack(spacing: 4) {
+                            Image(systemName: "rectangle.stack.fill")
+                                .font(.system(size: 9))
+                            Text(group)
+                        }
+                        .font(AppTypography.micro)
+                        .foregroundStyle(AppColors.infoBlue)
+                        .lineLimit(1)
+                    }
+                    Text(session.name)
+                        .font(AppTypography.cardTitle)
+                        .foregroundStyle(AppColors.textPrimary)
+                        .lineLimit(1)
 
-                        VStack(alignment: .leading, spacing: 3) {
-                            if let group = session.groupName {
-                                Text("📁 \(group)")
-                                    .font(AppTypography.micro)
-                                    .foregroundStyle(AppColors.infoBlue)
-                                    .lineLimit(1)
-                            }
-                            Text(session.name)
-                                .font(AppTypography.cardTitle)
-                                .foregroundStyle(AppColors.textPrimary)
-                                .lineLimit(1)
+                    HStack(spacing: AppSpacing.xs) {
+                        Text(Self.dateFormatter.string(from: session.createdAt))
+                            .font(AppTypography.caption)
+                            .foregroundStyle(AppColors.textTertiary)
 
-                            HStack(spacing: AppSpacing.xs) {
-                                Text(Self.dateFormatter.string(from: session.createdAt))
-                                    .font(AppTypography.caption)
-                                    .foregroundStyle(AppColors.textTertiary)
-
-                                if session.metadata.hasRecordedTime {
-                                    Text("· ⏱ \(session.metadata.formattedDuration())")
-                                        .font(AppTypography.monoMicro)
-                                        .foregroundStyle(
-                                            session.metadata.isTimerRunning
-                                                ? AppColors.approveGreen
-                                                : AppColors.textSecondary
-                                        )
-                                }
-                            }
+                        if session.metadata.hasRecordedTime {
+                            Text("· ⏱ \(session.metadata.formattedDuration())")
+                                .font(AppTypography.monoMicro)
+                                .foregroundStyle(
+                                    session.metadata.isTimerRunning
+                                        ? AppColors.approveGreen
+                                        : AppColors.textSecondary
+                                )
                         }
                     }
-                    .frame(maxWidth: .infinity, alignment: .leading)
-                    .contentShape(Rectangle())
                 }
-                .buttonStyle(.plain)
+                .frame(maxWidth: .infinity, alignment: .leading)
 
                 HStack(spacing: AppSpacing.xs) {
                     Button {
                         isPresentingOrgPopover.toggle()
                     } label: {
                         PictogrammersIcon(.tagMultipleOutline, size: 13)
-                            .foregroundStyle(AppColors.textSecondary)
+                            .foregroundStyle(isTagHovered ? AppColors.textPrimary : AppColors.textSecondary)
                             .padding(5)
-                            .background(AppColors.stageBackground)
+                            .background(isTagHovered ? AppColors.controlHover : AppColors.stageBackground)
                             .clipShape(RoundedRectangle(cornerRadius: AppRadius.xs, style: .continuous))
                     }
                     .buttonStyle(.plain)
-                    .help("Etiquetas y Carpeta Máster")
+                    .onHover { isTagHovered = $0 }
+                    .help("Etiquetas y grupo")
                     .popover(isPresented: $isPresentingOrgPopover, arrowEdge: .bottom) {
                         SessionOrganizationPopover(
                             session: session,
@@ -106,13 +103,14 @@ package struct SessionCardView: View {
 
                     Button(action: onRequestDelete) {
                         PictogrammersIcon(.trashCanOutline, size: 13)
-                            .foregroundStyle(AppColors.archiveRed.opacity(0.85))
+                            .foregroundStyle(isDeleteHovered ? AppColors.archiveRed : AppColors.archiveRed.opacity(0.85))
                             .padding(5)
-                            .background(AppColors.stageBackground)
+                            .background(isDeleteHovered ? AppColors.archiveRedTint : AppColors.stageBackground)
                             .clipShape(RoundedRectangle(cornerRadius: AppRadius.xs, style: .continuous))
                     }
                     .buttonStyle(.plain)
-                    .help("Eliminar proyecto permanentemente")
+                    .onHover { isDeleteHovered = $0 }
+                    .help("Eliminar sesión permanentemente")
                 }
             }
 
@@ -135,15 +133,11 @@ package struct SessionCardView: View {
             Divider()
                 .overlay(AppColors.borderSubtle)
 
-            Button(action: onOpen) {
-                HStack(spacing: AppSpacing.sm) {
-                    countBadge(value: session.counts.pending, label: "Pendientes", tint: AppColors.warningAmber)
-                    countBadge(value: session.counts.forEditing, label: "Para Edición", tint: AppColors.approveGreen)
-                    countBadge(value: session.counts.archived, label: "Archivadas", tint: AppColors.textSecondary)
-                }
-                .contentShape(Rectangle())
+            HStack(spacing: AppSpacing.sm) {
+                countBadge(value: session.counts.pending, label: "Pendientes", tint: AppColors.warningAmber)
+                countBadge(value: session.counts.forEditing, label: "Seleccionadas", tint: AppColors.approveGreen)
+                countBadge(value: session.counts.archived, label: "Archivadas", tint: AppColors.textSecondary)
             }
-            .buttonStyle(.plain)
         }
         .padding(AppSpacing.lg)
         .frame(maxWidth: .infinity, alignment: .leading)
@@ -153,11 +147,14 @@ package struct SessionCardView: View {
             RoundedRectangle(cornerRadius: AppRadius.lg, style: .continuous)
                 .stroke(isHovering ? AppColors.borderStrong : AppColors.borderSubtle, lineWidth: AppSpacing.hairline)
         )
+        .contentShape(RoundedRectangle(cornerRadius: AppRadius.lg, style: .continuous))
+        .onTapGesture(perform: onOpen)
         .onHover { hovering in
             withAnimation(AppMotion.quickEaseOut) {
                 isHovering = hovering
             }
         }
+        .help("Abrir sesión \(session.name)")
     }
 
     private func countBadge(value: Int, label: String, tint: Color) -> some View {
@@ -169,9 +166,10 @@ package struct SessionCardView: View {
                 .font(AppTypography.micro)
                 .foregroundStyle(AppColors.textTertiary)
                 .lineLimit(1)
+                .minimumScaleFactor(0.82)
         }
         .frame(maxWidth: .infinity, alignment: .leading)
-        .padding(.horizontal, AppSpacing.sm)
+        .padding(.horizontal, AppSpacing.xs)
         .padding(.vertical, AppSpacing.xs)
         .background(AppColors.stageBackground)
         .clipShape(RoundedRectangle(cornerRadius: AppRadius.sm, style: .continuous))

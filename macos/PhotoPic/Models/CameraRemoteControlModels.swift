@@ -418,6 +418,8 @@ package struct CameraControlSnapshot: Sendable, Hashable {
     package var isMirrorDownOpticalFlashMode: Bool
     package var flashAccessory: FlashAccessorySelection
     package var keepOriginalsOnSD: Bool
+    package var currentCaptureDestRaw: UInt32?
+    package var detectedCardCaptureDest: UInt32?
     package var deviceCapabilityNotice: String?
     package var controls: [CameraPropertyID: CameraPropertyControl]
     package var lastUpdated: Date
@@ -438,6 +440,8 @@ package struct CameraControlSnapshot: Sendable, Hashable {
         isMirrorDownOpticalFlashMode: Bool = false,
         flashAccessory: FlashAccessorySelection = .externalHotShoe,
         keepOriginalsOnSD: Bool = false,
+        currentCaptureDestRaw: UInt32? = nil,
+        detectedCardCaptureDest: UInt32? = nil,
         deviceCapabilityNotice: String? = nil,
         controls: [CameraPropertyID: CameraPropertyControl] = [:],
         lastUpdated: Date = .now
@@ -457,6 +461,8 @@ package struct CameraControlSnapshot: Sendable, Hashable {
         self.isMirrorDownOpticalFlashMode = isMirrorDownOpticalFlashMode
         self.flashAccessory = flashAccessory
         self.keepOriginalsOnSD = keepOriginalsOnSD
+        self.currentCaptureDestRaw = currentCaptureDestRaw
+        self.detectedCardCaptureDest = detectedCardCaptureDest
         self.deviceCapabilityNotice = deviceCapabilityNotice
         self.controls = controls
         self.lastUpdated = lastUpdated
@@ -666,7 +672,7 @@ package struct CameraControlSnapshot: Sendable, Hashable {
         ]
 
         var snapshot = CameraControlSnapshot(
-            deviceName: "Canon EOS 70D (Demo Interactiva)",
+            deviceName: "Canon EOS 70D",
             isDemoMode: true,
             lensName: "EF-S 18-55mm f/3.5-5.6 IS STM",
             aeModeValue: 0x03,
@@ -691,10 +697,12 @@ package struct CameraControlSnapshot: Sendable, Hashable {
         let notice: String
         switch device.category {
         case .iPhoneIOS, .androidPTP:
-            notice = "Los teléfonos (iOS/Android) bloquean la modificación remota de exposición, ISO y flash por cable USB PTP. Ajustá esos parámetros desde la app de cámara del teléfono mientras PhotoPic recibe cada foto en vivo."
+            notice = "Los teléfonos (iOS/Android) bloquean la modificación remota de exposición, ISO y flash por cable USB PTP. Ajustá esos parámetros desde la pantalla del teléfono mientras PhotoPic recibe tus capturas en vivo (o usá Continuidad / Wi-Fi IP para video)."
+        case .compactAction:
+            notice = "Las cámaras de acción (ej. DJI Osmo / GoPro / Insta360) no exponen controles remotos PTP de exposición o flash por USB. Usá el modo Webcam USB en la pestaña 'UVC / HDMI' para video en vivo, y ajustá parámetros en la pantalla de la cámara."
         case .dslrMirrorless where device.usbVendorID == 0x04A9:
-            notice = "Sincronizando tabla de controles PTP Canon EOS desde la cámara..."
-        case .dslrMirrorless, .compactAction:
+            notice = "Sincronizando descriptores y opciones permitidas PTP desde tu Canon..."
+        case .dslrMirrorless:
             notice = "Esta cámara usa protocolo PTP estándar para recibir capturas y disparo remoto. Los ajustes de exposición y flash se controlan directamente desde los diales físicos del cuerpo."
         }
 

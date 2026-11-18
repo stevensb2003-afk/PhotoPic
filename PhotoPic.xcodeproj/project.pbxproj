@@ -87,6 +87,7 @@
 		198E29D3EAF996B2D0040E33 = {isa = PBXBuildFile; fileRef = A507C3EDDE985B32CF8391E7; };
 		AA9AE3720D4CCBDA0ADF653E = {isa = PBXBuildFile; fileRef = 72AF3CE2126C16A6CD61BB1C; };
 		06C6AB1EBAB0B652DFDBCFB9 = {isa = PBXBuildFile; fileRef = DB0673973EDFACEB6B99D15D; };
+		AFCE1D91BA1F635C21D588A5 = {isa = PBXBuildFile; fileRef = 893F825D53A83F1FE895618F; };
 		E0AAB8651983C1741B054516 = {isa = PBXBuildFile; fileRef = 09DBC7B0FFF1C336215E285D; };
 		A2AC169CE752A44D45BED10D = {isa = PBXBuildFile; fileRef = 4F4AE5391A71FC7BF1F2D449; };
 		B3ADC962E8E139213E64F278 = {isa = PBXBuildFile; fileRef = 2D905F685D63EB6DFFD568D8; };
@@ -186,6 +187,7 @@
 		A507C3EDDE985B32CF8391E7 = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = "LiveViewWorkspacePane.swift"; path = "macos/PhotoPic/Views/Workspace/LiveViewWorkspacePane.swift"; sourceTree = "<group>"; };
 		72AF3CE2126C16A6CD61BB1C = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = "PhotoInspectorCardView.swift"; path = "macos/PhotoPic/Views/Workspace/PhotoInspectorCardView.swift"; sourceTree = "<group>"; };
 		DB0673973EDFACEB6B99D15D = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = "RawZoomableImageView.swift"; path = "macos/PhotoPic/Views/Workspace/RawZoomableImageView.swift"; sourceTree = "<group>"; };
+		893F825D53A83F1FE895618F = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = "SelectedPhotosView.swift"; path = "macos/PhotoPic/Views/Workspace/SelectedPhotosView.swift"; sourceTree = "<group>"; };
 		09DBC7B0FFF1C336215E285D = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = "SessionTimerPillView.swift"; path = "macos/PhotoPic/Views/Workspace/SessionTimerPillView.swift"; sourceTree = "<group>"; };
 		4F4AE5391A71FC7BF1F2D449 = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = "SessionWorkspaceView.swift"; path = "macos/PhotoPic/Views/Workspace/SessionWorkspaceView.swift"; sourceTree = "<group>"; };
 		2D905F685D63EB6DFFD568D8 = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = "TinderCardStackView.swift"; path = "macos/PhotoPic/Views/Workspace/TinderCardStackView.swift"; sourceTree = "<group>"; };
@@ -317,6 +319,7 @@
 				A507C3EDDE985B32CF8391E7,
 				72AF3CE2126C16A6CD61BB1C,
 				DB0673973EDFACEB6B99D15D,
+				893F825D53A83F1FE895618F,
 				09DBC7B0FFF1C336215E285D,
 				4F4AE5391A71FC7BF1F2D449,
 				2D905F685D63EB6DFFD568D8,
@@ -423,6 +426,7 @@
 				198E29D3EAF996B2D0040E33,
 				AA9AE3720D4CCBDA0ADF653E,
 				06C6AB1EBAB0B652DFDBCFB9,
+				AFCE1D91BA1F635C21D588A5,
 				E0AAB8651983C1741B054516,
 				A2AC169CE752A44D45BED10D,
 				B3ADC962E8E139213E64F278,

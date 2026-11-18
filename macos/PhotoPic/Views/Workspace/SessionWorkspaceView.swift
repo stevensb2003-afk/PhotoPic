@@ -22,6 +22,7 @@ package struct SessionWorkspaceView: View {
                 watchedFolderName: appState.folderWatchService.watchedFolderURL?.lastPathComponent,
                 onBackAction: { appState.closeActiveSession() },
                 onTapWatchFolder: { appState.attachWatchFolderFromPicker() },
+                onDetachWatchFolder: { appState.detachWatchFolder() },
                 onTapDevicePill: { appState.openSettings(tab: .devices) },
                 onTapSettings: { appState.openSettings(tab: .general) },
                 onTapHelp: { appState.isPresentingHelp = true }
@@ -67,6 +68,8 @@ package struct SessionWorkspaceView: View {
                     }
                 case .liveView:
                     LiveViewWorkspacePane(appState: appState, viewModel: viewModel)
+                case .forEditing:
+                    SelectedPhotosView(viewModel: viewModel)
                 case .archived:
                     ArchivedPhotosView(viewModel: viewModel)
                 }
@@ -159,7 +162,8 @@ package struct SessionWorkspaceView: View {
                 tabButton(
                     tab: .cullPending,
                     count: viewModel.session.counts.pending,
-                    badgeColor: AppColors.warningAmber
+                    badgeColor: AppColors.warningAmber,
+                    helpText: "Revisar y filtrar fotos pendientes"
                 )
                 tabButton(
                     tab: .liveView,
@@ -169,12 +173,20 @@ package struct SessionWorkspaceView: View {
                         || appState.ptpLiveViewService.isStreaming
                         || appState.discoveryService.directCanonService.isDirectLiveViewStreaming
                         || appState.networkStreamService.isStreaming
-                        || appState.gphotoBridge.isStreaming
+                        || appState.gphotoBridge.isStreaming,
+                    helpText: "Transmisión en vivo y controles de cámara"
+                )
+                tabButton(
+                    tab: .forEditing,
+                    count: viewModel.session.counts.forEditing,
+                    badgeColor: AppColors.approveGreen,
+                    helpText: "Ver fotos seleccionadas para edición"
                 )
                 tabButton(
                     tab: .archived,
                     count: viewModel.session.counts.archived,
-                    badgeColor: AppColors.archiveRed
+                    badgeColor: AppColors.archiveRed,
+                    helpText: "Revisar fotos descartadas o recuperarlas"
                 )
             }
 
@@ -198,25 +210,31 @@ package struct SessionWorkspaceView: View {
                     .clipShape(Capsule())
                 }
 
-                HStack(spacing: AppSpacing.xs) {
-                    Circle()
-                        .fill(AppColors.approveGreen)
-                        .frame(width: 7, height: 7)
-                    Text("Para Edición:")
-                        .font(AppTypography.captionMedium)
-                        .foregroundStyle(AppColors.textSecondary)
-                    Text("\(viewModel.session.counts.forEditing)")
-                        .font(AppTypography.monoCounter)
-                        .foregroundStyle(AppColors.approveGreen)
+                Button {
+                    viewModel.activeTab = .forEditing
+                } label: {
+                    HStack(spacing: AppSpacing.xs) {
+                        Circle()
+                            .fill(AppColors.approveGreen)
+                            .frame(width: 7, height: 7)
+                        Text("Seleccionadas:")
+                            .font(AppTypography.captionMedium)
+                            .foregroundStyle(AppColors.textSecondary)
+                        Text("\(viewModel.session.counts.forEditing)")
+                            .font(AppTypography.monoCounter)
+                            .foregroundStyle(AppColors.approveGreen)
+                    }
+                    .padding(.horizontal, AppSpacing.md)
+                    .padding(.vertical, AppSpacing.xs)
+                    .background(AppColors.approveGreenTint)
+                    .clipShape(Capsule())
+                    .overlay(
+                        Capsule()
+                            .stroke(AppColors.approveGreen.opacity(0.35), lineWidth: AppSpacing.hairline)
+                    )
                 }
-                .padding(.horizontal, AppSpacing.md)
-                .padding(.vertical, AppSpacing.xs)
-                .background(AppColors.approveGreenTint)
-                .clipShape(Capsule())
-                .overlay(
-                    Capsule()
-                        .stroke(AppColors.approveGreen.opacity(0.35), lineWidth: AppSpacing.hairline)
-                )
+                .buttonStyle(.plain)
+                .help("Abrir módulo de fotos seleccionadas")
             }
         }
         .padding(.horizontal, AppSpacing.lg)
@@ -230,18 +248,46 @@ package struct SessionWorkspaceView: View {
         )
     }
 
-    private func tabButton(tab: WorkspaceTab, count: Int?, badgeColor: Color, liveActive: Bool = false) -> some View {
-        let isActive = viewModel.activeTab == tab
-        return Button {
+    private func tabButton(
+        tab: WorkspaceTab,
+        count: Int?,
+        badgeColor: Color,
+        liveActive: Bool = false,
+        helpText: String
+    ) -> some View {
+        WorkspaceTabPillButton(
+            tab: tab,
+            count: count,
+            badgeColor: badgeColor,
+            liveActive: liveActive,
+            isActive: viewModel.activeTab == tab,
+            helpText: helpText
+        ) {
             viewModel.activeTab = tab
-        } label: {
+        }
+    }
+}
+
+private struct WorkspaceTabPillButton: View {
+    let tab: WorkspaceTab
+    let count: Int?
+    let badgeColor: Color
+    let liveActive: Bool
+    let isActive: Bool
+    let helpText: String
+    let action: () -> Void
+
+    @State private var isHovered = false
+
+    var body: some View {
+        Button(action: action) {
             HStack(spacing: AppSpacing.sm) {
                 if tab == .liveView {
                     PulsingStatusDot(color: liveActive ? AppColors.approveGreen : AppColors.textTertiary, isActive: liveActive)
                 }
                 Text(tab.title)
                     .font(AppTypography.bodyMedium)
-                    .foregroundStyle(isActive ? AppColors.textPrimary : AppColors.textSecondary)
+                    .foregroundStyle(isActive || isHovered ? AppColors.textPrimary : AppColors.textSecondary)
 
                 if let count {
                     Text("\(count)")
@@ -255,13 +301,15 @@ package struct SessionWorkspaceView: View {
             }
             .padding(.horizontal, AppSpacing.md)
             .padding(.vertical, AppSpacing.xs)
-            .background(isActive ? AppColors.elevatedSurface : Color.clear)
+            .background(isActive ? AppColors.elevatedSurface : (isHovered ? AppColors.panelSurface : Color.clear))
             .clipShape(RoundedRectangle(cornerRadius: AppRadius.md, style: .continuous))
             .overlay(
                 RoundedRectangle(cornerRadius: AppRadius.md, style: .continuous)
-                    .stroke(isActive ? AppColors.borderStrong : Color.clear, lineWidth: AppSpacing.hairline)
+                    .stroke(isActive ? AppColors.borderStrong : (isHovered ? AppColors.borderSubtle : Color.clear), lineWidth: AppSpacing.hairline)
             )
         }
         .buttonStyle(.plain)
+        .onHover { isHovered = $0 }
+        .help(helpText)
     }
 }

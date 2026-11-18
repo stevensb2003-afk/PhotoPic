@@ -756,10 +756,7 @@ package final class DirectCanonUSBPTPService {
                 let stroboEnable = CanonUSBPTPCodec.buildSetPropUInt32Payload(propCode: CanonPTPCode.propStroboFiring, value: 0)
                 _ = try? await transport.execute(opCode: CanonPTPCode.eosSetDevicePropValueEx, outPayload: stroboEnable)
 
-                // Apply CaptureDestination based on keepOriginalsOnDevice
-                await self.applyCaptureDestination(transport: transport, keepOriginalsOnDevice: profile.keepOriginalsOnDevice, fingerprint: fp)
-
-                // Read boot property snapshots from eosGetEvent without scanning SD card catalog
+                // Read boot property snapshots from eosGetEvent first so we know current/supported CaptureDestination (SD vs RAM)
                 var snapshot = CameraControlSnapshot(
                     deviceName: profile.alias,
                     isDemoMode: false,
@@ -783,6 +780,10 @@ package final class DirectCanonUSBPTPService {
                 self.sessions[fp] = activeCtx
                 self.controlSnapshots[fp] = snapshot
                 self.inlineFeedbackNote = nil
+
+                // Apply CaptureDestination based on keepOriginalsOnDevice using detected SD value
+                await self.applyCaptureDestination(transport: transport, keepOriginalsOnDevice: profile.keepOriginalsOnDevice, fingerprint: fp)
+
                 self.onStatusChanged?(fp, .connectedReady, nil)
                 self.startEventPollLoop(for: fp)
             } catch {
@@ -1119,30 +1120,71 @@ package final class DirectCanonUSBPTPService {
 
     private func applyCaptureDestination(transport: CanonUSBTransport, keepOriginalsOnDevice: Bool, fingerprint: String) async {
         if !keepOriginalsOnDevice {
-            let payload = CanonUSBPTPCodec.buildSetPropUInt32Payload(
-                propCode: CanonPTPCode.propCaptureDestination,
-                value: CanonPTPCode.captureDestHostRAM
-            )
-            let res = try? await transport.execute(opCode: CanonPTPCode.eosSetDevicePropValueEx, outPayload: payload)
+            if controlSnapshots[fingerprint]?.currentCaptureDestRaw != CanonPTPCode.captureDestHostRAM {
+                let payload = CanonUSBPTPCodec.buildSetPropUInt32Payload(
+                    propCode: CanonPTPCode.propCaptureDestination,
+                    value: CanonPTPCode.captureDestHostRAM
+                )
+                let res = try? await transport.execute(opCode: CanonPTPCode.eosSetDevicePropValueEx, outPayload: payload)
+                if res?.responseCode == CanonPTPCode.responseOK {
+                    controlSnapshots[fingerprint]?.currentCaptureDestRaw = CanonPTPCode.captureDestHostRAM
+                }
+            }
             _ = try? await transport.execute(
                 opCode: CanonPTPCode.eosPCHDDCapacity,
                 params: [0x0FFF_FFFF, 0x0000_1000, 0x0000_0001]
             )
-            sessions[fingerprint]?.lastCaptureDestIsHostRAM = (res?.responseCode == CanonPTPCode.responseOK)
+            controlSnapshots[fingerprint]?.keepOriginalsOnSD = false
+            sessions[fingerprint]?.lastCaptureDestIsHostRAM = true
         } else {
-            let payload1 = CanonUSBPTPCodec.buildSetPropUInt32Payload(
-                propCode: CanonPTPCode.propCaptureDestination,
-                value: CanonPTPCode.captureDestCardPrimary
-            )
-            let res1 = try? await transport.execute(opCode: CanonPTPCode.eosSetDevicePropValueEx, outPayload: payload1)
-            if res1?.responseCode != CanonPTPCode.responseOK {
-                let payload2 = CanonUSBPTPCodec.buildSetPropUInt32Payload(
-                    propCode: CanonPTPCode.propCaptureDestination,
-                    value: CanonPTPCode.captureDestCardSecondary
-                )
-                _ = try? await transport.execute(opCode: CanonPTPCode.eosSetDevicePropValueEx, outPayload: payload2)
+            let preferredCard = controlSnapshots[fingerprint]?.detectedCardCaptureDest ?? CanonPTPCode.captureDestCardSecondary
+            if controlSnapshots[fingerprint]?.currentCaptureDestRaw == preferredCard {
+                controlSnapshots[fingerprint]?.keepOriginalsOnSD = true
+                sessions[fingerprint]?.lastCaptureDestIsHostRAM = false
+                return
             }
-            sessions[fingerprint]?.lastCaptureDestIsHostRAM = false
+
+            let primaryPayload = CanonUSBPTPCodec.buildSetPropUInt32Payload(
+                propCode: CanonPTPCode.propCaptureDestination,
+                value: preferredCard
+            )
+            let res1 = try? await transport.execute(opCode: CanonPTPCode.eosSetDevicePropValueEx, outPayload: primaryPayload)
+            if res1?.responseCode == CanonPTPCode.responseOK {
+                controlSnapshots[fingerprint]?.currentCaptureDestRaw = preferredCard
+                controlSnapshots[fingerprint]?.keepOriginalsOnSD = true
+                sessions[fingerprint]?.lastCaptureDestIsHostRAM = false
+                return
+            }
+
+            let fallbackCard = preferredCard == CanonPTPCode.captureDestCardSecondary
+                ? CanonPTPCode.captureDestCardPrimary
+                : CanonPTPCode.captureDestCardSecondary
+            let fallbackPayload = CanonUSBPTPCodec.buildSetPropUInt32Payload(
+                propCode: CanonPTPCode.propCaptureDestination,
+                value: fallbackCard
+            )
+            let res2 = try? await transport.execute(opCode: CanonPTPCode.eosSetDevicePropValueEx, outPayload: fallbackPayload)
+            if res2?.responseCode == CanonPTPCode.responseOK {
+                controlSnapshots[fingerprint]?.currentCaptureDestRaw = fallbackCard
+                controlSnapshots[fingerprint]?.keepOriginalsOnSD = true
+                sessions[fingerprint]?.lastCaptureDestIsHostRAM = false
+                return
+            }
+
+            // Fall back safely to Host RAM if no SD/CF card is inserted
+            let ramPayload = CanonUSBPTPCodec.buildSetPropUInt32Payload(
+                propCode: CanonPTPCode.propCaptureDestination,
+                value: CanonPTPCode.captureDestHostRAM
+            )
+            _ = try? await transport.execute(opCode: CanonPTPCode.eosSetDevicePropValueEx, outPayload: ramPayload)
+            _ = try? await transport.execute(
+                opCode: CanonPTPCode.eosPCHDDCapacity,
+                params: [0x0FFF_FFFF, 0x0000_1000, 0x0000_0001]
+            )
+            controlSnapshots[fingerprint]?.currentCaptureDestRaw = CanonPTPCode.captureDestHostRAM
+            controlSnapshots[fingerprint]?.keepOriginalsOnSD = false
+            sessions[fingerprint]?.lastCaptureDestIsHostRAM = true
+            inlineFeedbackNote = "No se detectó tarjeta SD en la cámara; guardando directo en el Mac."
         }
     }
 

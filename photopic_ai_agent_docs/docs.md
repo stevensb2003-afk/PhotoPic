@@ -1,5 +1,5 @@
-# Base Documental Funcional de PhotoPic (`v2.2.0`)
-> **Propósito**: Documentación operativa estilo BRD paso a paso para el Centro de Ayuda interno y Agentes IA de soporte, cubriendo macOS (`Swift 6 / SwiftUI`) y Windows (`PySide6 Qt6`).
+# Base Documental Funcional de PhotoPic (`v2.6.24`)
+> **Propósito**: Documentación operativa estilo BRD paso a paso para el Centro de Ayuda interno y Agentes IA de soporte, cubriendo macOS (`Swift 6 / SwiftUI / IOUSBHost`) y Windows (`PySide6 Qt6`).
 > **Carpeta Exclusiva**: `photopic_ai_agent_docs/` (índice maestro en `00-CONTENT-TABLE.md`).
 
 <!-- TOC:START -->
@@ -14,7 +14,7 @@
 
 ## 1. Visión General del Sistema y Filosofía de Archivos [ROL: TODOS]
 
-PhotoPic es una aplicación de escritorio 100% offline, sin servidores web locales (`localhost`) y sin base de datos propietaria cerrada. Su función es recibir fotografías en tiempo real desde cámaras DSLR/Mirrorless, smartphones (Android PTP/MTP o iPhone) o carpetas Watchfolder Wi-Fi/FTP, revelar el sensor RAW puro para revisión 1:1, etiquetar automáticamente mediante IA opcional y mover físicamente pares **RAW + JPG** entre carpetas en disco (`RAW/`, `JPG/`, `Para_Edicion/{RAW,JPG}` y `Archivadas/{RAW,JPG}`).
+PhotoPic es una aplicación de escritorio 100% offline y nativa. Recibe capturas en vivo desde cámaras DSLR/Mirrorless (incluyendo enlace directo `IOUSBHost` Canon EOS con controles adaptativos y protección para flash externo de zapata), teléfonos Android/iPhone, cámaras de acción UVC o una **Carpeta puente**. Clasifica en los módulos **Filtrar**, **Vista en Vivo**, **Seleccionadas** y **Archivadas**, moviendo pares **RAW + JPG** y sidecars `.xmp` en disco (`RAW/`, `JPG/`, `Para_Edicion/{RAW,JPG}` y `Archivadas/{RAW,JPG}`).
 
 ## 2. Cómo Usar esta Documentación [ROL: TODOS]
 

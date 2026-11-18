@@ -108,7 +108,11 @@ package enum CanonEOSPropertyParser {
         case .availableShots:
             snapshot.availableShots = rawVal
         case .captureDestination:
+            snapshot.currentCaptureDestRaw = rawVal
             snapshot.keepOriginalsOnSD = (rawVal & 0x04) == 0
+            if rawVal != 0 && rawVal != 4 {
+                snapshot.detectedCardCaptureDest = rawVal
+            }
         case .silentShutter:
             snapshot.silentShutterValue = rawVal
             upsertControlValue(prop: prop, rawValue: rawVal, label: label, into: &snapshot)
@@ -140,8 +144,22 @@ package enum CanonEOSPropertyParser {
         let count = readUInt32LE(data, at: offset + 16)
 
         guard let prop = CameraPropertyID(rawValue: propCode) else { return false }
+        if prop == .captureDestination {
+            guard dpdType == 3 && count > 0 else { return false }
+            let maxCount = min(Int(count), 64)
+            let listStart = offset + 20
+            guard listStart + maxCount * 4 <= entryEnd else { return false }
+            for index in 0..<maxCount {
+                let candidate = readUInt32LE(data, at: listStart + index * 4)
+                if candidate != 0 && candidate != 4 {
+                    snapshot.detectedCardCaptureDest = candidate
+                    return true
+                }
+            }
+            return false
+        }
         // Ignore telemetry-only properties in interactive option lists
-        guard prop != .batteryPower, prop != .availableShots, prop != .captureDestination, prop != .lensName else {
+        guard prop != .batteryPower, prop != .availableShots, prop != .lensName else {
             return false
         }
 

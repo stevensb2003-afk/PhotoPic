@@ -39,7 +39,7 @@ package struct NewSessionSheet: View {
 
     package var body: some View {
         VStack(alignment: .leading, spacing: AppSpacing.lg) {
-            Text("Nueva Sesión de Filtrado")
+            Text("Nueva sesión")
                 .font(AppTypography.pageTitle)
                 .foregroundStyle(AppColors.textPrimary)
 
@@ -55,21 +55,21 @@ package struct NewSessionSheet: View {
             }
 
             VStack(alignment: .leading, spacing: AppSpacing.xs) {
-                Text("Carpeta Máster / Categoría (opcional)")
+                Text("Grupo (opcional)")
                     .font(AppTypography.captionMedium)
                     .foregroundStyle(AppColors.textSecondary)
 
-                Picker("Carpeta Máster", selection: $pickerChoice) {
-                    Text("Sin grupo (Carpeta Raíz)").tag("")
+                Picker("Grupo", selection: $pickerChoice) {
+                    Text("Sin grupo").tag("")
                     ForEach(availableGroups, id: \.self) { group in
-                        Text("📁 \(group)").tag(group)
+                        Text(group).tag(group)
                     }
-                    Text("+ Nueva Carpeta Máster...").tag(Self.newGroupSentinel)
+                    Text("+ Nuevo grupo...").tag(Self.newGroupSentinel)
                 }
                 .labelsHidden()
 
                 if pickerChoice == Self.newGroupSentinel {
-                    TextField("Ej. Sesiones Navideñas 2026", text: $customGroupDraft)
+                    TextField("Ej. Bodas 2026", text: $customGroupDraft)
                         .textFieldStyle(.roundedBorder)
                         .font(AppTypography.body)
                 }
@@ -113,7 +113,7 @@ package struct NewSessionSheet: View {
                     .buttonStyle(StudioButtonStyle(.ghost))
                     .keyboardShortcut(.cancelAction)
 
-                Button("Crear y Abrir Estudio") {
+                Button("Crear sesión") {
                     submitIfValid()
                 }
                 .buttonStyle(StudioButtonStyle(.primaryLight))

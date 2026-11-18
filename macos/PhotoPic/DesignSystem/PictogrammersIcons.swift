@@ -101,3 +101,68 @@ package struct PictogrammersIcon: View {
             .frame(width: size, height: size)
     }
 }
+
+/// Official full-color PhotoPic studio logo badge rendered from vector SVG.
+package struct PhotoPicBrandLogo: View {
+    @MainActor
+    private static var cache: [Int: NSImage] = [:]
+
+    let size: CGFloat
+
+    package init(size: CGFloat = 36) {
+        self.size = size
+    }
+
+    package var body: some View {
+        Image(nsImage: Self.logoImage(pointSize: size))
+            .resizable()
+            .interpolation(.high)
+            .aspectRatio(contentMode: .fit)
+            .frame(width: size, height: size)
+    }
+
+    @MainActor
+    private static func logoImage(pointSize: CGFloat) -> NSImage {
+        let px = Int(max(16, (pointSize * 2).rounded()))
+        if let cached = cache[px] {
+            return cached
+        }
+        let irisPath = "M13.73,15L9.83,21.76C10.53,21.91 11.25,22 12,22C14.4,22 16.6,21.15 18.32,19.75L14.66,13.4M2.46,15C3.38,17.92 5.61,20.26 8.45,21.34L12.12,15M8.54,12L4.64,5.25C3,7 2,9.39 2,12C2,12.68 2.07,13.35 2.2,14H9.69M21.8,10H14.31L14.6,10.5L19.36,18.75C21,16.97 22,14.6 22,12C22,11.31 21.93,10.64 21.8,10M21.54,9C20.62,6.07 18.39,3.74 15.55,2.66L11.88,9M9.4,10.5L14.17,2.24C13.47,2.09 12.75,2 12,2C9.6,2 7.4,2.84 5.68,4.25L9.34,10.6L9.4,10.5Z"
+        let sparklePath = "M19,1L17.74,3.75L15,5L17.74,6.26L19,9L20.25,6.26L23,5L20.25,3.75M9,4L6.5,9.5L1,12L6.5,14.5L9,20L11.5,14.5L17,12L11.5,9.5M19,15L17.74,17.74L15,19L17.74,20.25L19,23L20.25,20.25L23,19L20.25,17.74"
+        let svg = """
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="\(px)" height="\(px)">
+          <defs>
+            <linearGradient id="bgGrad" x1="0" y1="0" x2="1" y2="1">
+              <stop offset="0%" stop-color="#1D222B"/>
+              <stop offset="100%" stop-color="#0B0C10"/>
+            </linearGradient>
+            <linearGradient id="irisGrad" x1="0" y1="0" x2="1" y2="1">
+              <stop offset="0%" stop-color="#F8FAFC"/>
+              <stop offset="100%" stop-color="#94A3B8"/>
+            </linearGradient>
+          </defs>
+          <rect x="32" y="32" width="448" height="448" rx="104" fill="url(#bgGrad)" stroke="#334155" stroke-width="6"/>
+          <g transform="translate(256 266) rotate(-7)">
+            <rect x="-136" y="-128" width="272" height="256" rx="26" fill="#14171F" stroke="#38BDF8" stroke-opacity="0.55" stroke-width="5"/>
+            <rect x="-112" y="-104" width="224" height="174" rx="14" fill="#090B0E"/>
+          </g>
+          <path d="M104 152 V114 A14 14 0 0 1 118 100 H156" fill="none" stroke="#22C55E" stroke-width="10" stroke-linecap="round"/>
+          <path d="M408 360 V398 A14 14 0 0 1 394 412 H356" fill="none" stroke="#22C55E" stroke-width="10" stroke-linecap="round"/>
+          <path d="M104 360 V398 A14 14 0 0 0 118 412 H156" fill="none" stroke="#F59E0B" stroke-width="10" stroke-linecap="round"/>
+          <g transform="translate(154 144) scale(8.5)">
+            <path fill="url(#irisGrad)" d="\(irisPath)"/>
+          </g>
+          <circle cx="256" cy="246" r="18" fill="#38BDF8"/>
+          <circle cx="262" cy="240" r="6" fill="#FFFFFF" fill-opacity="0.85"/>
+          <g transform="translate(314 72) scale(3.2)">
+            <path fill="#FBBF24" d="\(sparklePath)"/>
+          </g>
+          <circle cx="422" cy="96" r="15" fill="#22C55E" stroke="#141820" stroke-width="5"/>
+        </svg>
+        """
+        let image = NSImage(data: Data(svg.utf8)) ?? NSImage()
+        image.size = NSSize(width: pointSize, height: pointSize)
+        cache[px] = image
+        return image
+    }
+}

@@ -51,6 +51,7 @@ package struct ArchivedPhotosView: View {
                     }
                 }
                 .buttonStyle(StudioButtonStyle(.archiveCoral, compact: true))
+                .help("Eliminar permanentemente todas las fotos archivadas")
                 .popover(isPresented: $isConfirmingEmptyFolder, arrowEdge: .bottom) {
                     EmptyArchivedFolderConfirmPopover(
                         itemCount: viewModel.archivedItems.count,
@@ -149,6 +150,7 @@ package struct ArchivedPhotosView: View {
                         }
                     }
                     .buttonStyle(StudioButtonStyle(.archiveCoral))
+                    .help("Eliminar esta foto permanentemente del disco")
                     .popover(isPresented: $isConfirmingSingleDelete, arrowEdge: .top) {
                         ArchivedDeleteConfirmPopover(
                             item: selected,
@@ -166,9 +168,10 @@ package struct ArchivedPhotosView: View {
                     Button {
                         viewModel.recoverArchivedItemToEditing(selected)
                     } label: {
-                        Label("Recuperar para Edición", systemImage: "arrow.uturn.right.circle.fill")
+                        Label("Recuperar a Seleccionadas", systemImage: "arrow.uturn.right.circle.fill")
                     }
                     .buttonStyle(StudioButtonStyle(.approveEmerald))
+                    .help("Recuperar esta foto hacia Seleccionadas para Edición")
                 }
                 .padding(AppSpacing.lg)
                 .background(AppColors.panelSurface)
@@ -210,6 +213,7 @@ private struct ArchivedTileView: View {
     let onSelect: () -> Void
 
     @State private var thumbnail: CGImage?
+    @State private var isHovered = false
 
     var body: some View {
         Button(action: onSelect) {
@@ -242,14 +246,16 @@ private struct ArchivedTileView: View {
                 }
             }
             .padding(AppSpacing.sm)
-            .background(isSelected ? AppColors.elevatedSurface : AppColors.panelSurface)
+            .background(isSelected ? AppColors.elevatedSurface : (isHovered ? AppColors.controlHover : AppColors.panelSurface))
             .clipShape(RoundedRectangle(cornerRadius: AppRadius.md, style: .continuous))
             .overlay(
                 RoundedRectangle(cornerRadius: AppRadius.md, style: .continuous)
-                    .stroke(isSelected ? AppColors.borderFocus : AppColors.borderSubtle, lineWidth: AppSpacing.hairline)
+                    .stroke(isSelected ? AppColors.borderFocus : (isHovered ? AppColors.borderStrong : AppColors.borderSubtle), lineWidth: AppSpacing.hairline)
             )
         }
         .buttonStyle(.plain)
+        .onHover { isHovered = $0 }
+        .help("Ver \(item.filename)")
         .task(id: item.id) {
             thumbnail = await loadThumbnail()
         }

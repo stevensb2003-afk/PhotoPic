@@ -36,7 +36,23 @@ extension CullingSessionViewModel {
         activeFullSensorImage = nil
     }
 
-    // MARK: - Archived & Thumbnail Rendering
+    // MARK: - Selected & Archived Preview Rendering
+
+    package func selectEditingItem(_ item: PhotoItem) {
+        selectedEditingID = item.id
+        loadEditingPreview(for: item)
+    }
+
+    package func loadEditingPreview(for item: PhotoItem) {
+        isRenderingEditingPreview = true
+        Task { [weak self] in
+            guard let self else { return }
+            let payload = await self.renderer.renderViewportImage(for: item, maxDimension: 1600)
+            guard !Task.isCancelled, self.selectedEditingItem?.id == item.id else { return }
+            self.editingPreviewImage = payload?.cgImage
+            self.isRenderingEditingPreview = false
+        }
+    }
 
     package func selectArchivedItem(_ item: PhotoItem) {
         selectedArchivedID = item.id

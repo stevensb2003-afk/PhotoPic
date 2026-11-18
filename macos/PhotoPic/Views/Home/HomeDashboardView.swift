@@ -91,13 +91,17 @@ package struct HomeDashboardView: View {
 
     private var headerActionsSection: some View {
         HStack(alignment: .center, spacing: AppSpacing.lg) {
-            VStack(alignment: .leading, spacing: AppSpacing.xxs) {
-                Text("Sesiones de Estudio")
-                    .font(AppTypography.displayTitle)
-                    .foregroundStyle(AppColors.textPrimary)
-                Text("Creá una sesión o carpeta máster para organizar clientes, etiquetas y disparos en vivo.")
-                    .font(AppTypography.body)
-                    .foregroundStyle(AppColors.textSecondary)
+            HStack(spacing: AppSpacing.md) {
+                PhotoPicBrandLogo(size: 44)
+
+                VStack(alignment: .leading, spacing: AppSpacing.xxs) {
+                    Text("Sesiones de Fotografía")
+                        .font(AppTypography.displayTitle)
+                        .foregroundStyle(AppColors.textPrimary)
+                    Text("Organizá tus sesiones, grupos y capturas en vivo.")
+                        .font(AppTypography.body)
+                        .foregroundStyle(AppColors.textSecondary)
+                }
             }
 
             Spacer()
@@ -108,14 +112,13 @@ package struct HomeDashboardView: View {
                 Image(systemName: "arrow.clockwise")
             }
             .buttonStyle(StudioButtonStyle(.secondaryDark))
-            .help("Actualizar contadores desde disco")
+            .help("Actualizar sesiones desde el disco")
 
-            Button {
+            Button("Nueva sesión") {
                 appState.homeViewModel.prepareNewSessionSheet()
-            } label: {
-                Label("Nueva Sesión de Filtrado", systemImage: "plus")
             }
             .buttonStyle(StudioButtonStyle(.primaryLight))
+            .help("Crear nueva sesión de fotografía (⌘N)")
         }
     }
 
@@ -123,6 +126,7 @@ package struct HomeDashboardView: View {
     private var sessionsHistorySection: some View {
         let vm = appState.homeViewModel
         let visibleSessions = vm.filteredSessions
+        let isSearchingOrTagFiltering = !vm.searchQuery.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty || vm.selectedTagFilter != nil
 
         if vm.sessions.isEmpty && vm.masterGroups.isEmpty {
             emptySessionsState
@@ -147,41 +151,145 @@ package struct HomeDashboardView: View {
                     }
                 )
 
-                HStack {
-                    Text("Historial en Carpeta Raíz")
-                        .font(AppTypography.sectionTitle)
-                        .foregroundStyle(AppColors.textPrimary)
-                    Spacer()
-                    Text("\(visibleSessions.count) de \(vm.sessions.count) sesiones")
-                        .font(AppTypography.monoCaption)
-                        .foregroundStyle(AppColors.textTertiary)
-                }
+                if case .group(let activeGroup) = vm.groupFilter {
+                    groupDetailHeader(group: activeGroup, sessionCount: visibleSessions.count, vm: vm)
 
-                if visibleSessions.isEmpty {
-                    filteredEmptyState
-                } else {
-                    LazyVGrid(
-                        columns: [GridItem(.adaptive(minimum: AppSpacing.cardGridMinWidth), spacing: AppSpacing.md)],
-                        spacing: AppSpacing.md
-                    ) {
-                        ForEach(visibleSessions) { session in
-                            SessionCardView(
-                                session: session,
-                                availableGroups: vm.masterGroups,
-                                onOpen: { appState.openSession(session) },
-                                onAddTag: { tag in vm.addTag(tag, to: session) },
-                                onRemoveTag: { tag in vm.removeTag(tag, from: session) },
-                                onMoveToGroup: { targetGroup in
-                                    guard let root = appState.rootFolderURL else { return }
-                                    vm.moveSession(session, toGroup: targetGroup, in: root)
-                                },
-                                onRequestDelete: { vm.sessionPendingDeletion = session }
-                            )
+                    if visibleSessions.isEmpty && !isSearchingOrTagFiltering {
+                        emptyGroupState(group: activeGroup, vm: vm)
+                    } else if visibleSessions.isEmpty {
+                        filteredEmptyState
+                    } else {
+                        sessionGrid(visibleSessions, vm: vm)
+                    }
+                } else if vm.groupFilter == .all && !isSearchingOrTagFiltering {
+                    if !vm.masterGroups.isEmpty {
+                        HStack {
+                            Text("Grupos")
+                                .font(AppTypography.sectionTitle)
+                                .foregroundStyle(AppColors.textPrimary)
+                            Spacer()
+                            Text("\(vm.masterGroups.count) grupo(s)")
+                                .font(AppTypography.monoCaption)
+                                .foregroundStyle(AppColors.textTertiary)
                         }
+
+                        LazyVGrid(
+                            columns: [GridItem(.adaptive(minimum: AppSpacing.cardGridMinWidth), spacing: AppSpacing.md)],
+                            spacing: AppSpacing.md
+                        ) {
+                            ForEach(vm.masterGroups, id: \.self) { group in
+                                let count = vm.sessions.filter { $0.groupName?.caseInsensitiveCompare(group) == .orderedSame }.count
+                                GroupCardView(groupName: group, sessionCount: count) {
+                                    vm.groupFilter = .group(group)
+                                }
+                            }
+                        }
+                    }
+
+                    let rootSessions = vm.masterGroups.isEmpty ? visibleSessions : visibleSessions.filter { $0.groupName == nil }
+                    if !rootSessions.isEmpty || vm.masterGroups.isEmpty {
+                        HStack {
+                            Text(vm.masterGroups.isEmpty ? "Sesiones" : "Sesiones sin grupo")
+                                .font(AppTypography.sectionTitle)
+                                .foregroundStyle(AppColors.textPrimary)
+                            Spacer()
+                            Text("\(rootSessions.count)")
+                                .font(AppTypography.monoCaption)
+                                .foregroundStyle(AppColors.textTertiary)
+                        }
+                        .padding(.top, vm.masterGroups.isEmpty ? 0 : AppSpacing.sm)
+
+                        if rootSessions.isEmpty {
+                            filteredEmptyState
+                        } else {
+                            sessionGrid(rootSessions, vm: vm)
+                        }
+                    }
+                } else {
+                    HStack {
+                        Text("Resultados")
+                            .font(AppTypography.sectionTitle)
+                            .foregroundStyle(AppColors.textPrimary)
+                        Spacer()
+                        Text("\(visibleSessions.count) de \(vm.sessions.count) sesiones")
+                            .font(AppTypography.monoCaption)
+                            .foregroundStyle(AppColors.textTertiary)
+                    }
+
+                    if visibleSessions.isEmpty {
+                        filteredEmptyState
+                    } else {
+                        sessionGrid(visibleSessions, vm: vm)
                     }
                 }
             }
         }
+    }
+
+    private func groupDetailHeader(group: String, sessionCount: Int, vm: HomeViewModel) -> some View {
+        HStack(spacing: AppSpacing.sm) {
+            Button {
+                vm.groupFilter = .all
+            } label: {
+                Label("Todos los grupos", systemImage: "chevron.left")
+            }
+            .buttonStyle(StudioButtonStyle(.secondaryDark, compact: true))
+            .help("Volver a todos los grupos y sesiones")
+
+            Image(systemName: "rectangle.stack.fill")
+                .font(AppTypography.sectionTitle)
+                .foregroundStyle(AppColors.infoBlue)
+
+            Text(group)
+                .font(AppTypography.sectionTitle)
+                .foregroundStyle(AppColors.textPrimary)
+
+            Spacer()
+
+            Text("\(sessionCount) sesión(es)")
+                .font(AppTypography.monoCaption)
+                .foregroundStyle(AppColors.textTertiary)
+        }
+        .padding(.vertical, AppSpacing.xs)
+    }
+
+    private func sessionGrid(_ items: [PhotoSession], vm: HomeViewModel) -> some View {
+        LazyVGrid(
+            columns: [GridItem(.adaptive(minimum: AppSpacing.cardGridMinWidth), spacing: AppSpacing.md)],
+            spacing: AppSpacing.md
+        ) {
+            ForEach(items) { session in
+                SessionCardView(
+                    session: session,
+                    availableGroups: vm.masterGroups,
+                    onOpen: { appState.openSession(session) },
+                    onAddTag: { tag in vm.addTag(tag, to: session) },
+                    onRemoveTag: { tag in vm.removeTag(tag, from: session) },
+                    onMoveToGroup: { targetGroup in
+                        guard let root = appState.rootFolderURL else { return }
+                        vm.moveSession(session, toGroup: targetGroup, in: root)
+                    },
+                    onRequestDelete: { vm.sessionPendingDeletion = session }
+                )
+            }
+        }
+    }
+
+    private func emptyGroupState(group: String, vm: HomeViewModel) -> some View {
+        VStack(spacing: AppSpacing.sm) {
+            Text("El grupo \"\(group)\" todavía no tiene sesiones")
+                .font(AppTypography.cardTitle)
+                .foregroundStyle(AppColors.textPrimary)
+            Button("Nueva sesión") {
+                vm.prepareNewSessionSheet()
+            }
+            .buttonStyle(StudioButtonStyle(.primaryLight, compact: true))
+            .help("Crear una sesión dentro del grupo \(group)")
+        }
+        .padding(.vertical, AppSpacing.xl)
+        .frame(maxWidth: .infinity)
+        .background(AppColors.panelSurface)
+        .clipShape(RoundedRectangle(cornerRadius: AppRadius.lg, style: .continuous))
     }
 
     private var filteredEmptyState: some View {
@@ -204,26 +312,23 @@ package struct HomeDashboardView: View {
 
     private var emptySessionsState: some View {
         VStack(spacing: AppSpacing.md) {
-            Image(systemName: "photo.stack")
-                .font(AppTypography.displayTitle)
-                .foregroundStyle(AppColors.textTertiary)
+            PhotoPicBrandLogo(size: 56)
 
-            Text("Todavía no hay sesiones en tu Carpeta Raíz")
+            Text("Todavía no hay sesiones")
                 .font(AppTypography.sectionTitle)
                 .foregroundStyle(AppColors.textPrimary)
 
-            Text("Hacé clic en \"Nueva Sesión de Filtrado\" para crear las carpetas RAW, JPG, Para_Edicion y Archivadas y empezar a disparar.")
+            Text("Hacé clic en \"Nueva sesión\" para preparar las carpetas de trabajo y empezar a capturar.")
                 .font(AppTypography.body)
                 .foregroundStyle(AppColors.textSecondary)
                 .multilineTextAlignment(.center)
                 .frame(maxWidth: 440)
 
-            Button {
+            Button("Nueva sesión") {
                 appState.homeViewModel.prepareNewSessionSheet()
-            } label: {
-                Label("Nueva Sesión de Filtrado", systemImage: "plus")
             }
             .buttonStyle(StudioButtonStyle(.primaryLight))
+            .help("Crear nueva sesión de fotografía (⌘N)")
             .padding(.top, AppSpacing.xs)
         }
         .padding(.vertical, AppSpacing.xxxl)
@@ -234,5 +339,56 @@ package struct HomeDashboardView: View {
             RoundedRectangle(cornerRadius: AppRadius.lg, style: .continuous)
                 .stroke(AppColors.borderSubtle, lineWidth: AppSpacing.hairline)
         )
+    }
+}
+
+private struct GroupCardView: View {
+    let groupName: String
+    let sessionCount: Int
+    let onOpen: () -> Void
+
+    @State private var isHovering = false
+
+    var body: some View {
+        HStack(spacing: AppSpacing.md) {
+            Image(systemName: "rectangle.stack.fill")
+                .font(AppTypography.sectionTitle)
+                .foregroundStyle(AppColors.infoBlue)
+                .frame(width: 38, height: 38)
+                .background(AppColors.infoBlueTint)
+                .clipShape(RoundedRectangle(cornerRadius: AppRadius.md, style: .continuous))
+
+            VStack(alignment: .leading, spacing: 2) {
+                Text(groupName)
+                    .font(AppTypography.cardTitle)
+                    .foregroundStyle(AppColors.textPrimary)
+                    .lineLimit(1)
+                Text(sessionCount == 1 ? "1 sesión" : "\(sessionCount) sesiones")
+                    .font(AppTypography.caption)
+                    .foregroundStyle(AppColors.textSecondary)
+            }
+
+            Spacer()
+
+            Image(systemName: "chevron.right")
+                .font(AppTypography.captionMedium)
+                .foregroundStyle(isHovering ? AppColors.textPrimary : AppColors.textTertiary)
+        }
+        .padding(AppSpacing.lg)
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .background(isHovering ? AppColors.elevatedSurface : AppColors.panelSurface)
+        .clipShape(RoundedRectangle(cornerRadius: AppRadius.lg, style: .continuous))
+        .overlay(
+            RoundedRectangle(cornerRadius: AppRadius.lg, style: .continuous)
+                .stroke(isHovering ? AppColors.infoBlue.opacity(0.45) : AppColors.borderSubtle, lineWidth: AppSpacing.hairline)
+        )
+        .contentShape(RoundedRectangle(cornerRadius: AppRadius.lg, style: .continuous))
+        .onTapGesture(perform: onOpen)
+        .onHover { hovering in
+            withAnimation(AppMotion.quickEaseOut) {
+                isHovering = hovering
+            }
+        }
+        .help("Entrar al grupo \(groupName)")
     }
 }

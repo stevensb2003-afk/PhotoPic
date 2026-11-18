@@ -208,8 +208,16 @@ package enum CorePipelineVerification {
         vm.archiveCurrent()
         let archivedItem = vm.archivedItems[0]
         vm.recoverArchivedItemToEditing(archivedItem)
-        try assertTrue(vm.session.counts.archived == 0 && vm.session.counts.forEditing == 2, "Archived recovery failed")
-        print("[PASS] 4. Live non-disruptive queue, followLatest, Swipe moves, Cmd+Z Undo & Recovery")
+        try assertTrue(vm.session.counts.archived == 0 && vm.session.counts.forEditing == 2 && vm.forEditingItems.count == 2, "Archived recovery failed")
+
+        try assertTrue(WorkspaceTab.cullPending.title == "Filtrar" && WorkspaceTab.forEditing.title == "Seleccionadas", "Workspace tab titles synthesized cleanly")
+        let firstSelected = vm.forEditingItems[0]
+        vm.moveEditingItemToArchived(firstSelected)
+        try assertTrue(vm.session.counts.forEditing == 1 && vm.forEditingItems.count == 1 && vm.session.counts.archived == 1, "Moving selected item to Archivadas failed")
+        let secondSelected = vm.forEditingItems[0]
+        vm.returnEditingItemToPending(secondSelected)
+        try assertTrue(vm.session.counts.forEditing == 0 && vm.forEditingItems.isEmpty && vm.pendingItems.count == 4, "Returning selected item to Filtrar failed")
+        print("[PASS] 4. Live non-disruptive queue, followLatest, Seleccionadas transitions, Cmd+Z Undo & Recovery")
     }
 
     private static func testVisionAutoTaggingAndXMPSidecarSync(rootURL: URL) async throws {

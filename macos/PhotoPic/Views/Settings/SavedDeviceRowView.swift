@@ -51,13 +51,25 @@ package struct SavedDeviceRowView: View {
                 )
                 .toggleStyle(.switch)
                 .controlSize(.small)
+                .help("Abrir conexión automáticamente al conectar el cable USB")
 
-                Toggle(
-                    "Mantener originales en la memoria/SD del dispositivo",
-                    isOn: Binding(get: { device.keepOriginalsOnDevice }, set: { onToggleKeepOriginals($0) })
-                )
-                .toggleStyle(.switch)
-                .controlSize(.small)
+                VStack(alignment: .leading, spacing: 3) {
+                    Toggle(
+                        "Mantener originales en la memoria/SD del dispositivo",
+                        isOn: Binding(get: { device.keepOriginalsOnDevice }, set: { onToggleKeepOriginals($0) })
+                    )
+                    .toggleStyle(.switch)
+                    .controlSize(.small)
+                    .help("En cámaras compatibles (Canon 0xD11C / PTP), conserva o borra el original en la tarjeta tras descargar al Mac")
+
+                    Text(device.keepOriginalsOnDevice
+                        ? "Activo: cada foto queda respaldada en la memoria/SD de tu dispositivo y además se descarga al Mac."
+                        : "Desactivado: descarga directo al Mac sin conservar copia en la cámara (en equipos compatibles).")
+                        .font(AppTypography.caption)
+                        .foregroundStyle(AppColors.textTertiary)
+                        .fixedSize(horizontal: false, vertical: true)
+                        .padding(.leading, 28)
+                }
 
                 Toggle(
                     "Permitir filtrar JPG/HEIC cuando no dispare en RAW/DNG",
@@ -65,6 +77,7 @@ package struct SavedDeviceRowView: View {
                 )
                 .toggleStyle(.switch)
                 .controlSize(.small)
+                .help("Permite que fotos comprimidas de teléfonos o cámaras en solo JPG aparezcan en la cola de Filtrar")
             }
             .font(AppTypography.body)
             .foregroundStyle(AppColors.textPrimary)

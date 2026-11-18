@@ -59,7 +59,7 @@ package struct LiveCameraControlDeckView: View {
             Divider().overlay(AppColors.borderSubtle)
 
             ScrollView(.vertical, showsIndicators: false) {
-                VStack(alignment: .leading, spacing: AppSpacing.md) {
+                VStack(alignment: .leading, spacing: AppSpacing.lg) {
                     if let inlineNote, !inlineNote.isEmpty {
                         calmInlineNotice(inlineNote)
                     }
@@ -77,10 +77,10 @@ package struct LiveCameraControlDeckView: View {
                         storageSection
                     }
                 }
-                .padding(AppSpacing.md)
+                .padding(AppSpacing.lg)
             }
         }
-        .frame(width: 318)
+        .frame(width: 368)
         .background(AppColors.panelSurface)
         .overlay(alignment: .leading) {
             Rectangle()
@@ -321,21 +321,22 @@ package struct LiveCameraControlDeckView: View {
                             .font(.system(size: 9))
                             .foregroundStyle(AppColors.textTertiary)
                     }
-                    .padding(.horizontal, 7)
-                    .padding(.vertical, 5)
+                    .padding(.horizontal, 8)
+                    .padding(.vertical, 6)
                     .background(AppColors.panelSurface)
                     .overlay(RoundedRectangle(cornerRadius: AppRadius.xs).stroke(AppColors.borderStrong, lineWidth: 1))
                     .clipShape(RoundedRectangle(cornerRadius: AppRadius.xs))
                 }
                 .menuStyle(.borderlessButton)
+                .help("Elegir valor de \(control.property.displayName)")
 
                 HStack(spacing: 4) {
-                    stepperButton(symbol: "minus", enabled: control.canStepBackward) {
+                    stepperButton(symbol: "minus", enabled: control.canStepBackward, helpText: "Bajar \(control.property.shortLabel)") {
                         if let prev = control.adjacentOption(step: -1) {
                             onSelectProperty(control.property, prev.rawValue)
                         }
                     }
-                    stepperButton(symbol: "plus", enabled: control.canStepForward) {
+                    stepperButton(symbol: "plus", enabled: control.canStepForward, helpText: "Subir \(control.property.shortLabel)") {
                         if let next = control.adjacentOption(step: 1) {
                             onSelectProperty(control.property, next.rawValue)
                         }
@@ -346,8 +347,8 @@ package struct LiveCameraControlDeckView: View {
                     .font(AppTypography.monoCounter)
                     .foregroundStyle(AppColors.textSecondary)
                     .frame(maxWidth: .infinity, alignment: .leading)
-                    .padding(.horizontal, 7)
-                    .padding(.vertical, 5)
+                    .padding(.horizontal, 8)
+                    .padding(.vertical, 6)
                     .background(AppColors.panelSurface.opacity(0.6))
                     .clipShape(RoundedRectangle(cornerRadius: AppRadius.xs))
 
@@ -357,25 +358,14 @@ package struct LiveCameraControlDeckView: View {
                     .frame(maxWidth: .infinity, alignment: .leading)
             }
         }
-        .padding(AppSpacing.xs)
+        .padding(10)
         .background(AppColors.elevatedSurface)
         .overlay(RoundedRectangle(cornerRadius: AppRadius.sm).stroke(AppColors.borderSubtle, lineWidth: 1))
         .clipShape(RoundedRectangle(cornerRadius: AppRadius.sm))
     }
 
-    private func stepperButton(symbol: String, enabled: Bool, action: @escaping () -> Void) -> some View {
-        Button(action: action) {
-            Image(systemName: symbol)
-                .font(.system(size: 10, weight: .semibold))
-                .foregroundStyle(enabled ? AppColors.textPrimary : AppColors.textTertiary)
-                .frame(maxWidth: .infinity)
-                .padding(.vertical, 4)
-                .background(AppColors.panelSurface)
-                .overlay(RoundedRectangle(cornerRadius: AppRadius.xs).stroke(AppColors.borderSubtle, lineWidth: 1))
-                .clipShape(RoundedRectangle(cornerRadius: AppRadius.xs))
-        }
-        .buttonStyle(.plain)
-        .disabled(!enabled)
+    private func stepperButton(symbol: String, enabled: Bool, helpText: String, action: @escaping () -> Void) -> some View {
+        DeckStepperButton(symbol: symbol, enabled: enabled, helpText: helpText, action: action)
     }
 
     // MARK: - Section 2: Flash y Zapata Superior
@@ -399,11 +389,12 @@ package struct LiveCameraControlDeckView: View {
                                 .font(AppTypography.micro)
                                 .foregroundStyle(selected ? AppColors.textOnAccent : AppColors.textSecondary)
                                 .frame(maxWidth: .infinity)
-                                .padding(.vertical, 5)
+                                .padding(.vertical, 6)
                                 .background(selected ? AppColors.primaryActionFill : AppColors.panelSurface)
                                 .clipShape(RoundedRectangle(cornerRadius: AppRadius.xs))
                         }
                         .buttonStyle(.plain)
+                        .help(mode.statusSummary)
                     }
                 }
 
@@ -593,11 +584,12 @@ package struct LiveCameraControlDeckView: View {
                         }
                         .font(AppTypography.monoMicro)
                         .foregroundStyle(active ? AppColors.textOnAccent : AppColors.textSecondary)
-                        .padding(.horizontal, 9)
-                        .padding(.vertical, 4)
+                        .padding(.horizontal, 10)
+                        .padding(.vertical, 5)
                         .background(active ? AppColors.infoBlue : AppColors.panelSurface)
                         .clipShape(RoundedRectangle(cornerRadius: AppRadius.xs))
                         .buttonStyle(.plain)
+                        .help("Ampliar visor de enfoque a \(zoom)x")
                     }
                 }
 
@@ -610,6 +602,7 @@ package struct LiveCameraControlDeckView: View {
                     }
                     .buttonStyle(StudioButtonStyle(.secondaryDark, compact: true))
                     .disabled(isLensInMF)
+                    .help("Ejecutar autoenfoque en la cámara")
 
                     Button {
                         onToggleDOF(!snapshot.isDOFPreviewActive)
@@ -617,6 +610,7 @@ package struct LiveCameraControlDeckView: View {
                         Text(snapshot.isDOFPreviewActive ? "DOF: Activo" : "DOF")
                     }
                     .buttonStyle(StudioButtonStyle(snapshot.isDOFPreviewActive ? .primaryLight : .secondaryDark, compact: true))
+                    .help("Previsualizar profundidad de campo en la apertura seleccionada")
                 }
 
                 HStack(spacing: 6) {
@@ -628,6 +622,7 @@ package struct LiveCameraControlDeckView: View {
                     }
                     .buttonStyle(StudioButtonStyle(.secondaryDark, compact: true))
                     .disabled(isLensInMF)
+                    .help("Mover foco del lente más cerca")
 
                     Menu {
                         Button("Paso 1 (Fino)") { focusStepSize = 1 }
@@ -643,6 +638,7 @@ package struct LiveCameraControlDeckView: View {
                             .clipShape(RoundedRectangle(cornerRadius: AppRadius.xs))
                     }
                     .menuStyle(.borderlessButton)
+                    .help("Tamaño del desplazamiento al ajustar foco manual")
 
                     Button {
                         onDriveManualFocus(false, focusStepSize)
@@ -652,6 +648,7 @@ package struct LiveCameraControlDeckView: View {
                     }
                     .buttonStyle(StudioButtonStyle(.secondaryDark, compact: true))
                     .disabled(isLensInMF)
+                    .help("Mover foco del lente más lejos")
                 }
 
                 if isLensInMF {
@@ -779,6 +776,7 @@ package struct LiveCameraControlDeckView: View {
                         .foregroundStyle(AppColors.textPrimary)
                 }
                 .toggleStyle(.switch)
+                .help("Configura si cada foto queda guardada en la tarjeta SD de la cámara además de descargarse al Mac")
 
                 Text(snapshot.keepOriginalsOnSD
                     ? "Destino activo: Mac + Tarjeta SD de la cámara."
@@ -787,7 +785,7 @@ package struct LiveCameraControlDeckView: View {
                     .foregroundStyle(AppColors.textSecondary)
                     .fixedSize(horizontal: false, vertical: true)
             }
-            .padding(AppSpacing.xs)
+            .padding(10)
             .background(AppColors.elevatedSurface)
             .overlay(RoundedRectangle(cornerRadius: AppRadius.sm).stroke(AppColors.borderSubtle, lineWidth: 1))
             .clipShape(RoundedRectangle(cornerRadius: AppRadius.sm))
@@ -828,5 +826,34 @@ package struct LiveCameraControlDeckView: View {
             .padding(AppSpacing.xs)
             .background(AppColors.elevatedSurface)
             .clipShape(RoundedRectangle(cornerRadius: AppRadius.sm))
+    }
+}
+
+private struct DeckStepperButton: View {
+    let symbol: String
+    let enabled: Bool
+    let helpText: String
+    let action: () -> Void
+
+    @State private var isHovered = false
+
+    var body: some View {
+        Button(action: action) {
+            Image(systemName: symbol)
+                .font(.system(size: 10, weight: .semibold))
+                .foregroundStyle(enabled ? AppColors.textPrimary : AppColors.textTertiary)
+                .frame(maxWidth: .infinity)
+                .padding(.vertical, 5)
+                .background(enabled && isHovered ? AppColors.controlHover : AppColors.panelSurface)
+                .overlay(
+                    RoundedRectangle(cornerRadius: AppRadius.xs)
+                        .stroke(enabled && isHovered ? AppColors.borderStrong : AppColors.borderSubtle, lineWidth: 1)
+                )
+                .clipShape(RoundedRectangle(cornerRadius: AppRadius.xs))
+        }
+        .buttonStyle(.plain)
+        .disabled(!enabled)
+        .onHover { isHovered = $0 }
+        .help(helpText)
     }
 }

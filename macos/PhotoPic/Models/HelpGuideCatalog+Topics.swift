@@ -6,196 +6,193 @@ extension HelpGuideCatalog {
             id: "e2e-workflow",
             docCode: "DOC-01",
             category: .setupFlow,
-            title: "Flujo Completo de Estudio (E2E)",
+            title: "Flujo de Trabajo",
             subtitle: "Del primer arranque a la entrega organizada",
-            iconSystemName: "sparkles.rectangle.stack",
+            iconSystemName: "square.stack.3d.up",
             keywords: ["inicio", "e2e", "sesion", "carpeta raiz", "flujo", "lightroom", "dmg"],
-            summary: "PhotoPic no encierra tus fotos en un catálogo cerrado: visualiza directamente tus carpetas en disco y sincroniza pares RAW + JPG conforme trabajás.",
+            summary: "PhotoPic no encierra tus fotos en un catálogo cerrado: trabaja directo sobre tus carpetas y sincroniza pares RAW + JPG mientras disparás.",
             steps: [
-                "1. Revisá el Paso 1 del Asistente Inicial (Auditoría de Hardware) y confirmá si querés IA completa o Modo Ligero.",
-                "2. En el Paso 2 elegí tu Carpeta Raíz Global (ej. ~/Pictures/Sesiones_PhotoPic).",
-                "3. Creá una sesión con '+ Nueva Sesión de Filtrado' (⌘N): se generan RAW/, JPG/, Para_Edicion/{RAW,JPG} y Archivadas/{RAW,JPG}.",
-                "4. Conectá tu cámara o celular USB (o activá Vista en Vivo / Watchfolder) y empezá a disparar.",
-                "5. Revisá foco real al Zoom 1:1 (Espacio), aprobá con → o descartá con ←."
+                "1. En el Asistente Inicial confirmá el perfil de hardware (IA completa, Equilibrado o Modo Ligero).",
+                "2. Elegí tu Carpeta Raíz Global donde vivirán tus grupos y sesiones.",
+                "3. Creá una sesión con 'Nueva sesión' (⌘N) o agrupala con 'Crear grupo': se generan RAW/, JPG/, Para_Edicion/{RAW,JPG} y Archivadas/{RAW,JPG}.",
+                "4. Conectá tu cámara o teléfono por USB (o vinculá una Carpeta puente).",
+                "5. Revisá nitidez al Zoom 1:1 (Espacio), aprobá hacia Seleccionadas (→) o descartá con ←."
             ],
             canDo: [
                 "Abrir cualquier carpeta de sesión directo en Lightroom Classic, Capture One o Affinity.",
-                "Trabajar 100% sin internet para captura/culling, y actualizarse automáticamente desde GitHub Cloud cuando haya conexión."
+                "Trabajar 100% sin internet para captura/culling, y actualizarse automáticamente cuando haya conexión."
             ],
             limitations: [
-                "PhotoPic no es un editor de color ni revela ajustes permanentes sobre el RAW (solo clasifica, etiqueta y previsualiza en GPU).",
-                "Este .dmg actual está compilado solo para Apple Silicon (arm64); no abre en Macs Intel antiguos."
+                "PhotoPic no aplica revelado destructivo ni edición de color sobre el RAW (clasifica, etiqueta y previsualiza en GPU).",
+                "La compilación actual de macOS es nativa Apple Silicon (arm64)."
             ],
             tips: [
-                "Al instalar en otra Mac por primera vez, abrí con clic derecho → Abrir (una sola vez) porque usa firma local ad-hoc."
+                "Hacé clic en cualquier parte de la tarjeta de una sesión para abrirla al instante."
             ]
         ),
         HelpTopic(
             id: "hardware-ai-mode",
             docCode: "DOC-02",
             category: .setupFlow,
-            title: "Auditor de Hardware y Modo Sin IA",
+            title: "Rendimiento e IA",
             subtitle: "Neural Engine, perfiles y cómo apagar la IA",
             iconSystemName: "cpu",
             keywords: ["neural engine", "ram", "cpu", "metal", "lento", "apagar ia", "modo ligero", "equilibrado"],
-            summary: "El Apple Neural Engine es silicio físico integrado en chips Apple Silicon (M1–M5). En Intel o Windows la IA corre en CPU/GPU, por eso podés regularla desde el arranque.",
+            summary: "El Apple Neural Engine acelera la detección de rostros y poses en Apple Silicon (M1–M5). En otros equipos podés ajustar el perfil en vivo sin reiniciar.",
             steps: [
                 "1. Estudio Completo: Apple Silicon (>= 12 GB RAM) con GPU RAW + rostros, ojos y poses de 19 puntos.",
-                "2. Equilibrado: Intel o 8–11 GB RAM con conteo rápido de rostros y parpadeo, sin poses corporales pesadas.",
-                "3. Modo Ligero (Sin IA): 0% IA en segundo plano para máxima fluidez en computadoras modestas.",
-                "4. Cambiá el perfil en vivo sin cerrar tu sesión desde Configuración → General y Rendimiento."
+                "2. Equilibrado: 8–11 GB RAM o Intel con conteo rápido de rostros y parpadeo sin poses pesadas.",
+                "3. Modo Ligero (Sin IA): 0% análisis de IA en segundo plano para máxima fluidez.",
+                "4. Cambiá el perfil en cualquier momento desde Configuración → General y Rendimiento."
             ],
             canDo: [
-                "Prender o apagar caras y poses por separado en cualquier instante.",
-                "Re-auditar tu equipo con el botón Re-auditar si cambiás de configuración."
+                "Prender o apagar detección de caras y poses por separado en tiempo real.",
+                "Re-auditar el equipo con un clic."
             ],
             limitations: [
-                "Si tu Mac es Intel (sin Neural Engine) o tu PC Windows tiene <= 4 núcleos, activar poses completas ralentizará el ritmo de ráfagas.",
-                "La IA no reconoce identidad de personas por nombre (solo cuenta personas, rostros, parpadeo y postura)."
+                "Sin Neural Engine físico, activar poses corporales completas puede reducir el ritmo en ráfagas rápidas.",
+                "La IA no identifica nombres de personas (solo conteo, ojos abiertos/cerrados y postura)."
             ],
             tips: [
-                "Apagar la IA jamás detiene el tethering USB ni el revelado RAW en Metal."
+                "Apagar la IA nunca detiene el tethering USB ni el revelado RAW por Metal."
             ]
         ),
         HelpTopic(
             id: "usb-wifi-watchfolder",
             docCode: "DOC-03",
             category: .connectionsLive,
-            title: "Conexión USB, Android PTP y Wi-Fi",
-            subtitle: "Cable directo, Bonjour PTP/IP y Watchfolder",
+            title: "Conexión USB y Puente",
+            subtitle: "USB directo, Carpetas puente y Validador USB",
             iconSystemName: "cable.connector",
-            keywords: ["usb", "thunderbolt", "android", "ptp", "mtp", "iphone", "wifi", "bluetooth", "ptpcamera", "watchfolder", "ftp", "expert raw", "tethering", "midi", "canon", "sony", "validador"],
-            summary: "Recibe capturas por cable USB-C/Thunderbolt 4, cámaras Bonjour Wi-Fi PTP/IP (macOS) y Watchfolder, con Validador USB físico (IOKit) por marca.",
+            keywords: ["usb", "thunderbolt", "android", "ptp", "mtp", "iphone", "wifi", "bluetooth", "ptpcamera", "watchfolder", "carpeta puente", "ftp", "expert raw", "tethering", "midi", "canon", "sony", "validador"],
+            summary: "Recibe capturas por cable USB-C/Thunderbolt 4, Bonjour PTP/IP o Carpeta puente, con diagnóstico físico IOKit y control de originales en SD.",
             steps: [
-                "1. Cámara Canon / Nikon: apagá el Wi-Fi/NFC interno de la cámara (en Canon desactiva el puerto USB) y cerrá EOS Utility; si macOS la captura, tocá Liberar macOS.",
-                "2. Cámara Sony / Fujifilm: poné Conexión USB en 'MTP' o 'PTP' (no Mass Storage ni PC Remote sin driver).",
-                "3. Android USB: elegí 'Transferir imágenes (PTP)' (NO 'USB Tethering' ni 'MIDI'). Usá Modo Pro (RAW/DNG) para descarga ~1s.",
-                "4. iPhone / iPad: desbloqueá, tocá 'Confiar' e ingresá tu código; si activás Apple ProRAW (.DNG), PhotoPic fuerza activos originales.",
-                "5. Si conectaste el cable y no monta, abrí Configuración → Dispositivos para usar el Validador de 3 etapas y despertar el diálogo de permiso."
+                "1. Canon EOS (70D y compatibles): apagá el Wi-Fi interno (desactiva el USB en Canon) y cerrá EOS Utility; PhotoPic abre sesión USB directa.",
+                "2. Sony / Fujifilm: poné Conexión USB en 'MTP' o 'PTP' (no Mass Storage).",
+                "3. Android USB: elegí 'Transferir imágenes (PTP)' y tocá Permitir. Modo Pro (DNG) descarga más rápido que Expert RAW.",
+                "4. iPhone / iPad: desbloqueá, tocá 'Confiar' e ingresá tu código.",
+                "5. Para importar desde EOS Utility, Capture One o un transmisor Wi-Fi, usá 'Carpeta puente' arriba."
             ],
             canDo: [
-                "Escudo Anti-Galería Vieja y cero pérdidas: acepta disparos en vivo aunque la cámara tenga la pila de fecha/reloj reiniciada.",
-                "Si llega una foto en el Dashboard sin sesión abierta, PhotoPic crea/abre 'Sesion_Rapida_AAAA-MM-DD' automáticamente para no perder el RAW.",
-                "Detecta físicamente teléfonos en 'Solo carga' o cámaras ocultas vía IOKit y muestra la guía exacta de esa marca."
+                "Escudo Anti-Galería Vieja: indexa el carrete/SD sin descargar fotos previas y solo captura tomas nuevas.",
+                "Mantiene o limpia originales en la memoria/SD del dispositivo según tu ajuste por equipo en Dispositivos (0xD11C en Canon).",
+                "Diagnostica bloqueos de macOS PTPCamera / Fotos y modos USB incompatibles vía IOKit."
             ],
             limitations: [
-                "Bluetooth NO sirve para transferir RAWs de cámara a full calidad por falta de ancho de banda.",
-                "En Android con Samsung Expert RAW (50MP HDR multiframe), el celular puede tardar ~35–45s en procesar cada toma y dejar el .DNG cacheado en 0 bytes sobre USB PTP; para tethering rápido en RAW usá Modo Pro (.DNG) o Watchfolder Wi-Fi.",
-                "En macOS, Android en modo MTP ('Transferir archivos'), USB Tethering o MIDI no sirve para ImageCaptureCore: usá 'Transferir imágenes (PTP)'."
+                "Bluetooth no tiene ancho de banda suficiente para transferir archivos RAW.",
+                "En macOS, Android debe estar en modo PTP (no Solo carga ni USB Tethering)."
             ],
             tips: [
-                "Por seguridad, PhotoPic bloquea vincular como Watchfolder una subcarpeta de tus sesiones para evitar bucles infinitos."
+                "Por seguridad, PhotoPic impide elegir como Carpeta puente la misma carpeta raíz de sesiones."
             ]
         ),
         HelpTopic(
             id: "live-view-guide",
             docCode: "DOC-07",
             category: .connectionsLive,
-            title: "Vista en Vivo (Live View) — Android, iOS y Cámaras",
-            subtitle: "UVC / Continuidad iOS / HDMI-USB + Android IP Wi-Fi + gphoto2",
-            iconSystemName: "video.viewfinder",
-            keywords: ["live view", "vista en vivo", "hdmi", "uvc", "gphoto2", "android", "iphone", "continuity", "ip webcam", "droidcam", "samsung", "zadig"],
-            summary: "Explicación clara por dispositivo: iPhone usa Cámara de Continuidad automático, cámaras usan UVC/HDMI/gphoto2, y Android usa IP Wi-Fi (MJPEG) o Webcam USB (Pixel/Moto) porque USB PTP solo transporta archivos.",
+            title: "Vista en Vivo y Flash",
+            subtitle: "USB directo Canon, controles adaptativos, flash de zapata y UVC/HDMI",
+            iconSystemName: "camera.viewfinder",
+            keywords: ["live view", "vista en vivo", "hdmi", "uvc", "gphoto2", "android", "iphone", "continuity", "ip webcam", "droidcam", "samsung", "dji", "osmo", "flash", "zapata", "ttl"],
+            summary: "Combina visor directo Canon EOS USB (sin instalar drivers), controles PTP adaptativos por lente/dial, protección para flash externo de zapata y video UVC/HDMI/Continuidad.",
             steps: [
-                "1. Android: PTP solo envía fotos. Abrí la pestaña 'Android / IP Wi-Fi', iniciá IP Webcam (:8080/video) o DroidCam (:4747/video) en tu celular y conéctate sin cortar el cable USB PTP.",
-                "2. iPhone / iPad: aparece automáticamente en 'UVC / HDMI-USB' gracias a Cámara de Continuidad (mismo Apple ID + Bluetooth + Wi-Fi).",
-                "3. Cámaras modernas / HDMI: usá 'UVC / HDMI-USB' (Sony/Canon/Fuji con USB Streaming o capturadora HDMI→USB a 30–60 fps).",
-                "4. DSLR clásica por un único cable (solo macOS opcional): instalá 'brew install gphoto2' y seleccioná 'DSLR USB (gphoto2)'."
+                "1. Canon EOS USB: enchufá la cámara y pulsá 'Iniciar Vista en Vivo'. El panel derecho descubre solo los controles permitidos por tu cuerpo, dial y lente.",
+                "2. Flash externo en zapata superior: usá 'Zapata Externa' (nunca levanta el flash pop-up interno). Para flashes manuales de 1 pin, pulsá 'Modo Flash Zapata (Bajar Espejo)' para disparar sin desconectar el Mac.",
+                "3. DJI Osmo Action 4 / Cámaras con Webcam USB / iPhone Continuidad: seleccioná la pestaña 'UVC / HDMI'.",
+                "4. Android: transmití video por 'Wi-Fi IP' mientras el cable PTP sigue descargando fotos."
             ],
             canDo: [
-                "Transmitir video en vivo desde Android vía Wi-Fi local (MJPEG) mientras entran los RAWs/JPGs por USB.",
-                "Detectar al vuelo (hot-plug) iPhone Continuidad, Pixel Webcam USB y capturadoras HDMI→USB.",
-                "Guardar cuadros de referencia directo a la sesión o disparar remoto en cámaras PTP compatibles."
+                "Controlar Velocidad, Apertura, ISO, Balance de Blancos, Medición, Enfoque AF/MF, Zoom 1x/5x/10x y DOF en cámaras Canon compatibles.",
+                "Explicar con candado cuando un ajuste lo bloquea el dial físico (ej. Comp. EV en modo M) o el interruptor MF del lente.",
+                "Adaptarse a teléfonos iOS/Android o cámaras de acción (DJI/GoPro) ocultando diales DSLR que el equipo no soporta."
             ],
             limitations: [
-                "Un Android en 'Transferir imágenes (PTP)' o Samsung One UI sin modo Webcam USB jamás aparece como webcam UVC nativa.",
-                "ImageCaptureCore NO transmite video Live View por USB en DSLRs clásicas sin HDMI ni gphoto2.",
-                "En Windows se usa DirectShow + URL IP MJPEG sin reemplazar drivers WPD con Zadig (WinUSB)."
+                "iPhone, Android PTP y cámaras de acción (DJI Osmo / GoPro) no exponen control remoto de exposición ni flash por USB PTP.",
+                "En Canon DSLRs, un flash manual de 1 pin no dispara con el espejo arriba ni con Disparo Silencioso LV activo: bajá el espejo con un clic desde el panel Flash."
             ],
             tips: [
-                "Para teléfonos Android Samsung (donde One UI oculta 'Webcam USB'), 'Android / IP Wi-Fi' es la vía más rápida y no interrumpe la descarga PTP."
+                "Podés probar todo el panel de control Canon EOS 70D sin cámara conectada usando 'Ver demo interactiva'."
             ]
         ),
         HelpTopic(
             id: "culling-raw-folders",
             docCode: "DOC-04",
             category: .foldersLimits,
-            title: "Culling RAW GPU, Zoom 1:1 y Pares RAW+JPG",
-            subtitle: "Atajos de estudio y separación automática RAW / JPG",
-            iconSystemName: "folder.badge.gearshape",
-            keywords: ["zoom", "1:1", "atalos", "flechas", "para_edicion", "raw", "jpg", "deshacer", "cmd+z", "formatos"],
-            summary: "Cada clasificación mueve simultáneamente el RAW (y su .XMP) a <Destino>/RAW/ y su contraparte JPG/HEIC a <Destino>/JPG/. Admite 25 formatos RAW y 11 móviles.",
+            title: "Filtrar, Seleccionadas y Zoom",
+            subtitle: "Atajos rápidos, Zoom 1:1 y módulo de Seleccionadas",
+            iconSystemName: "plus.magnifyingglass",
+            keywords: ["zoom", "1:1", "atajos", "flechas", "para_edicion", "seleccionadas", "raw", "jpg", "deshacer", "cmd+z", "formatos"],
+            summary: "Cada clasificación mueve en disco tanto el RAW (+.xmp) como su pareja JPG entre Filtrar, Seleccionadas y Archivadas across 36 formatos compatibles.",
             steps: [
-                "1. ↑ y ↓: recorrer fotos pendientes sin mover ningún archivo.",
-                "2. → o Swipe Derecha: aprueba hacia Para_Edicion/RAW/ + Para_Edicion/JPG/.",
-                "3. ← o Swipe Izquierda: archiva hacia Archivadas/RAW/ + Archivadas/JPG/.",
-                "4. Espacio o clic sostenido + arrastrar: Zoom 1:1 píxel real sobre el sensor revelado (nunca miniaturas JPG).",
-                "5. ⌘Z (Ctrl+Z en Windows): devuelve tanto el RAW (+.xmp) como su JPG a su lugar anterior."
+                "1. ↑ y ↓: recorrer fotos pendientes sin mover archivos.",
+                "2. → o Edición →: aprueba hacia el módulo Seleccionadas (Para_Edicion/{RAW,JPG}).",
+                "3. ← o ← Archivar: descarta hacia Archivadas/{RAW,JPG}.",
+                "4. Espacio o clic sostenido + arrastrar: Zoom 1:1 píxel real sobre el sensor revelado.",
+                "5. En Seleccionadas podés inspeccionar tus elegidas, abrirlas en Finder, devolverlas a Filtrar o moverlas a Archivadas; ⌘Z deshace la última acción."
             ],
             canDo: [
-                "Enruta automáticamente .JPG/.HEIC tardíos directo a Para_Edicion/JPG/ o Archivadas/JPG/ si ya moviste el RAW.",
-                "Revela 25 formatos RAW (.CR2, .CR3, .DNG, .ARW, .NEF, .RAF, .ORF, .RW2, .3FR, .IIQ, etc.) desde datos reales del sensor."
+                "Re-evaluar cualquier foto ya aprobada dentro de la pestaña Seleccionadas sin tocar Finder.",
+                "Revelar 25 formatos RAW desde sensor puro (CIRAWFilter Metal en Mac / LibRaw en Windows)."
             ],
             limitations: [
-                "Si disparás RAW+JPG desde cámaras desconocidas cuyo formato RAW propietario aún no esté decodificado por Core Image del sistema (ej. modelos recién lanzados antes de actualizar macOS), CIRAWFilter no podrá abrir el RAW.",
-                "En Windows, archivos muy exóticos pueden depender del soporte de LibRaw incluido."
+                "Modelos de cámara recién lanzados pueden requerir actualizar macOS para decodificación nativa de su nuevo formato RAW.",
+                "Es un estudio de captura y selección rápida 1:1, no un editor de color."
             ],
             tips: [
-                "Activá 'Seguir última captura' en la barra inferior solo cuando quieras que el visor salte automáticamente al disparo más reciente."
+                "Activá 'Seguir última captura' a la derecha de la barra inferior para saltar directo a cada nueva toma."
             ]
         ),
         HelpTopic(
             id: "ai-tags-xmp",
             docCode: "DOC-05",
             category: .cullingAI,
-            title: "Auto-Etiquetado IA, Filtros y Sidecars .XMP",
-            subtitle: "Caras, ojos cerrados, poses y Lightroom",
-            iconSystemName: "tag.fill",
+            title: "Etiquetas IA y Lightroom",
+            subtitle: "Caras, ojos cerrados, poses y sidecars .XMP",
+            iconSystemName: "tag",
             keywords: ["tags", "etiquetas", "xmp", "ojos cerrados", "ear", "poses", "pareja", "grupo", "finder"],
-            summary: "Cuando la IA está encendida, analiza cada foto en memoria, permite filtrar en vivo y guarda etiquetas estándar Adobe .XMP que viajan con cada RAW.",
+            summary: "La IA local analiza cada foto al instante, habilita chips de filtrado en la barra superior y escribe sidecars .XMP estándar.",
             steps: [
-                "1. Conteo y encuadre automático: Sin personas, Individual, Pareja, Grupo, Primer plano, Plano medio o Cuerpo entero.",
-                "2. Control de ojos (EAR): emite alerta ámbar 'Ojos cerrados' o 'Ojos abiertos'.",
+                "1. Conteo y encuadre: Sin personas, Individual, Pareja, Grupo, Primer plano, Plano medio o Cuerpo entero.",
+                "2. Detección de ojos (EAR): marca 'Ojos abiertos' o alerta ámbar 'Ojos cerrados'.",
                 "3. Poses corporales: De pie, Sentado, Brazos arriba, Manos en cintura, Pose dinámica.",
-                "4. Tocá cualquier chip en la barra 'IA:' superior para filtrar pendientes al instante, o agregá tags propios con '+ Etiqueta'."
+                "4. Agregá etiquetas propias con '+ Etiqueta' para organizar tus entregas."
             ],
             canDo: [
-                "Escribe sidecars estándar .xmp compatibles con Adobe Lightroom Classic, Camera Raw y Capture One.",
-                "Aplica macOS Finder Tags directos para buscar fotos desde Spotlight."
+                "Exporta sidecars .xmp compatibles con Adobe Lightroom Classic, Camera Raw y Capture One.",
+                "Sincroniza macOS Finder Tags automáticamente."
             ],
             limitations: [
-                "No modifica los metadatos EXIF/IPTC incrustados dentro del archivo RAW binario (siempre usa sidecar .xmp no destructivo).",
-                "Sujetos muy pequeños de espaldas o en contraluz extremo pueden marcarse como 'Sin personas'."
+                "Nunca modifica el archivo RAW binario original; usa sidecars .xmp no destructivos.",
+                "Personas de espaldas o muy pequeñas pueden detectarse como 'Sin personas'."
             ],
             tips: [
-                "Si activás modo 'Equilibrado', seguís recibiendo conteo de personas, rostros y 'Ojos cerrados' sin gastar recursos en poses corporales."
+                "El modo 'Equilibrado' conserva conteo de personas y alerta de ojos cerrados consumiendo menos batería."
             ]
         ),
         HelpTopic(
             id: "archived-cleanup",
             docCode: "DOC-06",
             category: .foldersLimits,
-            title: "Grupos Máster, Temporizador y Borrado",
-            subtitle: "Carpetas contenedoras, timer por sesión, inspector EXIF y eliminación segura",
-            iconSystemName: "trash",
+            title: "Grupos, Timer y Borrado",
+            subtitle: "Organización por cliente, cronómetro e inspector EXIF",
+            iconSystemName: "folder.badge.gearshape",
             keywords: ["archivar", "archivadas", "eliminar", "borrar", "grupo", "carpeta master", "timer", "temporizador", "exif", "etiquetas", "buscar"],
-            summary: "Organizá proyectos en Carpetas Máster, medí la duración de cada sesión desde la 1ª foto, revisá EXIF en el panel lateral sin tapar la foto, y borrá descartes o proyectos completos con confirmación.",
+            summary: "Creá Grupos visuales para clientes o campañas, medí automáticamente el tiempo de sesión y liberá espacio borrando descartes confirmados.",
             steps: [
-                "1. Inicio → '+ Nueva Carpeta Máster' o creá una sesión eligiendo su Carpeta Máster (ej. Sesiones Navideñas 2026) y etiquetas.",
-                "2. Temporizador: se auto-inicia con la hora de la primera foto recibida (configurable en Configuración → General) o manual con 'Iniciar Timer' / 'Finalizar'.",
-                "3. Inspector EXIF flotante: aparece aislado a la derecha para ver ISO, f/, obturación, focal, lente, MP y etiquetas sin tapar tu fotografía.",
-                "4. Borrado permanente: en cada tarjeta de proyecto (o en Archivadas) pulsá el ícono de papelera y confirmá la destrucción de las imágenes totales."
+                "1. En Inicio pulsá 'Crear grupo' para agrupar varias sesiones dentro de una vista limpia.",
+                "2. El cronómetro inicia solo con la primera captura (o manualmente) y se guarda por sesión.",
+                "3. En Archivadas podés 'Recuperar a Seleccionadas' o usar 'Eliminar archivo...' / 'Vaciar carpeta...'."
             ],
             canDo: [
-                "Detectar automáticamente sesiones planas antiguas (carpeta raíz) y sesiones agrupadas dentro de Carpetas Máster.",
-                "Filtrar sesiones en Inicio por texto, Carpeta Máster o #etiqueta de proyecto.",
-                "Validar estrictamente que toda eliminación de proyecto ocurra únicamente dentro de la Carpeta Raíz Global."
+                "Navegar dentro de cada grupo para ver únicamente sus sesiones.",
+                "Filtrar sesiones por texto, grupo o #etiqueta de proyecto.",
+                "Proteger cada eliminación permanente con confirmación explícita en popover."
             ],
             limitations: [
-                "La eliminación definitiva de fotos o proyectos completos no va a la Papelera ni se deshace con ⌘Z."
+                "La eliminación permanente en Archivadas o proyectos no pasa por la Papelera ni admite ⌘Z."
             ],
             tips: [
-                "Si desactivás el auto-inicio del temporizador en Configuración → General y Rendimiento, el reloj queda en 00:00:00 hasta que pulses Iniciar."
+                "En Configuración → General podés desactivar el inicio automático del temporizador si preferís cronometrar manual."
             ]
         )
     ]

@@ -7,22 +7,51 @@ extension SessionFileManager {
         in session: PhotoSession,
         cachedTagsByBase: [String: PhotoVisionTags] = [:]
     ) -> [PhotoItem] {
-        let primary = loadPhotoItems(
-            in: session.archivedRawFolderURL,
-            jpgFolderURL: session.archivedJpgFolderURL,
+        loadBucketItems(
+            rawFolder: session.archivedRawFolderURL,
+            legacyFolder: session.archivedFolderURL,
+            jpgFolder: session.archivedJpgFolderURL,
             fallbackJpgFolderURL: session.jpgFolderURL,
             cachedTagsByBase: cachedTagsByBase
         )
-        let legacy = loadPhotoItems(
-            in: session.archivedFolderURL,
-            jpgFolderURL: session.archivedJpgFolderURL,
+    }
+
+    package static func loadForEditingItems(
+        in session: PhotoSession,
+        cachedTagsByBase: [String: PhotoVisionTags] = [:]
+    ) -> [PhotoItem] {
+        loadBucketItems(
+            rawFolder: session.forEditingRawFolderURL,
+            legacyFolder: session.forEditingFolderURL,
+            jpgFolder: session.forEditingJpgFolderURL,
             fallbackJpgFolderURL: session.jpgFolderURL,
+            cachedTagsByBase: cachedTagsByBase
+        )
+    }
+
+    private static func loadBucketItems(
+        rawFolder: URL,
+        legacyFolder: URL,
+        jpgFolder: URL,
+        fallbackJpgFolderURL: URL,
+        cachedTagsByBase: [String: PhotoVisionTags]
+    ) -> [PhotoItem] {
+        let primary = loadPhotoItems(
+            in: rawFolder,
+            jpgFolderURL: jpgFolder,
+            fallbackJpgFolderURL: fallbackJpgFolderURL,
+            cachedTagsByBase: cachedTagsByBase
+        )
+        let legacy = loadPhotoItems(
+            in: legacyFolder,
+            jpgFolderURL: jpgFolder,
+            fallbackJpgFolderURL: fallbackJpgFolderURL,
             cachedTagsByBase: cachedTagsByBase
         )
         let rawBases = Set((primary + legacy).map(\.baseFilename))
         let standaloneJpgs = loadPhotoItems(
-            in: session.archivedJpgFolderURL,
-            jpgFolderURL: session.archivedJpgFolderURL,
+            in: jpgFolder,
+            jpgFolderURL: jpgFolder,
             cachedTagsByBase: cachedTagsByBase
         ).filter { !rawBases.contains($0.baseFilename) }
         return (primary + legacy + standaloneJpgs).sorted {

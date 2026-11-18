@@ -26,7 +26,7 @@ package struct LiveViewWorkspacePane: View {
     @State private var captureFeedback: String?
     @State private var didAutoSelectMode = false
     @State private var showControlDeck = true
-    @State private var demoSnapshot: CameraControlSnapshot? = .canon70DDemo()
+    @State private var demoSnapshot: CameraControlSnapshot? = nil
 
     private var activeControlSnapshot: CameraControlSnapshot? {
         if let dev = primaryUSBDevice {
@@ -38,7 +38,7 @@ package struct LiveViewWorkspacePane: View {
             }
             return CameraControlSnapshot.adaptiveFallback(
                 for: dev,
-                keepOriginalsOnSD: appState.knownDevicesStore.device(for: dev.fingerprint)?.keepOriginalsOnDevice ?? false
+                keepOriginalsOnSD: appState.knownDevicesStore.device(for: dev.fingerprint)?.keepOriginalsOnDevice ?? true
             )
         }
         return demoSnapshot
@@ -339,19 +339,22 @@ package struct LiveViewWorkspacePane: View {
                     .toggleStyle(.button)
                     .controlSize(.small)
                     .fixedSize()
+                    .help("Mostrar u ocultar cuadrícula de tercios (3×3)")
 
                 Toggle("Espejo", isOn: Binding(get: { live.mirrorHorizontally }, set: { live.mirrorHorizontally = $0 }))
                     .toggleStyle(.button)
                     .controlSize(.small)
                     .fixedSize()
+                    .help("Voltear vista horizontalmente para encuadrar de frente")
 
                 Picker("Guía", selection: Binding(get: { live.aspectGuide }, set: { live.aspectGuide = $0 })) {
                     ForEach(LiveAspectGuide.allCases) { g in Text(g.rawValue).tag(g) }
                 }
                 .labelsHidden()
                 .frame(width: 124)
+                .help("Elegir marco de recorte sobre la vista en vivo")
 
-                if activeControlSnapshot != nil {
+                if primaryUSBDevice != nil || demoSnapshot != nil {
                     Button {
                         withAnimation(.easeInOut(duration: 0.18)) {
                             showControlDeck.toggle()
@@ -361,17 +364,7 @@ package struct LiveViewWorkspacePane: View {
                     }
                     .buttonStyle(StudioButtonStyle(showControlDeck ? .primaryLight : .secondaryDark, compact: true))
                     .fixedSize()
-                    .help("Mostrar u ocultar el panel completo de controles de cámara")
-                } else if primaryUSBDevice == nil {
-                    Button {
-                        demoSnapshot = .canon70DDemo()
-                        showControlDeck = true
-                    } label: {
-                        Label("Demo Controles", systemImage: "slider.horizontal.3")
-                    }
-                    .buttonStyle(StudioButtonStyle(.secondaryDark, compact: true))
-                    .fixedSize()
-                    .help("Abrir vista interactiva de controles Canon EOS 70D sin cámara conectada")
+                    .help("Mostrar u ocultar el panel de controles del dispositivo conectado")
                 }
 
                 Button(isLiveActive ? "Detener Vivo" : "Iniciar Vista en Vivo") {
@@ -379,6 +372,7 @@ package struct LiveViewWorkspacePane: View {
                 }
                 .buttonStyle(StudioButtonStyle(isLiveActive ? .archiveCoral : .primaryLight, compact: true))
                 .fixedSize()
+                .help(isLiveActive ? "Detener transmisión en vivo y bajar espejo" : "Iniciar transmisión de video en vivo")
             }
             .layoutPriority(1)
         }
@@ -426,9 +420,9 @@ package struct LiveViewWorkspacePane: View {
         switch bridgeMode {
         case .usbPTPDirect:
             if let dev = primaryUSBDevice {
-                return "Vista en Vivo USB PTP Directo — \(dev.alias)"
+                return "Vista en Vivo — \(dev.alias)"
             }
-            return "Vista en Vivo Cámara DSLR / Mirrorless por USB PTP"
+            return "Conectá un dispositivo para comenzar"
         case .nativeUVC: return "Vista en Vivo UVC / Continuidad iOS / HDMI-USB"
         case .networkMJPEG: return "Vista en Vivo Android / Cámara IP Wi-Fi (MJPEG)"
         case .classicGPhoto2: return "Vista en Vivo DSLR vía gphoto2 CLI"
@@ -447,7 +441,7 @@ package struct LiveViewWorkspacePane: View {
                 }
                 return "\(dev.alias) está conectada por PTP, pero su fabricante requiere modo 'USB Streaming (UVC)' en la pestaña UVC/HDMI o capturadora HDMI→USB."
             }
-            return "Conectá tu cámara Canon EOS o Nikon por cable USB para transmitir el visor óptico/electrónico directo sin instalar drivers ni utilidades externas."
+            return "Enchufá tu cámara o teléfono por USB para ver la transmisión en vivo y habilitar los controles compatibles con tu equipo."
         case .nativeUVC:
             return "Detecta automáticamente iPhone Continuidad, cámaras con USB Streaming UVC, Android Webcam USB y capturadoras HDMI→USB."
         case .networkMJPEG:

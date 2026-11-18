@@ -42,8 +42,8 @@
 | **Asistente Inicial · Paso 1 (Auditoría de Hardware e IA)** | ![Wizard](assets/screenshots/01-onboarding.png) |
 | **Inicio / Sesiones** | ![Home](assets/screenshots/02-home-dashboard.png) |
 | **Zoom 1:1 Píxel Real** | ![Zoom 1:1](assets/screenshots/04-workspace-zoom-1to1.png) |
-| **Vista en Vivo (Live View UVC / HDMI / gphoto2)** | ![Vista en Vivo](assets/screenshots/10-workspace-live-view.png) |
-| **Archivadas (Recuperar o Eliminar Definitivamente)** | ![Archivadas](assets/screenshots/05-workspace-archived.png) |
+| **Vista en Vivo (Live View USB Directo Canon + UVC / HDMI / Wi-Fi)** | ![Vista en Vivo](assets/screenshots/10-workspace-live-view.png) |
+| **Archivadas (Recuperar a Seleccionadas o Eliminar Definitivamente)** | ![Archivadas](assets/screenshots/05-workspace-archived.png) |
 | **Popover de Confirmación al Eliminar** | ![Popover](assets/screenshots/08-archived-delete-popover.png) |
 | **Centro de Ayuda Interno (`⌘?`)** | ![Ayuda](assets/screenshots/09-help-center.png) |
 | **Administrador USB Plug & Play** | ![Dispositivos](assets/screenshots/06-settings-devices.png) |
@@ -91,24 +91,26 @@ Si elegís mantener activa la IA, el analizador local genera etiquetas al ingres
         └── JPG/              # Contraparte JPG movida automáticamente
 ```
 
-- **Movimiento sincronizado `RAW + JPG`:** Cada vez que aprobás (`→`), archivás (`←`), deshacés (`⌘Z` / `Ctrl+Z`) o recuperás desde `Archivadas`, PhotoPic mueve el par completo manteniendo `RAW/` y `JPG/` clasificados por separado en cada carpeta destino.
-- **Tethering USB, Wi-Fi PTP/IP (Bonjour) y Watchfolder:** Además de USB-C / Thunderbolt 4, soporta detección PTP/IP por Wi-Fi y **Watchfolder en vivo** (`Vincular Carpeta / Wi-Fi...` en macOS y Windows) para transmisores inalámbricos (Air Direct, CamRanger, FTP local).
+- **Movimiento sincronizado `RAW + JPG`:** Cada vez que aprobás (`→`), archivás (`←`), deshacés (`⌘Z` / `Ctrl+Z`), revisás en **`Seleccionadas`** (donde podés devolver fotos a `Filtrar` o moverlas a `Archivadas`) o recuperás desde **`Archivadas`**, PhotoPic mueve el par completo manteniendo `RAW/` y `JPG/` clasificados por separado en cada carpeta destino.
+- **Tethering USB Directo, Wi-Fi PTP/IP (Bonjour) y Carpeta puente:** En macOS incluye enlace directo **`IOUSBHost`** (`DirectCanonUSBPTPService`) para Canon EOS (apertura `< 200ms` sin escanear la SD y soporte para mantener o limpiar originales en tarjeta `0xD11C`), además de **Carpeta puente** en vivo para transmisores inalámbricos (EOS Utility, Capture One, Air Direct, CamRanger, FTP local).
 - **Centro de Ayuda Interno (`?` / `⌘?`):** Guía paso a paso 100% offline dentro de la app, sincronizada con la base documental BRD en [`photopic_ai_agent_docs/`](photopic_ai_agent_docs/docs.md).
 
-Dentro de la pestaña **`Archivadas`** podés elegir entre **`Recuperar para Edición`** o liberar espacio en disco mediante **`Eliminar archivo...`** / **`Vaciar carpeta...`**, protegidos con un **Popover nativo de confirmación** que advierte que el archivo y su `.xmp` se borrarán definitivamente (con opción extra para eliminar también la copia `.JPG` asociada en `JPG/`).
+Dentro de la pestaña **`Seleccionadas`** podés inspeccionar todo lo aprobado en `Para_Edicion/`, abrirlo en Finder o mover cualquier toma a **`Archivadas`** / **`Filtrar`**. En **`Archivadas`** podés elegir entre **`Recuperar a Seleccionadas`** o liberar espacio en disco mediante **`Eliminar archivo...`** / **`Vaciar carpeta...`**, protegidos con un **Popover nativo de confirmación**.
 
-### 5. Vista en Vivo (`Live View`) y Centro de Ayuda Estructurado
-- **Pestaña `Vista en Vivo`:** Combina lo mejor de cada plataforma:
-  - **macOS:** `AVFoundation` nativo para cámaras **UVC USB Streaming**, **Continuity Camera** y **capturadoras HDMI→USB** (30–60 fps sin cortar el tether RAW) + bridge opcional **`gphoto2`** (`brew install gphoto2`) para DSLRs clásicas por un solo cable USB + disparo remoto **`Disparar Cámara (PTP)`**.
+### 5. Vista en Vivo (`Live View`), Controles Adaptativos PTP y Flash de Zapata Seguro
+- **Pestaña `Vista en Vivo` (`v2.6.24`):**
+  - **macOS (`IOUSBHost` + `AVFoundation`):** Enlace USB PTP directo en Canon EOS (`0x9153` Live View sin drivers externos ni `gphoto2`) más panel lateral adaptativo (`0x9116` / `0x9110`) que descubre por hardware qué propiedades y valores están permitidos según cuerpo, dial (`M`/`Av`/`Tv`) y lente (`Velocidad`, `Apertura`, `ISO`, `Comp. EV`, `WB`, `Kelvin`, `Medición`, `Drive`, `Estilo`, `AF/MF`, `Zoom 1×/5×/10×` y `DOF`).
+  - **Protección para Flash Externo de Zapata:** Mantiene cerrado el flash interno por defecto (nunca dispara `0x9131` accidentalmente contra la zapata) e incluye **`Modo Flash Zapata (Bajar Espejo)`** para flashes manuales de 1 pin sin cortar el USB ni perder las descargas al Mac.
+  - **Dispositivos UVC / Acción / Móviles:** Detecta automáticamente **DJI Osmo Action**, **GoPro**, **Continuity Camera (iPhone)** y **Android Webcam / IP Wi-Fi (MJPEG)**, adaptando el panel lateral al tipo de dispositivo conectado.
   - **Windows:** `OpenCV DirectShow` para UVC / HDMI-USB sin reemplazar drivers WPD nativos de Windows.
-  - Incluye **cuadrícula 3×3**, **espejo**, **máscaras de aspecto (`3:2`, `4:5`, `16:9`, `1:1`)** y captura de fotograma de referencia directo a `RAW/`.
 - **Centro de Ayuda con Buscador y Categorías (`?` / `⌘?`):** Filtrado instantáneo por palabras clave y categorías, explicando paso a paso qué sí soporta la app y sus limitaciones reales por sistema operativo.
 
 ### 6. Limitaciones Reales Conocidas
 | Escenario | Qué soporta PhotoPic | Limitación real / Requisito |
 | :--- | :--- | :--- |
-| **Live View USB en DSLRs antiguas (sin HDMI/UVC)** | macOS vía `brew install gphoto2` (opcional) | Apple `ImageCaptureCore` no transmite video Live View; en Windows no se fuerza `WinUSB` (Zadig) para no romper WPD. |
-| **Cámaras inalámbricas** | Bonjour Wi-Fi PTP/IP (macOS) y **Watchfolder Wi-Fi/FTP** | **Bluetooth** no mueve RAWs full quality; en macOS Android USB exige modo **PTP**. |
+| **Controles remotos ISO/Apertura/Flash** | Cámaras Canon EOS vía `IOUSBHost` (`0x9116`/`0x9110`) | Teléfonos iOS/Android y cámaras de acción (`DJI Osmo`, `GoPro`) no exponen diales de exposición ni flash por USB PTP; se ajustan en el dispositivo y el video entra vía `UVC / HDMI` o `Wi-Fi IP`. |
+| **Live View USB en DSLRs clásicas sin HDMI/UVC** | Canon EOS nativo vía `DirectCanonUSBPTPService` (`IOUSBHost`) o `gphoto2` opcional en macOS | Apple `ImageCaptureCore` no transmite video Live View; en Windows no se fuerza `WinUSB` (`Zadig`) para no romper WPD. |
+| **Cámaras inalámbricas** | Bonjour Wi-Fi PTP/IP (macOS) y **Carpeta puente** | **Bluetooth** no mueve RAWs full quality; en macOS Android USB exige modo **PTP**. |
 | **Revelado RAW vs Edición** | Revelado puro GPU `CIRAWFilter` / `LibRaw` + `.xmp` | Es un estudio de captura y culling 1:1, no un editor de color destructivo. |
 
 ---

@@ -19,6 +19,19 @@ package struct StudioButtonStyle: ButtonStyle {
     }
 
     package func makeBody(configuration: Configuration) -> some View {
+        StudioButtonBody(configuration: configuration, variant: variant, compact: compact)
+    }
+}
+
+private struct StudioButtonBody: View {
+    let configuration: ButtonStyle.Configuration
+    let variant: StudioButtonStyle.Variant
+    let compact: Bool
+
+    @State private var isHovered = false
+    @Environment(\.isEnabled) private var isEnabled
+
+    var body: some View {
         configuration.label
             .font(compact ? AppTypography.captionMedium : AppTypography.bodyMedium)
             .foregroundStyle(foregroundColor)
@@ -30,8 +43,15 @@ package struct StudioButtonStyle: ButtonStyle {
                 RoundedRectangle(cornerRadius: AppRadius.md, style: .continuous)
                     .stroke(borderColor, lineWidth: AppSpacing.hairline)
             )
-            .scaleEffect(configuration.isPressed ? AppMotion.pressScale : 1.0)
+            .opacity(isEnabled ? 1.0 : 0.42)
+            .scaleEffect(configuration.isPressed && isEnabled ? AppMotion.pressScale : 1.0)
             .animation(AppMotion.buttonPress, value: configuration.isPressed)
+            .animation(AppMotion.quickEaseOut, value: isHovered)
+            .onHover { isHovered = $0 }
+    }
+
+    private var activeHover: Bool {
+        isEnabled && isHovered
     }
 
     private var foregroundColor: Color {
@@ -46,25 +66,35 @@ package struct StudioButtonStyle: ButtonStyle {
     private func backgroundColor(isPressed: Bool) -> Color {
         switch variant {
         case .primaryLight:
-            return isPressed ? AppColors.primaryActionHover.opacity(0.88) : AppColors.primaryActionFill
+            if isPressed { return AppColors.primaryActionHover.opacity(0.88) }
+            return activeHover ? Color.white : AppColors.primaryActionFill
         case .secondaryDark:
-            return isPressed ? AppColors.controlHover : AppColors.secondaryButtonFill
+            if isPressed { return AppColors.controlHover }
+            return activeHover ? AppColors.controlHover : AppColors.secondaryButtonFill
         case .approveEmerald:
-            return AppColors.approveGreenTint.opacity(isPressed ? 1.4 : 1.0)
+            if isPressed { return AppColors.approveGreenTint.opacity(1.4) }
+            return activeHover ? AppColors.approveGreen.opacity(0.26) : AppColors.approveGreenTint
         case .archiveCoral:
-            return AppColors.archiveRedTint.opacity(isPressed ? 1.4 : 1.0)
+            if isPressed { return AppColors.archiveRedTint.opacity(1.4) }
+            return activeHover ? AppColors.archiveRed.opacity(0.26) : AppColors.archiveRedTint
         case .ghost:
-            return isPressed ? AppColors.elevatedSurface : .clear
+            if isPressed { return AppColors.elevatedSurface }
+            return activeHover ? AppColors.elevatedSurface : .clear
         }
     }
 
     private var borderColor: Color {
         switch variant {
-        case .primaryLight: return .clear
-        case .secondaryDark: return AppColors.borderSubtle
-        case .approveEmerald: return AppColors.approveGreen.opacity(0.35)
-        case .archiveCoral: return AppColors.archiveRed.opacity(0.35)
-        case .ghost: return AppColors.borderSubtle
+        case .primaryLight:
+            return activeHover ? Color.white.opacity(0.4) : .clear
+        case .secondaryDark:
+            return activeHover ? AppColors.borderStrong : AppColors.borderSubtle
+        case .approveEmerald:
+            return AppColors.approveGreen.opacity(activeHover ? 0.65 : 0.35)
+        case .archiveCoral:
+            return AppColors.archiveRed.opacity(activeHover ? 0.65 : 0.35)
+        case .ghost:
+            return activeHover ? AppColors.borderStrong : AppColors.borderSubtle
         }
     }
 }

@@ -57,15 +57,15 @@ PhotoSelect/
 │   ├── PhotoPic/
 │   │   ├── App/                     # PhotoPicApp, AppState
 │   │   ├── DesignSystem/            # AppColors, AppTypography, AppSpacing, AppRadius, AppMotion, PictogrammersIcons
-│   │   ├── Models/                  # PhotoItem, PhotoExifMetadata, PhotoVisionTags, PhotoSession,
+│   │   ├── Models/                  # PhotoItem, PhotoExifMetadata, PhotoVisionTags, PhotoSession, CameraRemoteControlModels,
 │   │   │                            # KnownDevice, ConnectedDeviceState, PerformancePreferences, HelpGuideCatalog*
-│   │   ├── Services/                # BookmarkManager, KnownDevicesStore, DeviceDiscoveryService, TetherCaptureService,
-│   │   │                            # TetherBaselineGate, FolderWatchTetherService, LiveViewCameraService, GPhoto2LiveBridge,
-│   │   │                            # SessionFileManager (+BucketSync), SessionIngestRouter, SessionArchiveCleaner,
+│   │   ├── Services/                # BookmarkManager, KnownDevicesStore, DeviceDiscoveryService, TetherCaptureService, DirectCanonUSBPTPService,
+│   │   │                            # CanonEOSPropertyParser, TetherBaselineGate, FolderWatchTetherService, LiveViewCameraService, GPhoto2LiveBridge,
+│   │   │                            # SessionFileManager (+BucketSync), SessionIngestRouter, SessionArchiveCleaner, USBHardwareMonitor,
 │   │   │                            # RawImageRenderer, ExifMetadataReader, PhotoVisionAnalyzer, PhotoTagStore, HardwareCapabilityAuditor
 │   │   ├── ViewModels/              # HomeViewModel, DeviceManagerViewModel, CullingSessionViewModel (+Actions/Rendering/Vision)
-│   │   └── Views/                   # Onboarding (+GuidedSetupWizardView), Home, Workspace (+LiveViewWorkspacePane, ArchivedDeletePopovers),
-│   │                                # Settings, Help (+HelpCenterView), Components (+HardwareAuditSettingsBlock)
+│   │   └── Views/                   # Onboarding (+GuidedSetupWizardView), Home, Workspace (+LiveViewWorkspacePane, LiveCameraControlDeckView,
+│   │                                # SelectedPhotosView, ArchivedPhotosView, ArchivedDeletePopovers), Settings, Help (+HelpCenterView)
 │   ├── Resources/                   # Info.plist, PhotoPic.entitlements, AppIcon.icns
 │   ├── Scripts/                     # generate_icon.swift, generate_xcodeproj.py, package_macos_app.sh
 │   └── Verification/                # SyntheticDNGGenerator, CorePipelineVerification, HardwareAndArchiveDeleteVerification,

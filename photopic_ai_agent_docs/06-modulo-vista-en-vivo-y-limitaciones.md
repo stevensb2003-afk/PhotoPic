@@ -36,11 +36,11 @@ Permite evaluar encuadre, regla de tercios (`3×3`), guías de aspecto (`3:2`, `
 
 ## 3. Matriz Honesta de Capacidades y Limitaciones Reales [ROL: TODOS]
 
-| Capacidad / Escenario | macOS (`v2.3.0`) | Windows (`v2.3.0`) | Motivo Técnico Exacto |
+| Capacidad / Escenario | macOS (`v2.6.24`) | Windows (`v2.6.24`) | Motivo Técnico Exacto |
 | :--- | :--- | :--- | :--- |
+| **Canon EOS USB Directo (70D y similares)** | Nativo vía `IOUSBHost` (`DirectCanonUSBPTPService`) + controles `0x9116`/`0x9110` | No habilitado por defecto (requeriría Zadig) | Abre sesión sin catalogar toda la SD, transmite EVF `0x9153`, protege flash de zapata (`Modo Espejo Abajo`) y sincroniza destino SD/RAM (`0xD11C`). |
+| **DJI Osmo / GoPro / iPhone / Android** | `UVC / HDMI`, Continuity Camera o `Wi-Fi IP` (panel adaptativo sin diales DSLR) | Nativo (`OpenCV DirectShow`) para UVC / HDMI | Ninguno expone diales de exposición ni flash por USB PTP; el panel lateral se adapta mostrando solo sus capacidades reales. |
 | **UVC / Capturadora HDMI-USB (30–60 fps)** | Nativo (`AVFoundation`) sin instalar nada | Nativo (`OpenCV DirectShow`) sin tocar drivers | Usa canales estándar de cámara de video sin interferir con el tethering RAW. |
-| **Vista en Vivo 1 solo cable USB en DSLRs viejas** | Soportado vía bridge opcional `gphoto2` (`brew install gphoto2`) | No habilitado por defecto | `ImageCaptureCore` no expone stream Live View USB; en Windows usar `libgphoto2` exige reemplazar drivers con **Zadig (`WinUSB`)**, lo que deshabilitaría el tethering nativo WPD. |
-| **Transferencia RAW en vivo por Bluetooth** | No soportado | No soportado | Bluetooth carece de ancho de banda para RAWs; requiere USB, Bonjour PTP/IP o Watchfolder Wi-Fi/FTP. |
+| **Transferencia RAW en vivo por Bluetooth** | No soportado | No soportado | Bluetooth carece de ancho de banda para RAWs; requiere USB, Bonjour PTP/IP o Carpeta puente. |
 | **Android por cable en modo MTP** | Requiere modo **PTP** | Soporta MTP y PTP | macOS `ImageCaptureCore` solo enumera dispositivos PTP; Windows WPD soporta ambos. |
-| **Disparo remoto desde la app** | Botón `Disparar Cámara (PTP)` o `gphoto2` | Cuadro de referencia (disparo desde cámara) | Depende de la capacidad `cameraDeviceCanTakePicture` reportada por el firmware de cada cámara. |
-| **Edición destructiva / revelados permanentes** | Solo previsualización GPU + tags `.xmp` | Solo previsualización LibRaw + tags `.xmp` | PhotoPic clasifica y prepara sesiones; no sustituye a Lightroom, Capture One ni Affinity. |
+| **Edición destructiva / revelados permanentes** | Solo previsualización GPU + tags `.xmp` | Solo previsualización LibRaw + tags `.xmp` | PhotoPic clasifica entre Filtrar, Seleccionadas y Archivadas; no sustituye a Lightroom, Capture One ni Affinity. |

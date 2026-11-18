@@ -363,12 +363,14 @@ package enum HardwareAndArchiveDeleteVerification {
         appendAvailList(prop: 0xD10A, dpdType: 3, values: [5200, 5500])
         appendPropChanged(prop: 0xD129, valueBytes: [0x01, 0x00, 0x00, 0x00]) // SilentShutter Mode 1
         appendPropChanged(prop: 0xD1DC, valueBytes: [0x00, 0x00, 0x00, 0x00]) // StroboFiring enabled
+        appendAvailList(prop: 0xD11C, dpdType: 3, values: [2, 4]) // CaptureDestination SD (2) + Host RAM (4)
         appendPropChanged(prop: 0xD1D8, valueBytes: Array("EF-S 18-55mm f/3.5-5.6 IS STM\0".utf8))
         appendLE32(8, to: &propPacket); appendLE32(0, to: &propPacket)
 
         var parsedSnapshot = CameraControlSnapshot(deviceName: "Canon EOS 70D")
         let didApplyProps = CanonEOSPropertyParser.applyEvents(from: propPacket, into: &parsedSnapshot)
         try assertTrue(didApplyProps, "Canon EOS property events parsed cleanly")
+        try assertTrue(parsedSnapshot.detectedCardCaptureDest == 2, "CaptureDestination SD option (2) detected from 0xD11C AvailListChanged")
         try assertTrue(parsedSnapshot.aeModeLabel == "M (Manual)", "AE Mode label parsed accurately")
         try assertTrue(parsedSnapshot.lensName == "EF-S 18-55mm f/3.5-5.6 IS STM", "Lens name parsed as null-terminated ASCII")
         try assertTrue(parsedSnapshot.controls[.aperture]?.currentLabel == "f/4.0" && parsedSnapshot.controls[.aperture]?.availableOptions.count == 3 && parsedSnapshot.controls[.aperture]?.isWritable == true, "Aperture value and 4-byte stride AvailList parsed cleanly")
@@ -389,6 +391,17 @@ package enum HardwareAndArchiveDeleteVerification {
         try assertTrue(demoSnap.controls[.colorTemperature]?.isWritable == false, "Demo starts with Kelvin locked")
         demoSnap.applyDemoChange(property: .whiteBalance, rawValue: 9)
         try assertTrue(demoSnap.controls[.colorTemperature]?.isWritable == true, "Changing WB to Kelvin unlocks manual Kelvin control")
+
+        let djiState = ConnectedDeviceState(
+            fingerprint: "dji:osmo4",
+            deviceName: "OsmoAction4",
+            alias: "DJI Osmo Action 4",
+            category: .compactAction,
+            status: .connectedReady,
+            usbVendorID: 0x2CA3
+        )
+        let djiFallback = CameraControlSnapshot.adaptiveFallback(for: djiState, keepOriginalsOnSD: true)
+        try assertTrue(djiFallback.controls.isEmpty && djiFallback.deviceCapabilityNotice?.contains("DJI Osmo") == true, "DJI Osmo Action 4 falls back adaptively to UVC/HDMI notice without DSLR dials")
 
         let autoRoot = rootURL.appendingPathComponent("AutoQuickRoot", isDirectory: true)
         try FileManager.default.createDirectory(at: autoRoot, withIntermediateDirectories: true)

@@ -45,7 +45,7 @@ package struct HomeFilterAndGroupBar: View {
                     Image(systemName: "magnifyingglass")
                         .font(AppTypography.caption)
                         .foregroundStyle(AppColors.textTertiary)
-                    TextField("Buscar sesión, carpeta máster o etiqueta...", text: $searchQuery)
+                    TextField("Buscar sesión, grupo o etiqueta...", text: $searchQuery)
                         .textFieldStyle(.plain)
                         .font(AppTypography.body)
                         .foregroundStyle(AppColors.textPrimary)
@@ -58,6 +58,7 @@ package struct HomeFilterAndGroupBar: View {
                                 .foregroundStyle(AppColors.textTertiary)
                         }
                         .buttonStyle(.plain)
+                        .help("Limpiar búsqueda")
                     }
                 }
                 .padding(.horizontal, AppSpacing.md)
@@ -72,20 +73,21 @@ package struct HomeFilterAndGroupBar: View {
                 Button {
                     isPresentingNewGroupPopover.toggle()
                 } label: {
-                    Label("Nueva Carpeta Máster", systemImage: "folder.badge.plus")
+                    Label("Crear grupo", systemImage: "folder.badge.plus")
                 }
                 .buttonStyle(StudioButtonStyle(.secondaryDark, compact: true))
+                .help("Crear un grupo para organizar sesiones")
                 .popover(isPresented: $isPresentingNewGroupPopover, arrowEdge: .bottom) {
                     VStack(alignment: .leading, spacing: AppSpacing.sm) {
-                        Text("Crear Carpeta Máster de Sesiones")
+                        Text("Crear grupo")
                             .font(AppTypography.captionMedium)
                             .foregroundStyle(AppColors.textPrimary)
-                        Text("Crea una carpeta contenedora en tu Raíz Global para agrupar sesiones (ej. Sesiones Navideñas 2026).")
+                        Text("Agrupá sesiones de un mismo cliente, campaña o evento.")
                             .font(AppTypography.caption)
                             .foregroundStyle(AppColors.textSecondary)
                             .fixedSize(horizontal: false, vertical: true)
                         HStack(spacing: AppSpacing.xs) {
-                            TextField("Ej. Sesiones Navideñas 2026", text: $newGroupDraft)
+                            TextField("Ej. Bodas 2026", text: $newGroupDraft)
                                 .textFieldStyle(.roundedBorder)
                                 .onSubmit { submitGroup() }
                             Button("Crear") { submitGroup() }
@@ -101,32 +103,35 @@ package struct HomeFilterAndGroupBar: View {
             if !masterGroups.isEmpty || !availableTags.isEmpty {
                 ScrollView(.horizontal, showsIndicators: false) {
                     HStack(spacing: AppSpacing.xs) {
-                        filterPill(
+                        GroupFilterPill(
                             title: "Todas (\(totalSessionCount))",
                             icon: "square.grid.2x2",
                             isSelected: groupFilter == .all
                         ) {
                             groupFilter = .all
                         }
+                        .help("Ver todos los grupos y sesiones")
 
                         if hasUngroupedSessions && !masterGroups.isEmpty {
-                            filterPill(
-                                title: "Sin grupo (Raíz)",
-                                icon: "folder",
+                            GroupFilterPill(
+                                title: "Sin grupo",
+                                icon: "tray",
                                 isSelected: groupFilter == .ungrouped
                             ) {
                                 groupFilter = (groupFilter == .ungrouped) ? .all : .ungrouped
                             }
+                            .help("Mostrar solo sesiones sin grupo")
                         }
 
                         ForEach(masterGroups, id: \.self) { group in
-                            filterPill(
+                            GroupFilterPill(
                                 title: "\(group) (\(groupSessionCount(group)))",
-                                icon: "folder.fill",
+                                icon: "rectangle.stack.fill",
                                 isSelected: groupFilter == .group(group)
                             ) {
                                 groupFilter = (groupFilter == .group(group)) ? .all : .group(group)
                             }
+                            .help("Entrar al grupo \(group)")
                         }
 
                         if !availableTags.isEmpty {
@@ -136,25 +141,10 @@ package struct HomeFilterAndGroupBar: View {
 
                             ForEach(availableTags, id: \.self) { tag in
                                 let isTagActive = selectedTagFilter?.caseInsensitiveCompare(tag) == .orderedSame
-                                Button {
+                                TagFilterPill(tag: tag, isActive: isTagActive) {
                                     selectedTagFilter = isTagActive ? nil : tag
-                                } label: {
-                                    Text("#\(tag)")
-                                        .font(AppTypography.monoMicro)
-                                        .foregroundStyle(isTagActive ? AppColors.infoBlue : AppColors.textSecondary)
-                                        .padding(.horizontal, AppSpacing.sm)
-                                        .padding(.vertical, AppSpacing.xxs)
-                                        .background(isTagActive ? AppColors.infoBlueTint : AppColors.panelSurface)
-                                        .clipShape(Capsule())
-                                        .overlay(
-                                            Capsule()
-                                                .stroke(
-                                                    isTagActive ? AppColors.infoBlue.opacity(0.6) : AppColors.borderSubtle,
-                                                    lineWidth: AppSpacing.hairline
-                                                )
-                                        )
                                 }
-                                .buttonStyle(.plain)
+                                .help("Filtrar sesiones con la etiqueta #\(tag)")
                             }
                         }
                     }
@@ -164,7 +154,24 @@ package struct HomeFilterAndGroupBar: View {
         }
     }
 
-    private func filterPill(title: String, icon: String, isSelected: Bool, action: @escaping () -> Void) -> some View {
+    private func submitGroup() {
+        let trimmed = newGroupDraft.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !trimmed.isEmpty else { return }
+        onCreateMasterGroup(trimmed)
+        newGroupDraft = ""
+        isPresentingNewGroupPopover = false
+    }
+}
+
+private struct GroupFilterPill: View {
+    let title: String
+    let icon: String
+    let isSelected: Bool
+    let action: () -> Void
+
+    @State private var isHovered = false
+
+    var body: some View {
         Button(action: action) {
             HStack(spacing: AppSpacing.xxs) {
                 Image(systemName: icon)
@@ -172,24 +179,46 @@ package struct HomeFilterAndGroupBar: View {
                 Text(title)
                     .font(AppTypography.captionMedium)
             }
-            .foregroundStyle(isSelected ? AppColors.textPrimary : AppColors.textSecondary)
+            .foregroundStyle(isSelected || isHovered ? AppColors.textPrimary : AppColors.textSecondary)
             .padding(.horizontal, AppSpacing.sm)
             .padding(.vertical, AppSpacing.xxs)
-            .background(isSelected ? AppColors.elevatedSurface : AppColors.panelSurface)
+            .background(isSelected ? AppColors.elevatedSurface : (isHovered ? AppColors.controlHover : AppColors.panelSurface))
             .clipShape(Capsule())
             .overlay(
                 Capsule()
-                    .stroke(isSelected ? AppColors.borderStrong : AppColors.borderSubtle, lineWidth: AppSpacing.hairline)
+                    .stroke(isSelected || isHovered ? AppColors.borderStrong : AppColors.borderSubtle, lineWidth: AppSpacing.hairline)
             )
         }
         .buttonStyle(.plain)
+        .onHover { isHovered = $0 }
     }
+}
 
-    private func submitGroup() {
-        let trimmed = newGroupDraft.trimmingCharacters(in: .whitespacesAndNewlines)
-        guard !trimmed.isEmpty else { return }
-        onCreateMasterGroup(trimmed)
-        newGroupDraft = ""
-        isPresentingNewGroupPopover = false
+private struct TagFilterPill: View {
+    let tag: String
+    let isActive: Bool
+    let action: () -> Void
+
+    @State private var isHovered = false
+
+    var body: some View {
+        Button(action: action) {
+            Text("#\(tag)")
+                .font(AppTypography.monoMicro)
+                .foregroundStyle(isActive ? AppColors.infoBlue : (isHovered ? AppColors.textPrimary : AppColors.textSecondary))
+                .padding(.horizontal, AppSpacing.sm)
+                .padding(.vertical, AppSpacing.xxs)
+                .background(isActive ? AppColors.infoBlueTint : (isHovered ? AppColors.controlHover : AppColors.panelSurface))
+                .clipShape(Capsule())
+                .overlay(
+                    Capsule()
+                        .stroke(
+                            isActive ? AppColors.infoBlue.opacity(0.6) : (isHovered ? AppColors.borderStrong : AppColors.borderSubtle),
+                            lineWidth: AppSpacing.hairline
+                        )
+                )
+        }
+        .buttonStyle(.plain)
+        .onHover { isHovered = $0 }
     }
 }

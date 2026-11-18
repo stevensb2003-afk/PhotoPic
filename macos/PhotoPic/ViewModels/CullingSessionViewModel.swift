@@ -6,12 +6,14 @@ import Observation
 package enum WorkspaceTab: String, CaseIterable, Sendable {
     case cullPending
     case liveView
+    case forEditing
     case archived
 
     package var title: String {
         switch self {
-        case .cullPending: return "Filtrar (Pendientes)"
+        case .cullPending: return "Filtrar"
         case .liveView: return "Vista en Vivo"
+        case .forEditing: return "Seleccionadas"
         case .archived: return "Archivadas"
         }
     }
@@ -55,6 +57,7 @@ package final class CullingSessionViewModel {
 
     package internal(set) var session: PhotoSession
     package internal(set) var pendingItems: [PhotoItem] = []
+    package internal(set) var forEditingItems: [PhotoItem] = []
     package internal(set) var archivedItems: [PhotoItem] = []
     package internal(set) var currentIndex: Int = 0
     package var activeTab: WorkspaceTab = .cullPending
@@ -86,7 +89,10 @@ package final class CullingSessionViewModel {
     package internal(set) var activeRenderedItemID: String?
     package internal(set) var isAnalyzingVision: Bool = false
 
-    // Archived inspector
+    // Selected (Para_Edicion) & Archived inspectors
+    package var selectedEditingID: String?
+    package internal(set) var editingPreviewImage: CGImage?
+    package internal(set) var isRenderingEditingPreview: Bool = false
     package var selectedArchivedID: String?
     package internal(set) var archivedPreviewImage: CGImage?
     package internal(set) var archivedThumbnails: [String: CGImage] = [:]
@@ -147,6 +153,13 @@ package final class CullingSessionViewModel {
         return items[currentIndex]
     }
 
+    package var selectedEditingItem: PhotoItem? {
+        if let id = selectedEditingID, let match = forEditingItems.first(where: { $0.id == id }) {
+            return match
+        }
+        return forEditingItems.first
+    }
+
     package var selectedArchivedItem: PhotoItem? {
         if let id = selectedArchivedID, let match = archivedItems.first(where: { $0.id == id }) {
             return match
@@ -169,6 +182,10 @@ package final class CullingSessionViewModel {
             jpgFolderURL: session.jpgFolderURL,
             cachedTagsByBase: tagMap
         )
+        forEditingItems = SessionFileManager.loadForEditingItems(
+            in: session,
+            cachedTagsByBase: tagMap
+        )
         archivedItems = SessionFileManager.loadArchivedItems(
             in: session,
             cachedTagsByBase: tagMap
@@ -177,6 +194,9 @@ package final class CullingSessionViewModel {
         session.metadata = SessionMetadataStore.load(for: session.directoryURL)
         syncTimerTicker()
         clampCurrentIndex()
+        if selectedEditingID == nil || !forEditingItems.contains(where: { $0.id == selectedEditingID }) {
+            selectedEditingID = forEditingItems.first?.id
+        }
         if selectedArchivedID == nil || !archivedItems.contains(where: { $0.id == selectedArchivedID }) {
             selectedArchivedID = archivedItems.first?.id
         }
@@ -217,6 +237,9 @@ package final class CullingSessionViewModel {
             case .separatedCompanionJpg(let destURL, let matchedBase):
                 if let idx = pendingItems.firstIndex(where: { $0.baseFilename == matchedBase }) {
                     pendingItems[idx].pairedCompressedURL = destURL
+                }
+                if let editIdx = forEditingItems.firstIndex(where: { $0.baseFilename == matchedBase }) {
+                    forEditingItems[editIdx].pairedCompressedURL = destURL
                 }
                 if let archIdx = archivedItems.firstIndex(where: { $0.baseFilename == matchedBase }) {
                     archivedItems[archIdx].pairedCompressedURL = destURL

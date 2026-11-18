@@ -34,7 +34,7 @@ package struct PhotoPicApp: App {
         .defaultSize(width: 1360, height: 860)
         .commands {
             CommandGroup(replacing: .newItem) {
-                Button("Nueva Sesión de Filtrado...") {
+                Button("Nueva sesión...") {
                     if appState.activeSessionViewModel == nil && !appState.needsOnboarding {
                         appState.homeViewModel.prepareNewSessionSheet()
                     }
