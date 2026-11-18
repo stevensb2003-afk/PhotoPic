@@ -124,6 +124,7 @@ Dentro de la pestaña **`Seleccionadas`** podés inspeccionar todo lo aprobado e
 | **`←`** o **Swipe Izquierda** | Archivar foto (mueve físicamente de `RAW/` a `Archivadas/`) |
 | **`↑` / `↓`** | Navegar libremente por la cola sin mover archivos |
 | **`Espacio`** o **Clic sostenido + arrastrar** | Zoom **1:1 píxel real** sobre el sensor revelado para revisar foco crítico |
+| **`Shift`** *(toque rápido)* | Rotar foto **90° a la derecha** y guardar la orientación directo en el archivo (`RAW + JPG` y `.xmp`) para Finder / Lightroom |
 | **`⌘I`** *(Mac)* | Importar carpeta existente del Mac y segregar `RAW / JPG` con IA |
 | **`⌘Z`** *(Mac)* / **`Ctrl+Z`** *(Win)* | Deshacer última clasificación (restaura el RAW y su `.xmp` a `RAW/`) |
 

@@ -464,6 +464,44 @@ package enum CorePipelineVerification {
             "Session named RAW inside group must be loaded under its group with real counts"
         )
 
-        print("[PASS] 7. Folder session import (2-pass RAW/JPG segregation, collision stems, XMP copy/move, standalone JPG roundtrip & manual batch Vision AI)")
+        // Rename session & rename master group directly on disk
+        guard let rawSessionToRename = discoveredSessions.first(where: { $0.name == "RAW" && $0.groupName == christmasGroup }) else {
+            throw NSError(domain: "PhotoPicVerify", code: 104, userInfo: [NSLocalizedDescriptionKey: "Expected RAW session inside group"])
+        }
+        let renamedSession = try SessionFileManager.renameSession(rawSessionToRename, to: "Familia_Navidad", in: rootURL)
+        try assertTrue(renamedSession.name == "Familia_Navidad" && fm.fileExists(atPath: renamedSession.directoryURL.path), "Session rename failed on disk")
+        let renamedGroup = try SessionFileManager.renameMasterGroup(named: christmasGroup, to: "Navidad_2026", in: rootURL)
+        try assertTrue(renamedGroup == "Navidad_2026", "Group rename returned unexpected name")
+        let afterRenameSessions = SessionFileManager.loadSessions(in: rootURL)
+        try assertTrue(
+            afterRenameSessions.contains(where: { $0.name == "Familia_Navidad" && $0.groupName == "Navidad_2026" && $0.counts.pending == 1 }),
+            "Renamed group + session must reload cleanly from disk"
+        )
+
+        // Persistent lossless 90° clockwise rotation on RAW (DNG) + paired JPG + CIRAWFilter dimension verification
+        let rotSession = try SessionFileManager.createSession(named: "Rotation_Proof", in: rootURL)
+        let rotDng = rotSession.rawFolderURL.appendingPathComponent("ROT_01.DNG")
+        let rotJpg = rotSession.jpgFolderURL.appendingPathComponent("ROT_01.JPG")
+        try SyntheticDNGGenerator.writeSyntheticDNG(to: rotDng, width: 320, height: 240)
+        try SyntheticDNGGenerator.writeSyntheticJPEGWithExif(to: rotJpg, iso: 200, aperture: 2.8, exposureSeconds: 1.0 / 250.0)
+        let rotItem = PhotoItem(fileURL: rotDng, pairedCompressedURL: rotJpg)
+
+        let o1 = try PhotoOrientationService.rotateClockwise90(item: rotItem)
+        try assertTrue(o1 == 6, "First clockwise rotation must set EXIF orientation 6")
+        try assertTrue(PhotoOrientationService.readOrientation(at: rotDng) == 6, "DNG orientation 6 must persist on disk")
+        try assertTrue(PhotoOrientationService.readOrientation(at: rotJpg) == 6, "Paired JPG orientation 6 must persist on disk")
+
+        let rotRenderer = RawImageRenderer()
+        let rotatedPayload = await rotRenderer.renderViewportImage(for: rotItem, maxDimension: 1280)
+        try assertTrue(
+            rotatedPayload?.cgImage.width == 240 && rotatedPayload?.cgImage.height == 320,
+            "CIRAWFilter must render rotated 240x320 dimensions after persisted DNG rotation"
+        )
+        _ = try PhotoOrientationService.rotateClockwise90(item: rotItem) // 3
+        _ = try PhotoOrientationService.rotateClockwise90(item: rotItem) // 8
+        let o4 = try PhotoOrientationService.rotateClockwise90(item: rotItem) // 1
+        try assertTrue(o4 == 1 && PhotoOrientationService.readOrientation(at: rotDng) == 1, "Full 360° cycle must return orientation to 1")
+
+        print("[PASS] 7. Folder session import, group/session rename on disk, and persistent Shift 90° RAW+JPG rotation")
     }
 }

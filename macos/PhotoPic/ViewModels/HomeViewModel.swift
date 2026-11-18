@@ -276,6 +276,36 @@ package final class HomeViewModel {
     }
 
     @discardableResult
+    package func renameSession(_ session: PhotoSession, to newName: String, in rootURL: URL) -> PhotoSession? {
+        do {
+            let renamed = try SessionFileManager.renameSession(session, to: newName, in: rootURL)
+            reloadSessions(in: rootURL)
+            errorMessage = nil
+            return renamed
+        } catch {
+            errorMessage = error.localizedDescription
+            return nil
+        }
+    }
+
+    @discardableResult
+    package func renameMasterGroup(named oldName: String, to newName: String, in rootURL: URL) -> String? {
+        do {
+            let renamed = try SessionFileManager.renameMasterGroup(named: oldName, to: newName, in: rootURL)
+            if case .group(let active) = groupFilter,
+               active.caseInsensitiveCompare(oldName) == .orderedSame {
+                groupFilter = .group(renamed)
+            }
+            reloadSessions(in: rootURL)
+            errorMessage = nil
+            return renamed
+        } catch {
+            errorMessage = error.localizedDescription
+            return nil
+        }
+    }
+
+    @discardableResult
     package func permanentlyDeleteSession(_ session: PhotoSession, in rootURL: URL) -> Bool {
         do {
             try SessionFileManager.permanentlyDeleteSession(session, in: rootURL)

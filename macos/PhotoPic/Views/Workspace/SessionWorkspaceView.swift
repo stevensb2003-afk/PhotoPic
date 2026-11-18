@@ -7,6 +7,7 @@ package struct SessionWorkspaceView: View {
     @Bindable var appState: AppState
     @Bindable var viewModel: CullingSessionViewModel
     @State private var keyMonitor: Any?
+    @State private var shiftTracker = ShiftTapTracker()
 
     package init(appState: AppState, viewModel: CullingSessionViewModel) {
         self.appState = appState
@@ -109,7 +110,34 @@ package struct SessionWorkspaceView: View {
 
     private func installKeyMonitor() {
         removeKeyMonitor()
-        keyMonitor = NSEvent.addLocalMonitorForEvents(matching: .keyDown) { event in
+        let tracker = shiftTracker
+        keyMonitor = NSEvent.addLocalMonitorForEvents(matching: [.keyDown, .flagsChanged]) { event in
+            if event.type == .flagsChanged {
+                MainActor.assumeIsolated {
+                    let mods = event.modifierFlags.intersection([.shift, .command, .option, .control])
+                    if mods == .shift {
+                        tracker.isArmed = true
+                    } else if mods.isEmpty && tracker.isArmed {
+                        tracker.isArmed = false
+                        guard !appState.isPresentingSettings,
+                              !appState.isPresentingHelp,
+                              viewModel.activeTab != .liveView,
+                              NSApp.keyWindow?.sheets.isEmpty != false,
+                              !(NSApp.keyWindow?.firstResponder is NSTextView) else {
+                            return
+                        }
+                        viewModel.rotateActivePhotoClockwise()
+                    } else {
+                        tracker.isArmed = false
+                    }
+                }
+                return event
+            }
+
+            MainActor.assumeIsolated {
+                tracker.isArmed = false
+            }
+
             let blockedModifiers: NSEvent.ModifierFlags = [.command, .control, .option]
             guard event.modifierFlags.intersection(blockedModifiers).isEmpty else {
                 return event
@@ -349,4 +377,9 @@ private struct WorkspaceTabPillButton: View {
         .onHover { isHovered = $0 }
         .help(helpText)
     }
+}
+
+@MainActor
+private final class ShiftTapTracker {
+    var isArmed = false
 }

@@ -147,6 +147,14 @@ package struct ArchivedPhotosView: View {
                     Spacer()
 
                     Button {
+                        viewModel.rotatePhotoClockwise(selected)
+                    } label: {
+                        Label("Rotar", systemImage: "rotate.right")
+                    }
+                    .buttonStyle(StudioButtonStyle(.secondaryDark))
+                    .help("Rotar 90° a la derecha y guardar en el archivo (Shift)")
+
+                    Button {
                         isConfirmingSingleDelete = true
                     } label: {
                         HStack(spacing: AppSpacing.xs) {

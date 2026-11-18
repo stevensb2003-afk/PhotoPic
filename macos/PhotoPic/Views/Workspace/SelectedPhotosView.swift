@@ -156,6 +156,14 @@ package struct SelectedPhotosView: View {
                     Spacer()
 
                     Button {
+                        viewModel.rotatePhotoClockwise(selected)
+                    } label: {
+                        Label("Rotar", systemImage: "rotate.right")
+                    }
+                    .buttonStyle(StudioButtonStyle(.secondaryDark))
+                    .help("Rotar 90° a la derecha y guardar en el archivo (Shift)")
+
+                    Button {
                         viewModel.returnEditingItemToPending(selected)
                     } label: {
                         Label("Devolver a Filtrar", systemImage: "arrow.uturn.backward")

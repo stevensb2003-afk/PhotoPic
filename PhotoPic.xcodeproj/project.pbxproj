@@ -42,6 +42,7 @@
 		56870038CB102244450F8396 = {isa = PBXBuildFile; fileRef = B54FF802DCA2C62D0581378B; };
 		7E44E71D1D310D94B9DDF502 = {isa = PBXBuildFile; fileRef = 8BC5798ADCFA19B136985E78; };
 		D2075212B8C8DA8F5DB54220 = {isa = PBXBuildFile; fileRef = D9D6827AB263DA51ACF14AAD; };
+		1207FD0C1814C84BB8EA839A = {isa = PBXBuildFile; fileRef = 210B6AB595CAF18EBE4F9F45; };
 		FC2E29F01D223E4E1FAB1CFF = {isa = PBXBuildFile; fileRef = F7E693B853B4CE2C537B2D77; };
 		3C3F414171842DD7202E05F2 = {isa = PBXBuildFile; fileRef = 2E39806B1C1FAAF28A2588E6; };
 		268D2BC7DDCD8C0705D8C28C = {isa = PBXBuildFile; fileRef = C360E583E2FE4ADBF7E3FC1D; };
@@ -144,6 +145,7 @@
 		B54FF802DCA2C62D0581378B = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = "LiveViewCameraService.swift"; path = "macos/PhotoPic/Services/LiveViewCameraService.swift"; sourceTree = "<group>"; };
 		8BC5798ADCFA19B136985E78 = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = "NetworkMJPEGStreamService.swift"; path = "macos/PhotoPic/Services/NetworkMJPEGStreamService.swift"; sourceTree = "<group>"; };
 		D9D6827AB263DA51ACF14AAD = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = "PTPLiveViewService.swift"; path = "macos/PhotoPic/Services/PTPLiveViewService.swift"; sourceTree = "<group>"; };
+		210B6AB595CAF18EBE4F9F45 = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = "PhotoOrientationService.swift"; path = "macos/PhotoPic/Services/PhotoOrientationService.swift"; sourceTree = "<group>"; };
 		F7E693B853B4CE2C537B2D77 = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = "PhotoTagStore.swift"; path = "macos/PhotoPic/Services/PhotoTagStore.swift"; sourceTree = "<group>"; };
 		2E39806B1C1FAAF28A2588E6 = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = "PhotoVisionAnalyzer.swift"; path = "macos/PhotoPic/Services/PhotoVisionAnalyzer.swift"; sourceTree = "<group>"; };
 		C360E583E2FE4ADBF7E3FC1D = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = "RawImageRenderer.swift"; path = "macos/PhotoPic/Services/RawImageRenderer.swift"; sourceTree = "<group>"; };
@@ -278,6 +280,7 @@
 				B54FF802DCA2C62D0581378B,
 				8BC5798ADCFA19B136985E78,
 				D9D6827AB263DA51ACF14AAD,
+				210B6AB595CAF18EBE4F9F45,
 				F7E693B853B4CE2C537B2D77,
 				2E39806B1C1FAAF28A2588E6,
 				C360E583E2FE4ADBF7E3FC1D,
@@ -387,6 +390,7 @@
 				56870038CB102244450F8396,
 				7E44E71D1D310D94B9DDF502,
 				D2075212B8C8DA8F5DB54220,
+				1207FD0C1814C84BB8EA839A,
 				FC2E29F01D223E4E1FAB1CFF,
 				3C3F414171842DD7202E05F2,
 				268D2BC7DDCD8C0705D8C28C,

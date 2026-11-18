@@ -168,6 +168,96 @@ extension SessionFileManager {
         return updated
     }
 
+    /// Renames a session directory directly on disk (Finder / Explorer compatible),
+    /// supporting case-only renames on case-insensitive filesystems like APFS.
+    @discardableResult
+    package static func renameSession(
+        _ session: PhotoSession,
+        to rawNewName: String,
+        in rootURL: URL
+    ) throws -> PhotoSession {
+        let sanitized = sanitizeSessionName(rawNewName)
+        guard !sanitized.isEmpty else {
+            throw SessionFileError.invalidSessionName
+        }
+
+        let fm = FileManager.default
+        let rootStd = rootURL.resolvingSymlinksInPath().standardizedFileURL.path
+        let sourceStd = session.directoryURL.resolvingSymlinksInPath().standardizedFileURL.path
+        guard !rootStd.isEmpty,
+              rootStd != "/",
+              sourceStd.hasPrefix(rootStd + "/"),
+              isSessionDirectory(at: session.directoryURL) else {
+            throw SessionFileError.unsafeDeleteTarget
+        }
+
+        let currentName = session.directoryURL.lastPathComponent
+        if sanitized == currentName {
+            return session
+        }
+
+        let parentURL = session.directoryURL.deletingLastPathComponent()
+        let destinationURL: URL
+        if sanitized.lowercased() == currentName.lowercased() {
+            let tempURL = uniqueDirectoryURL(in: parentURL, preferredName: ".photopic_rename_\(UUID().uuidString)")
+            try fm.moveItem(at: session.directoryURL, to: tempURL)
+            destinationURL = parentURL.appendingPathComponent(sanitized, isDirectory: true)
+            try fm.moveItem(at: tempURL, to: destinationURL)
+        } else {
+            destinationURL = uniqueDirectoryURL(in: parentURL, preferredName: sanitized)
+            try fm.moveItem(at: session.directoryURL, to: destinationURL)
+        }
+
+        var updated = PhotoSession(
+            name: destinationURL.lastPathComponent,
+            directoryURL: destinationURL,
+            createdAt: session.createdAt,
+            groupName: session.groupName,
+            metadata: SessionMetadataStore.load(for: destinationURL)
+        )
+        updated.counts = readDiskCounts(for: updated)
+        return updated
+    }
+
+    /// Renames a Master Group folder directly on disk so Finder / Explorer stay in sync.
+    @discardableResult
+    package static func renameMasterGroup(
+        named oldGroupName: String,
+        to rawNewName: String,
+        in rootURL: URL
+    ) throws -> String {
+        let sanitized = sanitizeSessionName(rawNewName)
+        guard !sanitized.isEmpty else {
+            throw SessionFileError.invalidGroupName
+        }
+        if sanitized == oldGroupName {
+            return oldGroupName
+        }
+
+        let fm = FileManager.default
+        let oldURL = rootURL.appendingPathComponent(oldGroupName, isDirectory: true)
+        var isDir: ObjCBool = false
+        guard fm.fileExists(atPath: oldURL.path, isDirectory: &isDir),
+              isDir.boolValue,
+              !isSessionDirectory(at: oldURL) else {
+            throw SessionFileError.invalidGroupName
+        }
+
+        let targetURL: URL
+        if sanitized.lowercased() == oldGroupName.lowercased() {
+            let tempURL = uniqueDirectoryURL(in: rootURL, preferredName: ".photopic_group_rename_\(UUID().uuidString)")
+            try fm.moveItem(at: oldURL, to: tempURL)
+            targetURL = rootURL.appendingPathComponent(sanitized, isDirectory: true)
+            try fm.moveItem(at: tempURL, to: targetURL)
+        } else {
+            targetURL = uniqueDirectoryURL(in: rootURL, preferredName: sanitized)
+            try fm.moveItem(at: oldURL, to: targetURL)
+        }
+
+        writeGroupMarkerIfNeeded(in: targetURL)
+        return targetURL.lastPathComponent
+    }
+
     /// Permanently removes a session directory and all its photos from disk after verifying
     /// strict containment inside `rootURL` at valid depth (flat or inside a Master Group).
     package static func permanentlyDeleteSession(_ session: PhotoSession, in rootURL: URL) throws {

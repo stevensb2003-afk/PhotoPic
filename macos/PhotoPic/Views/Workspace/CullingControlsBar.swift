@@ -12,48 +12,48 @@ package struct CullingControlsBar: View {
     }
 
     package var body: some View {
-        ZStack {
-            // Left & Right Anchors
-            HStack(spacing: AppSpacing.sm) {
-                HStack(spacing: AppSpacing.xs) {
-                    Button {
-                        viewModel.toggleLockedOneToOneZoom()
-                    } label: {
-                        HStack(spacing: AppSpacing.xs) {
-                            Image(systemName: viewModel.isAnyZoomActive ? "minus.magnifyingglass" : "plus.magnifyingglass")
-                            Text("Zoom 1:1")
-                            KeycapBadge("Espacio")
-                        }
+        HStack(spacing: AppSpacing.sm) {
+            // Left utilities: Zoom 1:1, Rotate (Shift), Undo (⌘Z)
+            HStack(spacing: AppSpacing.xs) {
+                Button {
+                    viewModel.toggleLockedOneToOneZoom()
+                } label: {
+                    HStack(spacing: AppSpacing.xs) {
+                        Image(systemName: viewModel.isAnyZoomActive ? "minus.magnifyingglass" : "plus.magnifyingglass")
+                        Text("Zoom 1:1")
+                        KeycapBadge("Espacio")
                     }
-                    .buttonStyle(StudioButtonStyle(viewModel.isAnyZoomActive ? .primaryLight : .secondaryDark, compact: true))
-                    .disabled(viewModel.currentPendingItem == nil)
-                    .help("Alternar Zoom 1:1 real sobre el sensor (Espacio)")
+                }
+                .buttonStyle(StudioButtonStyle(viewModel.isAnyZoomActive ? .primaryLight : .secondaryDark, compact: true))
+                .disabled(viewModel.currentPendingItem == nil)
+                .help("Alternar Zoom 1:1 real sobre el sensor (Espacio)")
 
-                    Button {
-                        viewModel.undoLastMove()
-                    } label: {
-                        HStack(spacing: AppSpacing.xs) {
-                            Image(systemName: "arrow.uturn.backward")
-                            Text("Deshacer")
-                            KeycapBadge("⌘Z")
-                        }
+                Button {
+                    viewModel.rotateActivePhotoClockwise()
+                } label: {
+                    HStack(spacing: AppSpacing.xs) {
+                        Image(systemName: "rotate.right")
+                        KeycapBadge("Shift")
                     }
-                    .buttonStyle(StudioButtonStyle(.ghost, compact: true))
-                    .disabled(!viewModel.canUndo)
-                    .help("Deshacer última clasificación (⌘Z)")
                 }
+                .buttonStyle(StudioButtonStyle(.secondaryDark, compact: true))
+                .disabled(viewModel.currentPendingItem == nil)
+                .help("Rotar 90° a la derecha y guardar en el archivo (Shift)")
 
-                Spacer()
-
-                Toggle(isOn: $viewModel.followLatestCapture) {
-                    Label("Seguir última captura", systemImage: "bolt.horizontal.circle")
-                        .font(AppTypography.captionMedium)
-                        .foregroundStyle(AppColors.textSecondary)
+                Button {
+                    viewModel.undoLastMove()
+                } label: {
+                    HStack(spacing: AppSpacing.xs) {
+                        Image(systemName: "arrow.uturn.backward")
+                        KeycapBadge("⌘Z")
+                    }
                 }
-                .toggleStyle(.switch)
-                .controlSize(.small)
-                .help("Saltar automáticamente a cada nueva foto recibida")
+                .buttonStyle(StudioButtonStyle(.ghost, compact: true))
+                .disabled(!viewModel.canUndo)
+                .help("Deshacer última clasificación (⌘Z)")
             }
+
+            Spacer(minLength: AppSpacing.sm)
 
             // Centered 4 Uniform Action Controls
             HStack(spacing: AppSpacing.xs) {
@@ -64,7 +64,7 @@ package struct CullingControlsBar: View {
                         KeycapBadge("←")
                         Text("Archivar")
                     }
-                    .frame(width: 96)
+                    .frame(width: 92)
                 }
                 .buttonStyle(StudioButtonStyle(.archiveCoral, compact: true))
                 .disabled(viewModel.currentPendingItem == nil)
@@ -77,7 +77,7 @@ package struct CullingControlsBar: View {
                         KeycapBadge("↑")
                         Text("Anterior")
                     }
-                    .frame(width: 96)
+                    .frame(width: 92)
                 }
                 .buttonStyle(StudioButtonStyle(.secondaryDark, compact: true))
                 .disabled(viewModel.currentIndex <= 0 || viewModel.pendingItems.isEmpty)
@@ -90,7 +90,7 @@ package struct CullingControlsBar: View {
                         KeycapBadge("↓")
                         Text("Siguiente")
                     }
-                    .frame(width: 96)
+                    .frame(width: 92)
                 }
                 .buttonStyle(StudioButtonStyle(.secondaryDark, compact: true))
                 .disabled(viewModel.currentIndex + 1 >= viewModel.visiblePendingItems.count)
@@ -103,12 +103,23 @@ package struct CullingControlsBar: View {
                         Text("Edición")
                         KeycapBadge("→")
                     }
-                    .frame(width: 96)
+                    .frame(width: 92)
                 }
                 .buttonStyle(StudioButtonStyle(.approveEmerald, compact: true))
                 .disabled(viewModel.currentPendingItem == nil)
                 .help("Aprobar hacia Seleccionadas para Edición (Flecha Derecha →)")
             }
+
+            Spacer(minLength: AppSpacing.sm)
+
+            Toggle(isOn: $viewModel.followLatestCapture) {
+                Label("Seguir última captura", systemImage: "bolt.horizontal.circle")
+                    .font(AppTypography.captionMedium)
+                    .foregroundStyle(AppColors.textSecondary)
+            }
+            .toggleStyle(.switch)
+            .controlSize(.small)
+            .help("Saltar automáticamente a cada nueva foto recibida")
         }
         .padding(.horizontal, AppSpacing.lg)
         .frame(height: AppSpacing.bottomControlBarHeight)

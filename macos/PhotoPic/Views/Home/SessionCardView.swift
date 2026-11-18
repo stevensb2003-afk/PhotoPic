@@ -1,19 +1,87 @@
 import SwiftUI
 
+/// Reusable popover to rename a session or master group folder directly on disk.
+package struct RenameFolderPopover: View {
+    let title: String
+    let subtitle: String
+    let placeholder: String
+    @State private var draftName: String
+    let onCancel: () -> Void
+    let onConfirm: (String) -> Void
+
+    package init(
+        title: String,
+        subtitle: String,
+        currentName: String,
+        placeholder: String = "Nuevo nombre",
+        onCancel: @escaping () -> Void,
+        onConfirm: @escaping (String) -> Void
+    ) {
+        self.title = title
+        self.subtitle = subtitle
+        self._draftName = State(initialValue: currentName)
+        self.placeholder = placeholder
+        self.onCancel = onCancel
+        self.onConfirm = onConfirm
+    }
+
+    package var body: some View {
+        VStack(alignment: .leading, spacing: AppSpacing.sm) {
+            Text(title)
+                .font(AppTypography.bodyMedium)
+                .foregroundStyle(AppColors.textPrimary)
+
+            Text(subtitle)
+                .font(AppTypography.micro)
+                .foregroundStyle(AppColors.textTertiary)
+
+            TextField(placeholder, text: $draftName)
+                .textFieldStyle(.roundedBorder)
+                .font(AppTypography.body)
+                .onSubmit { submit() }
+
+            HStack {
+                Spacer()
+                Button("Cancelar", action: onCancel)
+                    .buttonStyle(StudioButtonStyle(.ghost, compact: true))
+                Button("Renombrar") { submit() }
+                    .buttonStyle(StudioButtonStyle(.primaryLight, compact: true))
+                    .disabled(trimmedDraft.isEmpty)
+            }
+        }
+        .padding(AppSpacing.md)
+        .frame(width: 280)
+        .background(AppColors.panelSurface)
+    }
+
+    private var trimmedDraft: String {
+        draftName.trimmingCharacters(in: .whitespacesAndNewlines)
+    }
+
+    private func submit() {
+        guard !trimmedDraft.isEmpty else { return }
+        onConfirm(trimmedDraft)
+    }
+}
+
 /// Card representing an existing shooting session directory on disk with live counts,
-/// Master Group badge, session timer duration, project tags, and permanent delete action.
+/// optional Master Group badge, rename, project tags, and permanent delete action.
 package struct SessionCardView: View {
     let session: PhotoSession
     let availableGroups: [String]
+    let showGroupBadge: Bool
     let onOpen: () -> Void
+    let onRename: ((String) -> Void)?
     let onAddTag: (String) -> Void
     let onRemoveTag: (String) -> Void
     let onMoveToGroup: (String?) -> Void
     let onRequestDelete: () -> Void
 
     @State private var isHovering = false
+    @State private var isRenameHovered = false
     @State private var isTagHovered = false
     @State private var isDeleteHovered = false
+    @State private var isPresentingRenamePopover = false
     @State private var isPresentingOrgPopover = false
 
     private static let dateFormatter: DateFormatter = {
@@ -26,7 +94,9 @@ package struct SessionCardView: View {
     package init(
         session: PhotoSession,
         availableGroups: [String] = [],
+        showGroupBadge: Bool = true,
         onOpen: @escaping () -> Void,
+        onRename: ((String) -> Void)? = nil,
         onAddTag: @escaping (String) -> Void = { _ in },
         onRemoveTag: @escaping (String) -> Void = { _ in },
         onMoveToGroup: @escaping (String?) -> Void = { _ in },
@@ -34,7 +104,9 @@ package struct SessionCardView: View {
     ) {
         self.session = session
         self.availableGroups = availableGroups
+        self.showGroupBadge = showGroupBadge
         self.onOpen = onOpen
+        self.onRename = onRename
         self.onAddTag = onAddTag
         self.onRemoveTag = onRemoveTag
         self.onMoveToGroup = onMoveToGroup
@@ -46,7 +118,7 @@ package struct SessionCardView: View {
             Button(action: onOpen) {
                 VStack(alignment: .leading, spacing: AppSpacing.md) {
                     VStack(alignment: .leading, spacing: 3) {
-                        if let group = session.groupName {
+                        if showGroupBadge, let group = session.groupName {
                             HStack(spacing: 4) {
                                 Image(systemName: "rectangle.stack.fill")
                                     .font(.system(size: 9))
@@ -78,7 +150,7 @@ package struct SessionCardView: View {
                         }
                     }
                     .frame(maxWidth: .infinity, alignment: .leading)
-                    .padding(.trailing, 56)
+                    .padding(.trailing, onRename != nil ? 86 : 56)
 
                     if !session.metadata.tags.isEmpty {
                         ScrollView(.horizontal, showsIndicators: false) {
@@ -118,6 +190,35 @@ package struct SessionCardView: View {
             .help("Abrir sesión \(session.name)")
 
             HStack(spacing: AppSpacing.xs) {
+                if let onRename {
+                    Button {
+                        isPresentingRenamePopover.toggle()
+                    } label: {
+                        Image(systemName: "pencil")
+                            .font(.system(size: 12, weight: .medium))
+                            .foregroundStyle(isRenameHovered ? AppColors.textPrimary : AppColors.textSecondary)
+                            .frame(width: 23, height: 23)
+                            .background(isRenameHovered ? AppColors.controlHover : AppColors.stageBackground)
+                            .clipShape(RoundedRectangle(cornerRadius: AppRadius.xs, style: .continuous))
+                    }
+                    .buttonStyle(.plain)
+                    .onHover { isRenameHovered = $0 }
+                    .help("Renombrar sesión y su carpeta en Finder")
+                    .popover(isPresented: $isPresentingRenamePopover, arrowEdge: .bottom) {
+                        RenameFolderPopover(
+                            title: "Renombrar sesión",
+                            subtitle: "También renombra la carpeta real en Finder.",
+                            currentName: session.name,
+                            placeholder: "Ej. Familia_Navidad",
+                            onCancel: { isPresentingRenamePopover = false },
+                            onConfirm: { newName in
+                                isPresentingRenamePopover = false
+                                onRename(newName)
+                            }
+                        )
+                    }
+                }
+
                 Button {
                     isPresentingOrgPopover.toggle()
                 } label: {

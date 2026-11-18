@@ -183,6 +183,59 @@ extension CullingSessionViewModel {
         }
     }
 
+    package func rotateActivePhotoClockwise() {
+        let targetItem: PhotoItem?
+        switch activeTab {
+        case .cullPending:
+            targetItem = currentPendingItem
+        case .forEditing:
+            targetItem = selectedEditingItem
+        case .archived:
+            targetItem = selectedArchivedItem
+        case .liveView:
+            targetItem = nil
+        }
+        guard let item = targetItem else { return }
+        rotatePhotoClockwise(item)
+    }
+
+    package func rotatePhotoClockwise(_ item: PhotoItem) {
+        let currentTab = activeTab
+        Task { @MainActor [weak self] in
+            guard let self else { return }
+            do {
+                _ = try await Task.detached(priority: .userInitiated) {
+                    try PhotoOrientationService.rotateClockwise90(item: item)
+                }.value
+                await self.renderer.evictCache(for: item.fileURL)
+                if let companion = item.pairedCompressedURL {
+                    await self.renderer.evictCache(for: companion)
+                }
+                self.archivedThumbnails.removeValue(forKey: item.id)
+                self.resetZoomState()
+                switch currentTab {
+                case .cullPending:
+                    if self.currentPendingItem?.id == item.id {
+                        self.renderActivePhotoIfNeeded(force: true)
+                    }
+                case .forEditing:
+                    if self.selectedEditingItem?.id == item.id {
+                        self.loadEditingPreview(for: item)
+                    }
+                case .archived:
+                    if self.selectedArchivedItem?.id == item.id {
+                        self.loadArchivedPreview(for: item)
+                    }
+                case .liveView:
+                    break
+                }
+                self.showFeedbackPill("Rotada 90° (guardada)", kind: .recovered)
+            } catch {
+                self.errorMessage = error.localizedDescription
+            }
+        }
+    }
+
     package func deleteArchivedItemPermanently(_ item: PhotoItem, alsoDeleteCompanionJpg: Bool = false) {
         do {
             try SessionArchiveCleaner.permanentlyDeleteArchivedItem(

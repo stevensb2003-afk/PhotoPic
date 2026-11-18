@@ -5,6 +5,8 @@ import SwiftUI
 package struct HomeDashboardView: View {
     @Bindable var appState: AppState
 
+    @State private var isPresentingGroupRenamePopover = false
+
     package init(appState: AppState) {
         self.appState = appState
     }
@@ -140,7 +142,18 @@ package struct HomeDashboardView: View {
     private var headerActionsSection: some View {
         HStack(alignment: .center, spacing: AppSpacing.lg) {
             HStack(spacing: AppSpacing.md) {
-                PhotoPicBrandLogo(size: 44)
+                ZStack {
+                    RoundedRectangle(cornerRadius: AppRadius.md, style: .continuous)
+                        .fill(AppColors.elevatedSurface)
+                        .frame(width: 44, height: 44)
+                        .overlay(
+                            RoundedRectangle(cornerRadius: AppRadius.md, style: .continuous)
+                                .stroke(AppColors.borderSubtle, lineWidth: AppSpacing.hairline)
+                        )
+                    Image(systemName: "camera.fill")
+                        .font(.system(size: 19, weight: .semibold))
+                        .foregroundStyle(AppColors.textPrimary)
+                }
 
                 VStack(alignment: .leading, spacing: AppSpacing.xxs) {
                     Text("Sesiones de Fotografía")
@@ -215,7 +228,7 @@ package struct HomeDashboardView: View {
                     } else if visibleSessions.isEmpty {
                         filteredEmptyState
                     } else {
-                        sessionGrid(visibleSessions, vm: vm)
+                        sessionGrid(visibleSessions, vm: vm, showGroupBadge: false)
                     }
                 } else if vm.groupFilter == .all && !isSearchingOrTagFiltering {
                     if !vm.masterGroups.isEmpty {
@@ -235,9 +248,17 @@ package struct HomeDashboardView: View {
                         ) {
                             ForEach(vm.masterGroups, id: \.self) { group in
                                 let count = vm.sessions.filter { $0.groupName?.caseInsensitiveCompare(group) == .orderedSame }.count
-                                GroupCardView(groupName: group, sessionCount: count) {
-                                    vm.groupFilter = .group(group)
-                                }
+                                GroupCardView(
+                                    groupName: group,
+                                    sessionCount: count,
+                                    onOpen: { vm.groupFilter = .group(group) },
+                                    onRename: { newName in
+                                        guard let root = appState.rootFolderURL else { return }
+                                        if let renamed = vm.renameMasterGroup(named: group, to: newName, in: root) {
+                                            appState.showTransientNotice("Grupo renombrado a \"\(renamed)\"")
+                                        }
+                                    }
+                                )
                             }
                         }
                     }
@@ -287,7 +308,7 @@ package struct HomeDashboardView: View {
             Button {
                 vm.groupFilter = .all
             } label: {
-                Label("Todos los grupos", systemImage: "chevron.left")
+                Label("Regresar", systemImage: "chevron.left")
             }
             .buttonStyle(StudioButtonStyle(.secondaryDark, compact: true))
             .help("Volver a todos los grupos y sesiones")
@@ -300,6 +321,31 @@ package struct HomeDashboardView: View {
                 .font(AppTypography.sectionTitle)
                 .foregroundStyle(AppColors.textPrimary)
 
+            Button {
+                isPresentingGroupRenamePopover = true
+            } label: {
+                Image(systemName: "pencil")
+                    .font(.system(size: 12, weight: .medium))
+            }
+            .buttonStyle(StudioButtonStyle(.ghost, compact: true))
+            .help("Renombrar este grupo y su carpeta en Finder")
+            .popover(isPresented: $isPresentingGroupRenamePopover, arrowEdge: .bottom) {
+                RenameFolderPopover(
+                    title: "Renombrar grupo",
+                    subtitle: "También renombra la carpeta del grupo en Finder.",
+                    currentName: group,
+                    placeholder: "Ej. Bodas 2026",
+                    onCancel: { isPresentingGroupRenamePopover = false },
+                    onConfirm: { newName in
+                        isPresentingGroupRenamePopover = false
+                        guard let root = appState.rootFolderURL else { return }
+                        if let renamed = vm.renameMasterGroup(named: group, to: newName, in: root) {
+                            appState.showTransientNotice("Grupo renombrado a \"\(renamed)\"")
+                        }
+                    }
+                )
+            }
+
             Spacer()
 
             Text("\(sessionCount) sesión(es)")
@@ -309,7 +355,7 @@ package struct HomeDashboardView: View {
         .padding(.vertical, AppSpacing.xs)
     }
 
-    private func sessionGrid(_ items: [PhotoSession], vm: HomeViewModel) -> some View {
+    private func sessionGrid(_ items: [PhotoSession], vm: HomeViewModel, showGroupBadge: Bool = true) -> some View {
         LazyVGrid(
             columns: [GridItem(.adaptive(minimum: AppSpacing.cardGridMinWidth), spacing: AppSpacing.md)],
             spacing: AppSpacing.md
@@ -318,7 +364,14 @@ package struct HomeDashboardView: View {
                 SessionCardView(
                     session: session,
                     availableGroups: vm.masterGroups,
+                    showGroupBadge: showGroupBadge,
                     onOpen: { appState.openSession(session) },
+                    onRename: { newName in
+                        guard let root = appState.rootFolderURL else { return }
+                        if let renamed = vm.renameSession(session, to: newName, in: root) {
+                            appState.showTransientNotice("Sesión renombrada a \"\(renamed.name)\"")
+                        }
+                    },
                     onAddTag: { tag in vm.addTag(tag, to: session) },
                     onRemoveTag: { tag in vm.removeTag(tag, from: session) },
                     onMoveToGroup: { targetGroup in
@@ -422,49 +475,86 @@ private struct GroupCardView: View {
     let groupName: String
     let sessionCount: Int
     let onOpen: () -> Void
+    let onRename: (String) -> Void
 
     @State private var isHovering = false
+    @State private var isRenameHovered = false
+    @State private var isPresentingRenamePopover = false
 
     var body: some View {
-        HStack(spacing: AppSpacing.md) {
-            Image(systemName: "rectangle.stack.fill")
-                .font(AppTypography.sectionTitle)
-                .foregroundStyle(AppColors.infoBlue)
-                .frame(width: 38, height: 38)
-                .background(AppColors.infoBlueTint)
-                .clipShape(RoundedRectangle(cornerRadius: AppRadius.md, style: .continuous))
+        ZStack(alignment: .trailing) {
+            Button(action: onOpen) {
+                HStack(spacing: AppSpacing.md) {
+                    Image(systemName: "rectangle.stack.fill")
+                        .font(AppTypography.sectionTitle)
+                        .foregroundStyle(AppColors.infoBlue)
+                        .frame(width: 38, height: 38)
+                        .background(AppColors.infoBlueTint)
+                        .clipShape(RoundedRectangle(cornerRadius: AppRadius.md, style: .continuous))
 
-            VStack(alignment: .leading, spacing: 2) {
-                Text(groupName)
-                    .font(AppTypography.cardTitle)
-                    .foregroundStyle(AppColors.textPrimary)
-                    .lineLimit(1)
-                Text(sessionCount == 1 ? "1 sesión" : "\(sessionCount) sesiones")
-                    .font(AppTypography.caption)
-                    .foregroundStyle(AppColors.textSecondary)
+                    VStack(alignment: .leading, spacing: 2) {
+                        Text(groupName)
+                            .font(AppTypography.cardTitle)
+                            .foregroundStyle(AppColors.textPrimary)
+                            .lineLimit(1)
+                        Text(sessionCount == 1 ? "1 sesión" : "\(sessionCount) sesiones")
+                            .font(AppTypography.caption)
+                            .foregroundStyle(AppColors.textSecondary)
+                    }
+
+                    Spacer()
+                }
+                .padding(.trailing, 54)
+                .padding(AppSpacing.lg)
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .background(isHovering ? AppColors.elevatedSurface : AppColors.panelSurface)
+                .clipShape(RoundedRectangle(cornerRadius: AppRadius.lg, style: .continuous))
+                .overlay(
+                    RoundedRectangle(cornerRadius: AppRadius.lg, style: .continuous)
+                        .stroke(isHovering ? AppColors.infoBlue.opacity(0.45) : AppColors.borderSubtle, lineWidth: AppSpacing.hairline)
+                )
             }
+            .buttonStyle(.plain)
+            .help("Entrar al grupo \(groupName)")
 
-            Spacer()
+            HStack(spacing: AppSpacing.xs) {
+                Button {
+                    isPresentingRenamePopover.toggle()
+                } label: {
+                    Image(systemName: "pencil")
+                        .font(.system(size: 12, weight: .medium))
+                        .foregroundStyle(isRenameHovered ? AppColors.textPrimary : AppColors.textSecondary)
+                        .frame(width: 24, height: 24)
+                        .background(isRenameHovered ? AppColors.controlHover : AppColors.stageBackground)
+                        .clipShape(RoundedRectangle(cornerRadius: AppRadius.xs, style: .continuous))
+                }
+                .buttonStyle(.plain)
+                .onHover { isRenameHovered = $0 }
+                .help("Renombrar grupo y su carpeta en Finder")
+                .popover(isPresented: $isPresentingRenamePopover, arrowEdge: .bottom) {
+                    RenameFolderPopover(
+                        title: "Renombrar grupo",
+                        subtitle: "También renombra la carpeta del grupo en Finder.",
+                        currentName: groupName,
+                        placeholder: "Ej. Bodas 2026",
+                        onCancel: { isPresentingRenamePopover = false },
+                        onConfirm: { newName in
+                            isPresentingRenamePopover = false
+                            onRename(newName)
+                        }
+                    )
+                }
 
-            Image(systemName: "chevron.right")
-                .font(AppTypography.captionMedium)
-                .foregroundStyle(isHovering ? AppColors.textPrimary : AppColors.textTertiary)
+                Image(systemName: "chevron.right")
+                    .font(AppTypography.captionMedium)
+                    .foregroundStyle(isHovering ? AppColors.textPrimary : AppColors.textTertiary)
+            }
+            .padding(.trailing, AppSpacing.lg)
         }
-        .padding(AppSpacing.lg)
-        .frame(maxWidth: .infinity, alignment: .leading)
-        .background(isHovering ? AppColors.elevatedSurface : AppColors.panelSurface)
-        .clipShape(RoundedRectangle(cornerRadius: AppRadius.lg, style: .continuous))
-        .overlay(
-            RoundedRectangle(cornerRadius: AppRadius.lg, style: .continuous)
-                .stroke(isHovering ? AppColors.infoBlue.opacity(0.45) : AppColors.borderSubtle, lineWidth: AppSpacing.hairline)
-        )
-        .contentShape(RoundedRectangle(cornerRadius: AppRadius.lg, style: .continuous))
-        .onTapGesture(perform: onOpen)
         .onHover { hovering in
             withAnimation(AppMotion.quickEaseOut) {
                 isHovering = hovering
             }
         }
-        .help("Entrar al grupo \(groupName)")
     }
 }
