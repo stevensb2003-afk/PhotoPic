@@ -8,7 +8,9 @@ package struct LiveViewCompatibilityCard: View {
     let explanation: String
     let feedbackMessage: String?
     let isActive: Bool
+    let isOpticalHotShoeFlashMode: Bool
     let onToggle: () -> Void
+    let onActivateDemo: (() -> Void)?
 
     package init(
         connectedDevice: ConnectedDeviceState?,
@@ -16,53 +18,127 @@ package struct LiveViewCompatibilityCard: View {
         explanation: String,
         feedbackMessage: String?,
         isActive: Bool,
-        onToggle: @escaping () -> Void
+        isOpticalHotShoeFlashMode: Bool = false,
+        onToggle: @escaping () -> Void,
+        onActivateDemo: (() -> Void)? = nil
     ) {
         self.connectedDevice = connectedDevice
         self.modeTitle = modeTitle
         self.explanation = explanation
         self.feedbackMessage = feedbackMessage
         self.isActive = isActive
+        self.isOpticalHotShoeFlashMode = isOpticalHotShoeFlashMode
         self.onToggle = onToggle
+        self.onActivateDemo = onActivateDemo
     }
 
     package var body: some View {
         ScrollView {
             VStack(spacing: AppSpacing.md) {
-                Image(systemName: "video.viewfinder")
-                    .font(AppTypography.displayTitle)
-                    .foregroundStyle(AppColors.textTertiary)
+                if isOpticalHotShoeFlashMode {
+                    opticalHotShoeStageCard
+                } else {
+                    Image(systemName: "video.viewfinder")
+                        .font(AppTypography.displayTitle)
+                        .foregroundStyle(AppColors.textTertiary)
 
-                Text(modeTitle)
-                    .font(AppTypography.pageTitle)
-                    .foregroundStyle(AppColors.textPrimary)
+                    Text(modeTitle)
+                        .font(AppTypography.pageTitle)
+                        .foregroundStyle(AppColors.textPrimary)
 
-                Text(explanation)
-                    .font(AppTypography.body)
-                    .foregroundStyle(AppColors.textSecondary)
-                    .multilineTextAlignment(.center)
-                    .frame(maxWidth: 620)
-
-                if connectedDevice?.category == .androidPTP {
-                    androidPtpWarningBanner
-                }
-
-                compatibilityColumns
-
-                if let feedbackMessage {
-                    Text(feedbackMessage)
-                        .font(AppTypography.monoCaption)
-                        .foregroundStyle(AppColors.warningAmber)
+                    Text(explanation)
+                        .font(AppTypography.body)
+                        .foregroundStyle(AppColors.textSecondary)
                         .multilineTextAlignment(.center)
-                }
+                        .frame(maxWidth: 620)
 
-                Button(isActive ? "Detener" : "Iniciar Vista en Vivo", action: onToggle)
-                    .buttonStyle(StudioButtonStyle(.primaryLight))
+                    if connectedDevice?.category == .androidPTP {
+                        androidPtpWarningBanner
+                    }
+
+                    compatibilityColumns
+
+                    if let feedbackMessage {
+                        Text(feedbackMessage)
+                            .font(AppTypography.monoCaption)
+                            .foregroundStyle(AppColors.infoBlue)
+                            .multilineTextAlignment(.center)
+                    }
+
+                    HStack(spacing: AppSpacing.sm) {
+                        Button(isActive ? "Detener" : "Iniciar Vista en Vivo", action: onToggle)
+                            .buttonStyle(StudioButtonStyle(.primaryLight))
+
+                        if connectedDevice == nil, let onActivateDemo {
+                            Button(action: onActivateDemo) {
+                                Label("Ver Demo Interactiva de Controles (Canon EOS 70D)", systemImage: "slider.horizontal.3")
+                            }
+                            .buttonStyle(StudioButtonStyle(.secondaryDark))
+                        }
+                    }
                     .padding(.top, AppSpacing.xs)
+                }
             }
             .padding(AppSpacing.xl)
             .frame(maxWidth: .infinity)
         }
+    }
+
+    private var opticalHotShoeStageCard: some View {
+        VStack(spacing: AppSpacing.md) {
+            ZStack {
+                Circle()
+                    .fill(AppColors.approveGreenTint)
+                    .frame(width: 64, height: 64)
+                Image(systemName: "bolt.horizontal.fill")
+                    .font(.system(size: 26, weight: .semibold))
+                    .foregroundStyle(AppColors.approveGreen)
+            }
+
+            Text("Modo Flash Externo de Zapata Activo")
+                .font(AppTypography.pageTitle)
+                .foregroundStyle(AppColors.textPrimary)
+
+            Text("El espejo está abajo para que tu flash externo en la zapata superior sincronice en cada disparo. La conexión USB sigue activa y cada foto capturada aparece automáticamente en PhotoPic.")
+                .font(AppTypography.body)
+                .foregroundStyle(AppColors.textSecondary)
+                .multilineTextAlignment(.center)
+                .frame(maxWidth: 560)
+
+            HStack(spacing: AppSpacing.sm) {
+                Label("Flash interno bloqueado (Seguro)", systemImage: "checkmark.shield.fill")
+                    .font(AppTypography.captionMedium)
+                    .foregroundStyle(AppColors.approveGreen)
+                    .padding(.horizontal, 10)
+                    .padding(.vertical, 5)
+                    .background(AppColors.approveGreenTint)
+                    .clipShape(Capsule())
+
+                Label("USB Canon conectado", systemImage: "cable.connector")
+                    .font(AppTypography.captionMedium)
+                    .foregroundStyle(AppColors.infoBlue)
+                    .padding(.horizontal, 10)
+                    .padding(.vertical, 5)
+                    .background(AppColors.infoBlueTint)
+                    .clipShape(Capsule())
+            }
+
+            if let feedbackMessage {
+                Text(feedbackMessage)
+                    .font(AppTypography.monoCaption)
+                    .foregroundStyle(AppColors.textSecondary)
+                    .multilineTextAlignment(.center)
+            }
+
+            Button("Volver a Vista en Vivo", action: onToggle)
+                .buttonStyle(StudioButtonStyle(.primaryLight))
+                .padding(.top, AppSpacing.xs)
+        }
+        .padding(AppSpacing.lg)
+        .frame(maxWidth: 640)
+        .background(AppColors.panelSurface)
+        .overlay(RoundedRectangle(cornerRadius: AppRadius.lg).stroke(AppColors.borderStrong, lineWidth: 1))
+        .clipShape(RoundedRectangle(cornerRadius: AppRadius.lg))
     }
 
     private var androidPtpWarningBanner: some View {

@@ -205,7 +205,14 @@ package enum UISnapshotVerification {
             to: outputDir.appendingPathComponent("09-help-center.png")
         )
 
-        // 10. Workspace Live View tab snapshot
+        // 10. Workspace Live View tab snapshot (seed realistic Canon 70D remote controls for visual QA)
+        var canonControlSnap = CameraControlSnapshot.canon70DDemo()
+        canonControlSnap.deviceName = canonDevice.alias
+        canonControlSnap.isDemoMode = false
+        appState.discoveryService.directCanonService.seedSnapshotForTesting(
+            fingerprint: canonDevice.fingerprint,
+            snapshot: canonControlSnap
+        )
         ws.activeTab = .liveView
         try await Task.sleep(for: .milliseconds(100))
         try renderSnapshot(

@@ -334,6 +334,62 @@ package enum HardwareAndArchiveDeleteVerification {
         let parsedEvents = CanonUSBPTPCodec.parseEOSCaptureEvents(from: evtPacket, fallbackCounter: &counter)
         try assertTrue(parsedEvents.count == 1 && parsedEvents[0].handle == 0x1234_5678 && parsedEvents[0].filename == "IMG_9999.CR2" && parsedEvents[0].isRAMTransfer, "Direct Canon 0xC186 RAM capture event parsed cleanly")
 
+        // Canon EOS adaptive camera property parser (0xC189 PropValueChanged + 0xC18A AvailListChanged 4-byte stride)
+        var propPacket = Data()
+        func appendPropChanged(prop: UInt32, valueBytes: [UInt8]) {
+            appendLE32(UInt32(12 + valueBytes.count), to: &propPacket)
+            appendLE32(0xC189, to: &propPacket)
+            appendLE32(prop, to: &propPacket)
+            propPacket.append(contentsOf: valueBytes)
+        }
+        func appendAvailList(prop: UInt32, dpdType: UInt32, values: [UInt32]) {
+            appendLE32(UInt32(20 + values.count * 4), to: &propPacket)
+            appendLE32(0xC18A, to: &propPacket)
+            appendLE32(prop, to: &propPacket)
+            appendLE32(dpdType, to: &propPacket)
+            appendLE32(UInt32(values.count), to: &propPacket)
+            for val in values {
+                appendLE32(val, to: &propPacket)
+            }
+        }
+        appendPropChanged(prop: 0xD105, valueBytes: [0x03, 0x00]) // AEMode Manual (M)
+        appendPropChanged(prop: 0xD101, valueBytes: [0x28, 0x00]) // Aperture f/4.0
+        appendAvailList(prop: 0xD101, dpdType: 3, values: [0x20, 0x28, 0x30]) // f/2.8, f/4.0, f/5.6 (4-byte stride)
+        appendPropChanged(prop: 0xD104, valueBytes: [0x00]) // ExpComp UINT8
+        appendAvailList(prop: 0xD104, dpdType: 3, values: [0xF8, 0x00, 0x08]) // UINT8 options stored in 4-byte stride!
+        appendPropChanged(prop: 0xD109, valueBytes: [0x05]) // WhiteBalance Flash (UINT8)
+        appendAvailList(prop: 0xD109, dpdType: 3, values: [0, 1, 5, 9]) // Auto, Daylight, Flash, Kelvin (UINT8 4-byte stride)
+        appendPropChanged(prop: 0xD10A, valueBytes: [0x7C, 0x15, 0x00, 0x00]) // ColorTemperature 5500K
+        appendAvailList(prop: 0xD10A, dpdType: 3, values: [5200, 5500])
+        appendPropChanged(prop: 0xD129, valueBytes: [0x01, 0x00, 0x00, 0x00]) // SilentShutter Mode 1
+        appendPropChanged(prop: 0xD1DC, valueBytes: [0x00, 0x00, 0x00, 0x00]) // StroboFiring enabled
+        appendPropChanged(prop: 0xD1D8, valueBytes: Array("EF-S 18-55mm f/3.5-5.6 IS STM\0".utf8))
+        appendLE32(8, to: &propPacket); appendLE32(0, to: &propPacket)
+
+        var parsedSnapshot = CameraControlSnapshot(deviceName: "Canon EOS 70D")
+        let didApplyProps = CanonEOSPropertyParser.applyEvents(from: propPacket, into: &parsedSnapshot)
+        try assertTrue(didApplyProps, "Canon EOS property events parsed cleanly")
+        try assertTrue(parsedSnapshot.aeModeLabel == "M (Manual)", "AE Mode label parsed accurately")
+        try assertTrue(parsedSnapshot.lensName == "EF-S 18-55mm f/3.5-5.6 IS STM", "Lens name parsed as null-terminated ASCII")
+        try assertTrue(parsedSnapshot.controls[.aperture]?.currentLabel == "f/4.0" && parsedSnapshot.controls[.aperture]?.availableOptions.count == 3 && parsedSnapshot.controls[.aperture]?.isWritable == true, "Aperture value and 4-byte stride AvailList parsed cleanly")
+        try assertTrue(parsedSnapshot.controls[.exposureCompensation]?.isWritable == false && parsedSnapshot.controls[.exposureCompensation]?.lockExplanation != nil, "Exposure compensation explains Manual mode lock")
+        try assertTrue(parsedSnapshot.controls[.whiteBalance]?.availableOptions.last?.label == "Kelvin (K)", "UINT8 WhiteBalance options parsed using 4-byte stride")
+        try assertTrue(parsedSnapshot.controls[.colorTemperature]?.isWritable == false, "Kelvin locked until WB set to Kelvin")
+        try assertTrue(parsedSnapshot.isSilentLVBlockingFlash, "Silent LV Mode 1 detected as hot-shoe flash blocker")
+
+        let setWB = CanonEOSPropertyParser.buildSetPropertyPayload(property: .whiteBalance, rawValue: 9)
+        try assertTrue(setWB.count == 12 && setWB[0] == 12 && setWB[8] == 9, "UINT8 SetDevicePropValueEx payload formatted in 12 bytes")
+        let setISO = CanonEOSPropertyParser.buildSetPropertyPayload(property: .iso, rawValue: 0x0058)
+        try assertTrue(setISO.count == 12 && setISO[8] == 0x58 && setISO[9] == 0x00, "UINT16 SetDevicePropValueEx payload formatted in 12 bytes")
+        let setSilent = CanonEOSPropertyParser.buildSetPropertyPayload(property: .silentShutter, rawValue: 0)
+        try assertTrue(setSilent.count == 12 && setSilent[8] == 0 && setSilent[11] == 0, "UINT32 SetDevicePropValueEx payload formatted in 12 bytes")
+
+        var demoSnap = CameraControlSnapshot.canon70DDemo()
+        try assertTrue(demoSnap.flashAccessory == .externalHotShoe && demoSnap.orderedPrimaryExposureControls.count == 4, "Demo snapshot defaults to safe external hot-shoe flash and 4 primary controls")
+        try assertTrue(demoSnap.controls[.colorTemperature]?.isWritable == false, "Demo starts with Kelvin locked")
+        demoSnap.applyDemoChange(property: .whiteBalance, rawValue: 9)
+        try assertTrue(demoSnap.controls[.colorTemperature]?.isWritable == true, "Changing WB to Kelvin unlocks manual Kelvin control")
+
         let autoRoot = rootURL.appendingPathComponent("AutoQuickRoot", isDirectory: true)
         try FileManager.default.createDirectory(at: autoRoot, withIntermediateDirectories: true)
         let suite = "com.kairosvisuals.photopic.verify.\(UUID().uuidString)"

@@ -39,6 +39,11 @@ package enum CanonPTPCode {
     package static let eosRemoteReleaseOff: UInt16 = 0x9129
     package static let eosPopupBuiltinFlash: UInt16 = 0x9131
     package static let eosGetViewFinderData: UInt16 = 0x9153
+    package static let eosDoAf: UInt16 = 0x9154
+    package static let eosDriveLens: UInt16 = 0x9155
+    package static let eosDepthOfFieldPreview: UInt16 = 0x9156
+    package static let eosZoom: UInt16 = 0x9158
+    package static let eosAfCancel: UInt16 = 0x9160
 
     // Canon EOS Device Properties
     package static let propCaptureDestination: UInt32 = 0xD11C
@@ -689,6 +694,8 @@ package final class DirectCanonUSBPTPService {
     package private(set) var isDirectLiveViewStreaming = false
     package private(set) var directLiveViewFPS = 0
     package var directLiveViewStatusNote: String?
+    package private(set) var controlSnapshots: [String: CameraControlSnapshot] = [:]
+    package var inlineFeedbackNote: String?
 
     private var liveViewStreamTask: Task<Void, Never>?
     private var activeLiveFingerprint: String?
@@ -701,6 +708,10 @@ package final class DirectCanonUSBPTPService {
 
     package func hasSession(for fingerprint: String) -> Bool {
         sessions[fingerprint] != nil
+    }
+
+    package func seedSnapshotForTesting(fingerprint: String, snapshot: CameraControlSnapshot) {
+        controlSnapshots[fingerprint] = snapshot
     }
 
     package func openSession(profile: KnownDevice) {
@@ -748,8 +759,21 @@ package final class DirectCanonUSBPTPService {
                 // Apply CaptureDestination based on keepOriginalsOnDevice
                 await self.applyCaptureDestination(transport: transport, keepOriginalsOnDevice: profile.keepOriginalsOnDevice, fingerprint: fp)
 
-                // Flush any queued boot events before marking live-ready so old pending events don't leak
-                _ = try? await transport.execute(opCode: CanonPTPCode.eosGetEvent)
+                // Read boot property snapshots from eosGetEvent without scanning SD card catalog
+                var snapshot = CameraControlSnapshot(
+                    deviceName: profile.alias,
+                    isDemoMode: false,
+                    flashAccessory: .externalHotShoe,
+                    keepOriginalsOnSD: profile.keepOriginalsOnDevice
+                )
+                if let bootRes1 = try? await transport.execute(opCode: CanonPTPCode.eosGetEvent), !bootRes1.dataPayload.isEmpty {
+                    CanonEOSPropertyParser.applyEvents(from: bootRes1.dataPayload, into: &snapshot)
+                }
+                try? await Task.sleep(for: .milliseconds(50))
+                if let bootRes2 = try? await transport.execute(opCode: CanonPTPCode.eosGetEvent), !bootRes2.dataPayload.isEmpty {
+                    CanonEOSPropertyParser.applyEvents(from: bootRes2.dataPayload, into: &snapshot)
+                }
+                snapshot.keepOriginalsOnSD = profile.keepOriginalsOnDevice
 
                 guard var activeCtx = self.sessions[fp] else {
                     transport.close()
@@ -757,12 +781,15 @@ package final class DirectCanonUSBPTPService {
                 }
                 activeCtx.lastCaptureDestIsHostRAM = !profile.keepOriginalsOnDevice
                 self.sessions[fp] = activeCtx
+                self.controlSnapshots[fp] = snapshot
+                self.inlineFeedbackNote = nil
                 self.onStatusChanged?(fp, .connectedReady, nil)
                 self.startEventPollLoop(for: fp)
             } catch {
                 self.logger.error("Direct Canon openSession failed: \(error.localizedDescription, privacy: .public)")
                 transport.close()
                 self.sessions.removeValue(forKey: fp)
+                self.controlSnapshots.removeValue(forKey: fp)
                 self.onStatusChanged?(fp, .error(message: error.localizedDescription), nil)
             }
         }
@@ -772,6 +799,7 @@ package final class DirectCanonUSBPTPService {
         if activeLiveFingerprint == fingerprint {
             stopLiveView()
         }
+        controlSnapshots.removeValue(forKey: fingerprint)
         guard let ctx = sessions.removeValue(forKey: fingerprint) else { return }
         ctx.pollTask?.cancel()
         let transport = ctx.transport
@@ -792,6 +820,7 @@ package final class DirectCanonUSBPTPService {
         let keepChanged = ctx.profile.keepOriginalsOnDevice != profile.keepOriginalsOnDevice
         ctx.profile = profile
         sessions[fp] = ctx
+        controlSnapshots[fp]?.keepOriginalsOnSD = profile.keepOriginalsOnDevice
 
         if keepChanged {
             let transport = ctx.transport
@@ -809,8 +838,146 @@ package final class DirectCanonUSBPTPService {
             let stroboEnable = CanonUSBPTPCodec.buildSetPropUInt32Payload(propCode: CanonPTPCode.propStroboFiring, value: 0)
             _ = try? await transport.execute(opCode: CanonPTPCode.eosSetDevicePropValueEx, outPayload: stroboEnable, timeout: 2.0)
             let res = try await transport.execute(opCode: CanonPTPCode.eosPopupBuiltinFlash, timeout: 4.0)
-            return res.responseCode == CanonPTPCode.responseOK
+            if res.responseCode == CanonPTPCode.responseOK {
+                inlineFeedbackNote = "Flash interno levantado."
+                return true
+            }
+            inlineFeedbackNote = "La cámara no pudo levantar el flash interno (revisá el dial físico o si hay algo bloqueando la zapata)."
+            return false
         } catch {
+            inlineFeedbackNote = "No se pudo levantar el flash interno."
+            return false
+        }
+    }
+
+    // MARK: - Adaptive Camera Controls & Safe External Hot-Shoe Flash
+
+    package func setCameraProperty(for fingerprint: String, property: CameraPropertyID, rawValue: UInt32) async -> Bool {
+        guard let ctx = sessions[fingerprint] else { return false }
+        let transport = ctx.transport
+        let payload = CanonEOSPropertyParser.buildSetPropertyPayload(property: property, rawValue: rawValue)
+
+        do {
+            var res = try await transport.execute(opCode: CanonPTPCode.eosSetDevicePropValueEx, outPayload: payload, timeout: 3.0)
+            if res.responseCode == CanonPTPCode.responseDeviceBusy {
+                try? await Task.sleep(for: .milliseconds(100))
+                res = try await transport.execute(opCode: CanonPTPCode.eosSetDevicePropValueEx, outPayload: payload, timeout: 3.0)
+            }
+            guard res.responseCode == CanonPTPCode.responseOK else {
+                inlineFeedbackNote = "La cámara no permitió cambiar \(property.shortLabel) en este modo (revisá el dial físico)."
+                return false
+            }
+            controlSnapshots[fingerprint]?.applyDemoChange(property: property, rawValue: rawValue)
+            inlineFeedbackNote = nil
+            return true
+        } catch {
+            inlineFeedbackNote = "No se pudo aplicar \(property.shortLabel): \(error.localizedDescription)"
+            return false
+        }
+    }
+
+    package func setFlashAccessory(for fingerprint: String, accessory: FlashAccessorySelection) async {
+        controlSnapshots[fingerprint]?.flashAccessory = accessory
+        switch accessory {
+        case .externalHotShoe:
+            // Strictly safe: disables Silent LV block (0xD129=0) and enables firing (0xD1DC=0), never touching 0x9131 popup.
+            _ = await setCameraProperty(for: fingerprint, property: .silentShutter, rawValue: 0)
+            _ = await setCameraProperty(for: fingerprint, property: .stroboFiring, rawValue: 0)
+            inlineFeedbackNote = "Flash Externo (Zapata) activo: el flash interno permanecerá cerrado y protegido."
+        case .disabled:
+            _ = await setCameraProperty(for: fingerprint, property: .stroboFiring, rawValue: 1)
+            inlineFeedbackNote = "Disparo de flash desactivado en cámara."
+        case .builtinPopup:
+            _ = await setCameraProperty(for: fingerprint, property: .stroboFiring, rawValue: 0)
+            inlineFeedbackNote = "Modo Flash Interno listo (solo usá el botón manual si la zapata superior está libre)."
+        }
+    }
+
+    package func engageOpticalHotShoeFlashMode(for fingerprint: String) async {
+        stopLiveView()
+        if let ctx = sessions[fingerprint] {
+            let transport = ctx.transport
+            let silentOff = CanonEOSPropertyParser.buildSetPropertyPayload(property: .silentShutter, rawValue: 0)
+            _ = try? await transport.execute(opCode: CanonPTPCode.eosSetDevicePropValueEx, outPayload: silentOff, timeout: 2.0)
+            let stroboOn = CanonEOSPropertyParser.buildSetPropertyPayload(property: .stroboFiring, rawValue: 0)
+            _ = try? await transport.execute(opCode: CanonPTPCode.eosSetDevicePropValueEx, outPayload: stroboOn, timeout: 2.0)
+        }
+        controlSnapshots[fingerprint]?.applyDemoChange(property: .silentShutter, rawValue: 0)
+        controlSnapshots[fingerprint]?.applyDemoChange(property: .stroboFiring, rawValue: 0)
+        controlSnapshots[fingerprint]?.flashAccessory = .externalHotShoe
+        controlSnapshots[fingerprint]?.isMirrorDownOpticalFlashMode = true
+        inlineFeedbackNote = "Espejo abajo · Flash de Zapata listo: dispará desde la cámara o aquí; tus fotos siguen llegando al Mac."
+    }
+
+    package func triggerAutofocus(for fingerprint: String, cancel: Bool = false) async -> Bool {
+        guard let ctx = sessions[fingerprint] else { return false }
+        let opCode = cancel ? CanonPTPCode.eosAfCancel : CanonPTPCode.eosDoAf
+        do {
+            let res = try await ctx.transport.execute(opCode: opCode, timeout: 4.0)
+            if res.responseCode == CanonPTPCode.responseOK {
+                inlineFeedbackNote = cancel ? "Enfoque AF detenido." : "Enfoque AF ejecutado."
+                return true
+            }
+            inlineFeedbackNote = "No se pudo enfocar ahora (revisá que el lente esté en AF y no esté muy cerca)."
+            return false
+        } catch {
+            inlineFeedbackNote = "Error al ejecutar AF."
+            return false
+        }
+    }
+
+    package func driveManualFocus(for fingerprint: String, near: Bool, stepSize: UInt32 = 2) async -> Bool {
+        guard let ctx = sessions[fingerprint] else { return false }
+        let clamped = max(1, min(3, stepSize))
+        let param: UInt32 = near ? clamped : (clamped | 0x8000)
+        do {
+            let res = try await ctx.transport.execute(opCode: CanonPTPCode.eosDriveLens, params: [param], timeout: 3.0)
+            if res.responseCode == CanonPTPCode.responseOK {
+                inlineFeedbackNote = near ? "Enfoque movido más cerca." : "Enfoque movido más lejos."
+                return true
+            }
+            inlineFeedbackNote = "El motor de enfoque no respondió (revisá que el lente esté en modo AF durante Vista en Vivo)."
+            return false
+        } catch {
+            inlineFeedbackNote = "Error al ajustar foco del lente."
+            return false
+        }
+    }
+
+    package func setLiveViewZoom(for fingerprint: String, zoomFactor: UInt32) async -> Bool {
+        guard let ctx = sessions[fingerprint], [1, 5, 10].contains(zoomFactor) else { return false }
+        do {
+            let res = try await ctx.transport.execute(opCode: CanonPTPCode.eosZoom, params: [zoomFactor], timeout: 3.0)
+            if res.responseCode == CanonPTPCode.responseOK {
+                controlSnapshots[fingerprint]?.liveViewZoom = zoomFactor
+                inlineFeedbackNote = nil
+                return true
+            }
+            inlineFeedbackNote = "No se pudo cambiar el zoom del visor (\(zoomFactor)x)."
+            return false
+        } catch {
+            inlineFeedbackNote = "Error cambiando zoom del visor."
+            return false
+        }
+    }
+
+    package func setDOFPreview(for fingerprint: String, enabled: Bool) async -> Bool {
+        guard let ctx = sessions[fingerprint] else { return false }
+        do {
+            let res = try await ctx.transport.execute(
+                opCode: CanonPTPCode.eosDepthOfFieldPreview,
+                params: [enabled ? 1 : 0],
+                timeout: 3.0
+            )
+            if res.responseCode == CanonPTPCode.responseOK {
+                controlSnapshots[fingerprint]?.isDOFPreviewActive = enabled
+                inlineFeedbackNote = nil
+                return true
+            }
+            inlineFeedbackNote = "La previsualización de profundidad de campo (DOF) requiere Vista en Vivo activa."
+            return false
+        } catch {
+            inlineFeedbackNote = "No se pudo cambiar DOF."
             return false
         }
     }
@@ -855,6 +1022,7 @@ package final class DirectCanonUSBPTPService {
         let transport = ctx.transport
         activeLiveFingerprint = fingerprint
         isDirectLiveViewStreaming = true
+        controlSnapshots[fingerprint]?.isMirrorDownOpticalFlashMode = false
         directLiveViewStatusNote = "Activando espejo y visor USB directo en \(ctx.profile.alias)..."
 
         liveViewStreamTask = Task { @MainActor [weak self] in
@@ -1001,6 +1169,15 @@ package final class DirectCanonUSBPTPService {
                             fallbackCounter: &latestCtx.fileCounter
                         )
                         self.sessions[fingerprint] = latestCtx
+                        var snap = self.controlSnapshots[fingerprint] ?? CameraControlSnapshot(
+                            deviceName: latestCtx.profile.alias,
+                            isDemoMode: false,
+                            keepOriginalsOnSD: latestCtx.profile.keepOriginalsOnDevice
+                        )
+                        if CanonEOSPropertyParser.applyEvents(from: eventRes.dataPayload, into: &snap) {
+                            snap.keepOriginalsOnSD = latestCtx.profile.keepOriginalsOnDevice
+                            self.controlSnapshots[fingerprint] = snap
+                        }
                         for item in events {
                             if self.sessions[fingerprint]?.seenHandles.contains(item.handle) == true {
                                 continue
@@ -1123,6 +1300,7 @@ package final class DirectCanonUSBPTPService {
         if activeLiveFingerprint == fingerprint {
             stopLiveView()
         }
+        controlSnapshots.removeValue(forKey: fingerprint)
         guard let ctx = sessions.removeValue(forKey: fingerprint) else { return }
         ctx.pollTask?.cancel()
         ctx.transport.close()

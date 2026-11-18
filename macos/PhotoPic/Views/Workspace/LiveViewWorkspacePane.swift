@@ -25,6 +25,24 @@ package struct LiveViewWorkspacePane: View {
     @State private var bridgeMode: BridgeMode = .usbPTPDirect
     @State private var captureFeedback: String?
     @State private var didAutoSelectMode = false
+    @State private var showControlDeck = true
+    @State private var demoSnapshot: CameraControlSnapshot? = .canon70DDemo()
+
+    private var activeControlSnapshot: CameraControlSnapshot? {
+        if let dev = primaryUSBDevice {
+            if let liveSnap = directCanon.controlSnapshots[dev.fingerprint] {
+                return liveSnap
+            }
+            if let demo = demoSnapshot {
+                return demo
+            }
+            return CameraControlSnapshot.adaptiveFallback(
+                for: dev,
+                keepOriginalsOnSD: appState.knownDevicesStore.device(for: dev.fingerprint)?.keepOriginalsOnDevice ?? false
+            )
+        }
+        return demoSnapshot
+    }
 
     package init(appState: AppState, viewModel: CullingSessionViewModel) {
         self.appState = appState
@@ -50,19 +68,156 @@ package struct LiveViewWorkspacePane: View {
     package var body: some View {
         VStack(spacing: 0) {
             liveToolbar
-            ZStack {
-                AppColors.stageBackground
-                if let frame = live.currentFrame, isLiveActive {
-                    liveFrameStage(frame)
-                } else {
-                    LiveViewCompatibilityCard(
-                        connectedDevice: primaryUSBDevice,
-                        modeTitle: emptyModeTitle,
-                        explanation: emptyExplanation,
-                        feedbackMessage: captureFeedback ?? directCanon.directLiveViewStatusNote ?? ptpLive.statusNote ?? live.statusMessage ?? network.statusNote ?? gphoto.statusNote,
-                        isActive: isLiveActive,
-                        onToggle: { Task { await toggleStream() } }
+            HStack(spacing: 0) {
+                ZStack {
+                    AppColors.stageBackground
+                    if let frame = live.currentFrame, isLiveActive {
+                        liveFrameStage(frame)
+                    } else {
+                        LiveViewCompatibilityCard(
+                            connectedDevice: primaryUSBDevice,
+                            modeTitle: emptyModeTitle,
+                            explanation: emptyExplanation,
+                            feedbackMessage: captureFeedback ?? directCanon.inlineFeedbackNote ?? directCanon.directLiveViewStatusNote ?? ptpLive.statusNote ?? live.statusMessage ?? network.statusNote ?? gphoto.statusNote,
+                            isActive: isLiveActive,
+                            isOpticalHotShoeFlashMode: activeControlSnapshot?.isMirrorDownOpticalFlashMode == true && !isLiveActive,
+                            onToggle: { Task { await toggleStream() } },
+                            onActivateDemo: {
+                                demoSnapshot = .canon70DDemo()
+                                showControlDeck = true
+                            }
+                        )
+                    }
+                }
+                .frame(maxWidth: .infinity, maxHeight: .infinity)
+
+                if showControlDeck, let snapshot = activeControlSnapshot {
+                    LiveCameraControlDeckView(
+                        snapshot: snapshot,
+                        isLiveStreaming: isLiveActive,
+                        inlineNote: directCanon.inlineFeedbackNote ?? captureFeedback,
+                        onSelectProperty: { prop, rawValue in
+                            if snapshot.isDemoMode {
+                                demoSnapshot?.applyDemoChange(property: prop, rawValue: rawValue)
+                            } else if let dev = primaryUSBDevice {
+                                Task {
+                                    _ = await directCanon.setCameraProperty(for: dev.fingerprint, property: prop, rawValue: rawValue)
+                                }
+                            }
+                        },
+                        onSelectFlashAccessory: { accessory in
+                            if snapshot.isDemoMode {
+                                demoSnapshot?.flashAccessory = accessory
+                                switch accessory {
+                                case .externalHotShoe:
+                                    demoSnapshot?.applyDemoChange(property: .silentShutter, rawValue: 0)
+                                    demoSnapshot?.applyDemoChange(property: .stroboFiring, rawValue: 0)
+                                    captureFeedback = "Demo: Flash Externo (Zapata) seguro activado. El pop-up interno nunca se levantará."
+                                case .disabled:
+                                    demoSnapshot?.applyDemoChange(property: .stroboFiring, rawValue: 1)
+                                    captureFeedback = "Demo: Disparo de flash desactivado (0xD1DC = 1)."
+                                case .builtinPopup:
+                                    demoSnapshot?.applyDemoChange(property: .stroboFiring, rawValue: 0)
+                                    captureFeedback = "Demo: Modo Flash Interno seleccionado (solo si la zapata está libre)."
+                                }
+                            } else if let dev = primaryUSBDevice {
+                                Task {
+                                    await directCanon.setFlashAccessory(for: dev.fingerprint, accessory: accessory)
+                                }
+                            }
+                        },
+                        onEngageOpticalHotShoeFlash: {
+                            if snapshot.isDemoMode {
+                                demoSnapshot?.applyDemoChange(property: .silentShutter, rawValue: 0)
+                                demoSnapshot?.applyDemoChange(property: .stroboFiring, rawValue: 0)
+                                demoSnapshot?.flashAccessory = .externalHotShoe
+                                demoSnapshot?.isMirrorDownOpticalFlashMode = true
+                                captureFeedback = "Demo: Espejo abajo · Flash de zapata sincronizado con conexión USB activa."
+                            } else if let dev = primaryUSBDevice {
+                                Task {
+                                    await directCanon.engageOpticalHotShoeFlashMode(for: dev.fingerprint)
+                                }
+                            }
+                        },
+                        onResumeLiveView: {
+                            if snapshot.isDemoMode {
+                                demoSnapshot?.isMirrorDownOpticalFlashMode = false
+                                captureFeedback = "Demo: Vista en Vivo reanudada."
+                            } else {
+                                Task { await toggleStream() }
+                            }
+                        },
+                        onPopupBuiltinFlash: {
+                            if snapshot.isDemoMode {
+                                captureFeedback = "Demo: Comando 0x9131 (Flash Interno) probado en simulación."
+                            } else if let dev = primaryUSBDevice {
+                                Task {
+                                    _ = await directCanon.popupBuiltinFlash(for: dev.fingerprint)
+                                }
+                            }
+                        },
+                        onTriggerAutofocus: { cancel in
+                            if snapshot.isDemoMode {
+                                captureFeedback = cancel ? "Demo: Enfoque AF cancelado." : "Demo: Enfoque AF ejecutado."
+                            } else if let dev = primaryUSBDevice {
+                                Task {
+                                    _ = await directCanon.triggerAutofocus(for: dev.fingerprint, cancel: cancel)
+                                }
+                            }
+                        },
+                        onDriveManualFocus: { near, step in
+                            if snapshot.isDemoMode {
+                                captureFeedback = near ? "Demo: Foco movido más cerca (paso \(step))." : "Demo: Foco movido más lejos (paso \(step))."
+                            } else if let dev = primaryUSBDevice {
+                                Task {
+                                    _ = await directCanon.driveManualFocus(for: dev.fingerprint, near: near, stepSize: step)
+                                }
+                            }
+                        },
+                        onSetZoom: { zoom in
+                            if snapshot.isDemoMode {
+                                demoSnapshot?.liveViewZoom = zoom
+                            } else if let dev = primaryUSBDevice {
+                                Task {
+                                    _ = await directCanon.setLiveViewZoom(for: dev.fingerprint, zoomFactor: zoom)
+                                }
+                            }
+                        },
+                        onToggleDOF: { enabled in
+                            if snapshot.isDemoMode {
+                                demoSnapshot?.isDOFPreviewActive = enabled
+                            } else if let dev = primaryUSBDevice {
+                                Task {
+                                    _ = await directCanon.setDOFPreview(for: dev.fingerprint, enabled: enabled)
+                                }
+                            }
+                        },
+                        onToggleKeepOriginals: { enabled in
+                            if snapshot.isDemoMode {
+                                demoSnapshot?.keepOriginalsOnSD = enabled
+                            } else if let dev = primaryUSBDevice {
+                                appState.discoveryService.setKeepOriginals(fingerprint: dev.fingerprint, enabled: enabled)
+                            }
+                        },
+                        onOpenDemo: {
+                            demoSnapshot = .canon70DDemo()
+                            showControlDeck = true
+                        },
+                        onCloseDemo: snapshot.isDemoMode ? {
+                            demoSnapshot = nil
+                            captureFeedback = nil
+                        } : nil
                     )
+                }
+            }
+            .onChange(of: primaryUSBDevice?.fingerprint) { _, newFingerprint in
+                if newFingerprint != nil {
+                    demoSnapshot = nil
+                }
+            }
+            .onChange(of: directCanon.controlSnapshots.isEmpty) { _, isEmpty in
+                if !isEmpty {
+                    demoSnapshot = nil
                 }
             }
             .frame(maxWidth: .infinity, maxHeight: .infinity)
@@ -70,6 +225,9 @@ package struct LiveViewWorkspacePane: View {
         }
         .background(AppColors.stageBackground)
         .onAppear {
+            if primaryUSBDevice != nil {
+                demoSnapshot = nil
+            }
             live.refreshDevices()
             autoPickBestBridgeModeIfNeeded()
         }
@@ -193,6 +351,29 @@ package struct LiveViewWorkspacePane: View {
                 .labelsHidden()
                 .frame(width: 124)
 
+                if activeControlSnapshot != nil {
+                    Button {
+                        withAnimation(.easeInOut(duration: 0.18)) {
+                            showControlDeck.toggle()
+                        }
+                    } label: {
+                        Label("Controles", systemImage: "slider.horizontal.3")
+                    }
+                    .buttonStyle(StudioButtonStyle(showControlDeck ? .primaryLight : .secondaryDark, compact: true))
+                    .fixedSize()
+                    .help("Mostrar u ocultar el panel completo de controles de cámara")
+                } else if primaryUSBDevice == nil {
+                    Button {
+                        demoSnapshot = .canon70DDemo()
+                        showControlDeck = true
+                    } label: {
+                        Label("Demo Controles", systemImage: "slider.horizontal.3")
+                    }
+                    .buttonStyle(StudioButtonStyle(.secondaryDark, compact: true))
+                    .fixedSize()
+                    .help("Abrir vista interactiva de controles Canon EOS 70D sin cámara conectada")
+                }
+
                 Button(isLiveActive ? "Detener Vivo" : "Iniciar Vista en Vivo") {
                     Task { await toggleStream() }
                 }
@@ -281,13 +462,15 @@ package struct LiveViewWorkspacePane: View {
 
     private var liveBottomBar: some View {
         HStack(spacing: AppSpacing.md) {
-            let statusLabel: String = if let feedback = captureFeedback {
+            let statusLabel: String = if let feedback = directCanon.inlineFeedbackNote ?? captureFeedback {
                 feedback
             } else {
                 switch bridgeMode {
                 case .usbPTPDirect:
-                    if directCanon.isDirectLiveViewStreaming {
-                        "Visor USB · ~\(max(1, directCanon.directLiveViewFPS)) fps · Flash: desactivá 'Disparo silencioso LV' o usá 'Detener Vivo'"
+                    if activeControlSnapshot?.isMirrorDownOpticalFlashMode == true {
+                        "Espejo abajo · Flash de Zapata listo · USB conectado"
+                    } else if directCanon.isDirectLiveViewStreaming {
+                        "Visor USB · ~\(max(1, directCanon.directLiveViewFPS)) fps · Zapata Segura"
                     } else if ptpLive.isStreaming {
                         "Visor PTP USB activo · ~\(max(1, ptpLive.fpsEstimate)) fps"
                     } else if let dev = primaryUSBDevice {
@@ -307,22 +490,6 @@ package struct LiveViewWorkspacePane: View {
                 .truncationMode(.tail)
 
             Spacer(minLength: AppSpacing.sm)
-
-            if let dev = primaryUSBDevice, directCanon.hasSession(for: dev.fingerprint) {
-                Button {
-                    Task {
-                        let ok = await directCanon.popupBuiltinFlash(for: dev.fingerprint)
-                        captureFeedback = ok
-                            ? "Flash integrado activado (si usás flash externo en Vivo, desactivá 'Disparo silencioso LV' en la cámara)"
-                            : "No se pudo levantar el flash integrado (revisá modo M/Av/Tv o cerrá Vista en Vivo)"
-                    }
-                } label: {
-                    Label("Activar Flash", systemImage: "bolt.fill")
-                }
-                .buttonStyle(StudioButtonStyle(.secondaryDark, compact: true))
-                .fixedSize()
-                .help("Levantar flash integrado Canon y habilitar disparo con flash")
-            }
 
             if directCanon.isDirectLiveViewStreaming || ptpLive.isStreaming || appState.discoveryService.canTriggerPrimaryShutter {
                 Button {
