@@ -32,15 +32,20 @@ package enum CanonPTPCode {
     package static let eosTransferComplete: UInt16 = 0x9117
     package static let eosCancelTransfer: UInt16 = 0x9118
     package static let eosPCHDDCapacity: UInt16 = 0x911A
+    package static let eosSetUILock: UInt16 = 0x911B
+    package static let eosResetUILock: UInt16 = 0x911C
     package static let eosRequestDevicePropValue: UInt16 = 0x9127
     package static let eosRemoteReleaseOn: UInt16 = 0x9128
     package static let eosRemoteReleaseOff: UInt16 = 0x9129
+    package static let eosPopupBuiltinFlash: UInt16 = 0x9131
     package static let eosGetViewFinderData: UInt16 = 0x9153
 
     // Canon EOS Device Properties
     package static let propCaptureDestination: UInt32 = 0xD11C
+    package static let propSilentShutterSetting: UInt32 = 0xD129
     package static let propEVFOutputDevice: UInt32 = 0xD1B0
     package static let propEVFMode: UInt32 = 0xD1B1
+    package static let propStroboFiring: UInt32 = 0xD1DC
 
     // CaptureDestination values
     package static let captureDestCardPrimary: UInt32 = 0x0001
@@ -735,6 +740,10 @@ package final class DirectCanonUSBPTPService {
                     throw CanonUSBTransportError.ioFailed("Este modelo Canon no soporta RemoteMode PTP directo.")
                 }
                 _ = try await transport.execute(opCode: CanonPTPCode.eosSetEventMode, params: [1])
+                // Ensure camera physical dials, menus, and flash controls stay unlocked while tethered
+                _ = try? await transport.execute(opCode: CanonPTPCode.eosResetUILock)
+                let stroboEnable = CanonUSBPTPCodec.buildSetPropUInt32Payload(propCode: CanonPTPCode.propStroboFiring, value: 0)
+                _ = try? await transport.execute(opCode: CanonPTPCode.eosSetDevicePropValueEx, outPayload: stroboEnable)
 
                 // Apply CaptureDestination based on keepOriginalsOnDevice
                 await self.applyCaptureDestination(transport: transport, keepOriginalsOnDevice: profile.keepOriginalsOnDevice, fingerprint: fp)
@@ -792,19 +801,39 @@ package final class DirectCanonUSBPTPService {
         }
     }
 
+    package func popupBuiltinFlash(for fingerprint: String) async -> Bool {
+        guard let ctx = sessions[fingerprint] else { return false }
+        let transport = ctx.transport
+        do {
+            _ = try? await transport.execute(opCode: CanonPTPCode.eosResetUILock, timeout: 2.0)
+            let stroboEnable = CanonUSBPTPCodec.buildSetPropUInt32Payload(propCode: CanonPTPCode.propStroboFiring, value: 0)
+            _ = try? await transport.execute(opCode: CanonPTPCode.eosSetDevicePropValueEx, outPayload: stroboEnable, timeout: 2.0)
+            let res = try await transport.execute(opCode: CanonPTPCode.eosPopupBuiltinFlash, timeout: 4.0)
+            return res.responseCode == CanonPTPCode.responseOK
+        } catch {
+            return false
+        }
+    }
+
     package func triggerRemoteShutter(for fingerprint: String) async -> Bool {
         guard let ctx = sessions[fingerprint] else { return false }
         let transport = ctx.transport
         do {
-            let res = try await transport.execute(opCode: CanonPTPCode.eosCapture, timeout: 8.0)
-            if res.responseCode == CanonPTPCode.responseOK {
-                return true
+            // Modern Canon EOS (70D, 80D, R-series) uses RemoteReleaseOn(1/2) + RemoteReleaseOff(2/1)
+            let halfPress = try await transport.execute(opCode: CanonPTPCode.eosRemoteReleaseOn, params: [1, 0], timeout: 8.0)
+            if halfPress.responseCode == CanonPTPCode.responseOperationNotSupported {
+                let capRes = try await transport.execute(opCode: CanonPTPCode.eosCapture, timeout: 10.0)
+                return capRes.responseCode == CanonPTPCode.responseOK
             }
-            let onRes = try await transport.execute(opCode: CanonPTPCode.eosRemoteReleaseOn, params: [3, 0], timeout: 5.0)
-            try? await Task.sleep(for: .milliseconds(120))
-            let offRes = try await transport.execute(opCode: CanonPTPCode.eosRemoteReleaseOff, params: [3], timeout: 5.0)
-            return onRes.responseCode == CanonPTPCode.responseOK || offRes.responseCode == CanonPTPCode.responseOK
+            try? await Task.sleep(for: .milliseconds(160))
+            let fullPress = try await transport.execute(opCode: CanonPTPCode.eosRemoteReleaseOn, params: [2, 0], timeout: 10.0)
+            try? await Task.sleep(for: .milliseconds(80))
+            let fullRelease = try await transport.execute(opCode: CanonPTPCode.eosRemoteReleaseOff, params: [2], timeout: 5.0)
+            _ = try? await transport.execute(opCode: CanonPTPCode.eosRemoteReleaseOff, params: [1], timeout: 5.0)
+            return fullPress.responseCode == CanonPTPCode.responseOK || fullRelease.responseCode == CanonPTPCode.responseOK
         } catch {
+            _ = try? await transport.execute(opCode: CanonPTPCode.eosRemoteReleaseOff, params: [2], timeout: 2.0)
+            _ = try? await transport.execute(opCode: CanonPTPCode.eosRemoteReleaseOff, params: [1], timeout: 2.0)
             onCaptureError?(fingerprint, error.localizedDescription)
             return false
         }
@@ -831,6 +860,12 @@ package final class DirectCanonUSBPTPService {
         liveViewStreamTask = Task { @MainActor [weak self] in
             guard let self else { return }
             do {
+                // Disable Silent LV Shoot (0xD129 = 0) when possible so studio/hot-shoe flashes can sync during Live View
+                let silentOff = CanonUSBPTPCodec.buildSetPropUInt32Payload(propCode: CanonPTPCode.propSilentShutterSetting, value: 0)
+                _ = try? await transport.execute(opCode: CanonPTPCode.eosSetDevicePropValueEx, outPayload: silentOff)
+                let stroboEnable = CanonUSBPTPCodec.buildSetPropUInt32Payload(propCode: CanonPTPCode.propStroboFiring, value: 0)
+                _ = try? await transport.execute(opCode: CanonPTPCode.eosSetDevicePropValueEx, outPayload: stroboEnable)
+
                 let evfPayload = CanonUSBPTPCodec.buildSetPropUInt32Payload(propCode: CanonPTPCode.propEVFMode, value: 1)
                 let evfModeRes = try await transport.execute(opCode: CanonPTPCode.eosSetDevicePropValueEx, outPayload: evfPayload)
                 try? await Task.sleep(for: .milliseconds(150))
@@ -841,6 +876,7 @@ package final class DirectCanonUSBPTPService {
                     let outPayload2 = CanonUSBPTPCodec.buildSetPropUInt32Payload(propCode: CanonPTPCode.propEVFOutputDevice, value: 2)
                     outRes = try await transport.execute(opCode: CanonPTPCode.eosSetDevicePropValueEx, outPayload: outPayload2)
                 }
+                _ = try? await transport.execute(opCode: CanonPTPCode.eosResetUILock)
                 guard evfModeRes.responseCode == CanonPTPCode.responseOK || outRes.responseCode == CanonPTPCode.responseOK else {
                     throw CanonUSBTransportError.ioFailed("La cámara rechazó iniciar Live View (revisá que no tenga el menú abierto en pantalla).")
                 }
@@ -947,6 +983,7 @@ package final class DirectCanonUSBPTPService {
         _ = try? await transport.execute(opCode: CanonPTPCode.eosSetDevicePropValueEx, outPayload: out0, timeout: 1.5)
         let evf0 = CanonUSBPTPCodec.buildSetPropUInt32Payload(propCode: CanonPTPCode.propEVFMode, value: 0)
         _ = try? await transport.execute(opCode: CanonPTPCode.eosSetDevicePropValueEx, outPayload: evf0, timeout: 1.5)
+        _ = try? await transport.execute(opCode: CanonPTPCode.eosResetUILock, timeout: 1.5)
     }
 
     private func startEventPollLoop(for fingerprint: String) {
@@ -956,7 +993,7 @@ package final class DirectCanonUSBPTPService {
             while !Task.isCancelled {
                 guard let self, let ctx = self.sessions[fingerprint] else { break }
                 do {
-                    let eventRes = try await ctx.transport.execute(opCode: CanonPTPCode.eosGetEvent, timeout: 5.0)
+                    let eventRes = try await ctx.transport.execute(opCode: CanonPTPCode.eosGetEvent, timeout: 10.0)
                     consecutiveErrors = 0
                     if !eventRes.dataPayload.isEmpty, var latestCtx = self.sessions[fingerprint] {
                         let events = CanonUSBPTPCodec.parseEOSCaptureEvents(

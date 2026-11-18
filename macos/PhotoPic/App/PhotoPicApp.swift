@@ -90,7 +90,12 @@ package struct RootShellView: View {
             }
 
             if let toast = activeToastMessage {
-                FloatingToastBanner(message: toast)
+                let isWarningOrError = toast.hasPrefix("Error") || toast.hasPrefix("Alerta") || toast.contains("bloqueado") || toast.contains("sin permiso")
+                FloatingToastBanner(
+                    message: toast,
+                    iconName: isWarningOrError ? "exclamationmark.triangle.fill" : "checkmark.circle.fill",
+                    tint: isWarningOrError ? AppColors.archiveRed : AppColors.approveGreen
+                )
                     .padding(.top, AppSpacing.topBarHeight + AppSpacing.md)
                     .transition(.opacity.combined(with: .scale(scale: 0.96)))
                     .onTapGesture {

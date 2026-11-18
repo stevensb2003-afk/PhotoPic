@@ -5,11 +5,19 @@ import SwiftUI
 /// UVC / HDMI-USB (`AVFoundation`), Android IP Wi-Fi MJPEG, and optional `gphoto2`.
 package struct LiveViewWorkspacePane: View {
     private enum BridgeMode: String, CaseIterable, Identifiable {
-        case usbPTPDirect = "Cámara USB (PTP)"
-        case nativeUVC = "UVC / HDMI-USB"
-        case networkMJPEG = "Android / IP Wi-Fi"
-        case classicGPhoto2 = "gphoto2 (CLI)"
+        case usbPTPDirect = "USB PTP"
+        case nativeUVC = "UVC / HDMI"
+        case networkMJPEG = "Wi-Fi IP"
+        case classicGPhoto2 = "gphoto2"
         var id: String { rawValue }
+    }
+
+    private var visibleModes: [BridgeMode] {
+        var modes: [BridgeMode] = [.usbPTPDirect, .nativeUVC, .networkMJPEG]
+        if gphoto.isAvailable {
+            modes.append(.classicGPhoto2)
+        }
+        return modes
     }
 
     @Bindable var appState: AppState
@@ -86,31 +94,50 @@ package struct LiveViewWorkspacePane: View {
     }
 
     private var liveToolbar: some View {
-        HStack(spacing: AppSpacing.sm) {
-            Picker("Modo", selection: $bridgeMode) {
-                ForEach(BridgeMode.allCases) { mode in
-                    Text(mode.rawValue).tag(mode)
+        HStack(spacing: AppSpacing.md) {
+            HStack(spacing: 4) {
+                ForEach(visibleModes) { mode in
+                    let isSelected = bridgeMode == mode
+                    Button {
+                        if bridgeMode != mode {
+                            bridgeMode = mode
+                            appState.stopAllLiveView()
+                        }
+                    } label: {
+                        Text(mode.rawValue)
+                            .font(AppTypography.captionMedium)
+                            .foregroundStyle(isSelected ? AppColors.textOnAccent : AppColors.textSecondary)
+                            .padding(.horizontal, AppSpacing.md)
+                            .padding(.vertical, 5)
+                            .background(isSelected ? AppColors.primaryActionFill : Color.clear)
+                            .clipShape(RoundedRectangle(cornerRadius: AppRadius.sm, style: .continuous))
+                    }
+                    .buttonStyle(.plain)
+                    .fixedSize()
                 }
             }
-            .pickerStyle(.segmented)
-            .labelsHidden()
-            .frame(maxWidth: 440)
-            .onChange(of: bridgeMode) { _, _ in
-                appState.stopAllLiveView()
-            }
+            .padding(3)
+            .background(AppColors.elevatedSurface)
+            .clipShape(RoundedRectangle(cornerRadius: AppRadius.md, style: .continuous))
+            .overlay(
+                RoundedRectangle(cornerRadius: AppRadius.md, style: .continuous)
+                    .stroke(AppColors.borderSubtle, lineWidth: AppSpacing.hairline)
+            )
+            .layoutPriority(1)
 
             if bridgeMode == .usbPTPDirect {
                 HStack(spacing: AppSpacing.xs) {
-                    Image(systemName: "camera.fill")
-                        .font(AppTypography.caption)
-                        .foregroundStyle(primaryUSBDevice?.status.isLiveSessionOpen == true ? AppColors.approveGreen : AppColors.warningAmber)
+                    Circle()
+                        .fill(primaryUSBDevice?.status.isLiveSessionOpen == true ? AppColors.approveGreen : AppColors.warningAmber)
+                        .frame(width: 7, height: 7)
                     Text(usbTargetSummary)
                         .font(AppTypography.captionMedium)
                         .foregroundStyle(AppColors.textPrimary)
                         .lineLimit(1)
+                        .truncationMode(.tail)
                 }
-                .padding(.horizontal, AppSpacing.sm)
-                .padding(.vertical, AppSpacing.xs)
+                .padding(.horizontal, AppSpacing.md)
+                .padding(.vertical, 6)
                 .background(AppColors.elevatedSurface)
                 .clipShape(RoundedRectangle(cornerRadius: AppRadius.sm, style: .continuous))
             } else if bridgeMode == .nativeUVC {
@@ -127,7 +154,7 @@ package struct LiveViewWorkspacePane: View {
                     }
                 }
                 .labelsHidden()
-                .frame(maxWidth: 230)
+                .frame(maxWidth: 220)
 
                 Button {
                     live.refreshDevices()
@@ -144,29 +171,35 @@ package struct LiveViewWorkspacePane: View {
                 ))
                 .textFieldStyle(.roundedBorder)
                 .font(AppTypography.monoCaption)
-                .frame(width: 225)
+                .frame(width: 215)
             }
 
-            Spacer()
+            Spacer(minLength: AppSpacing.sm)
 
-            Toggle("3×3", isOn: Binding(get: { live.showThirdsGrid }, set: { live.showThirdsGrid = $0 }))
-                .toggleStyle(.button)
-                .controlSize(.small)
+            HStack(spacing: AppSpacing.sm) {
+                Toggle("3×3", isOn: Binding(get: { live.showThirdsGrid }, set: { live.showThirdsGrid = $0 }))
+                    .toggleStyle(.button)
+                    .controlSize(.small)
+                    .fixedSize()
 
-            Toggle("Espejo", isOn: Binding(get: { live.mirrorHorizontally }, set: { live.mirrorHorizontally = $0 }))
-                .toggleStyle(.button)
-                .controlSize(.small)
+                Toggle("Espejo", isOn: Binding(get: { live.mirrorHorizontally }, set: { live.mirrorHorizontally = $0 }))
+                    .toggleStyle(.button)
+                    .controlSize(.small)
+                    .fixedSize()
 
-            Picker("Guía", selection: Binding(get: { live.aspectGuide }, set: { live.aspectGuide = $0 })) {
-                ForEach(LiveAspectGuide.allCases) { g in Text(g.rawValue).tag(g) }
+                Picker("Guía", selection: Binding(get: { live.aspectGuide }, set: { live.aspectGuide = $0 })) {
+                    ForEach(LiveAspectGuide.allCases) { g in Text(g.rawValue).tag(g) }
+                }
+                .labelsHidden()
+                .frame(width: 124)
+
+                Button(isLiveActive ? "Detener Vivo" : "Iniciar Vista en Vivo") {
+                    Task { await toggleStream() }
+                }
+                .buttonStyle(StudioButtonStyle(isLiveActive ? .archiveCoral : .primaryLight, compact: true))
+                .fixedSize()
             }
-            .labelsHidden()
-            .frame(width: 126)
-
-            Button(isLiveActive ? "Detener Vivo" : "Iniciar Vista en Vivo") {
-                Task { await toggleStream() }
-            }
-            .buttonStyle(StudioButtonStyle(isLiveActive ? .archiveCoral : .primaryLight, compact: true))
+            .layoutPriority(1)
         }
         .padding(.horizontal, AppSpacing.lg)
         .padding(.vertical, AppSpacing.sm)
@@ -248,27 +281,48 @@ package struct LiveViewWorkspacePane: View {
 
     private var liveBottomBar: some View {
         HStack(spacing: AppSpacing.md) {
-            let statusLabel: String = switch bridgeMode {
-            case .usbPTPDirect:
-                if directCanon.isDirectLiveViewStreaming {
-                    "Visor USB Directo activo · ~\(max(1, directCanon.directLiveViewFPS)) fps"
-                } else if ptpLive.isStreaming {
-                    "Visor PTP USB activo · ~\(max(1, ptpLive.fpsEstimate)) fps"
-                } else if let dev = primaryUSBDevice {
-                    "\(dev.alias) · \(dev.status.label)"
-                } else {
-                    "Esperando cámara Canon / Nikon USB"
+            let statusLabel: String = if let feedback = captureFeedback {
+                feedback
+            } else {
+                switch bridgeMode {
+                case .usbPTPDirect:
+                    if directCanon.isDirectLiveViewStreaming {
+                        "Visor USB · ~\(max(1, directCanon.directLiveViewFPS)) fps · Flash: desactivá 'Disparo silencioso LV' o usá 'Detener Vivo'"
+                    } else if ptpLive.isStreaming {
+                        "Visor PTP USB activo · ~\(max(1, ptpLive.fpsEstimate)) fps"
+                    } else if let dev = primaryUSBDevice {
+                        "\(dev.alias) · \(dev.status.label)"
+                    } else {
+                        "Esperando cámara Canon / Nikon USB"
+                    }
+                case .nativeUVC: "\(live.availableDevices.count) fuente(s) UVC / Continuidad / HDMI"
+                case .networkMJPEG: network.statusNote ?? "Stream IP Wi-Fi simultáneo al cable PTP"
+                case .classicGPhoto2: gphoto.isAvailable ? "gphoto2 listo" : "gphoto2 no instalado (usá USB PTP)"
                 }
-            case .nativeUVC: "\(live.availableDevices.count) fuente(s) UVC / Continuidad / HDMI"
-            case .networkMJPEG: network.statusNote ?? "Stream IP Wi-Fi simultáneo al cable PTP"
-            case .classicGPhoto2: gphoto.isAvailable ? "gphoto2 listo" : "gphoto2 no instalado (usá Cámara USB PTP)"
             }
             Text(statusLabel)
                 .font(AppTypography.monoCaption)
                 .foregroundStyle(AppColors.textSecondary)
                 .lineLimit(1)
+                .truncationMode(.tail)
 
-            Spacer()
+            Spacer(minLength: AppSpacing.sm)
+
+            if let dev = primaryUSBDevice, directCanon.hasSession(for: dev.fingerprint) {
+                Button {
+                    Task {
+                        let ok = await directCanon.popupBuiltinFlash(for: dev.fingerprint)
+                        captureFeedback = ok
+                            ? "Flash integrado activado (si usás flash externo en Vivo, desactivá 'Disparo silencioso LV' en la cámara)"
+                            : "No se pudo levantar el flash integrado (revisá modo M/Av/Tv o cerrá Vista en Vivo)"
+                    }
+                } label: {
+                    Label("Activar Flash", systemImage: "bolt.fill")
+                }
+                .buttonStyle(StudioButtonStyle(.secondaryDark, compact: true))
+                .fixedSize()
+                .help("Levantar flash integrado Canon y habilitar disparo con flash")
+            }
 
             if directCanon.isDirectLiveViewStreaming || ptpLive.isStreaming || appState.discoveryService.canTriggerPrimaryShutter {
                 Button {
@@ -277,6 +331,7 @@ package struct LiveViewWorkspacePane: View {
                     Label("Disparar Cámara (PTP)", systemImage: "camera.shutter.button")
                 }
                 .buttonStyle(StudioButtonStyle(.approveEmerald, compact: true))
+                .fixedSize()
             }
 
             if bridgeMode == .classicGPhoto2 && gphoto.isAvailable {
