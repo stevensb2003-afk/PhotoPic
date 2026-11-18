@@ -117,11 +117,11 @@ package struct SessionWorkspaceView: View {
                 }
 
                 switch keyCode {
-                case 123: // Left Arrow -> Archivar
-                    viewModel.archiveCurrent()
+                case 123: // Left Arrow -> Archivar (animado)
+                    viewModel.requestAnimatedArchive()
                     return true
-                case 124: // Right Arrow -> Para Edición
-                    viewModel.approveCurrentToEditing()
+                case 124: // Right Arrow -> Para Edición (animado)
+                    viewModel.requestAnimatedApprove()
                     return true
                 case 126: // Up Arrow -> Anterior
                     viewModel.navigatePrevious()

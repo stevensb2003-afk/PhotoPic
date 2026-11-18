@@ -27,6 +27,16 @@ extension CullingSessionViewModel {
 
     // MARK: - Physical Classification Moves (→ Approve / ← Archive / ⌘Z Undo)
 
+    package func requestAnimatedApprove() {
+        guard currentPendingItem != nil else { return }
+        pendingSwipeAnimation = SwipeAnimationCommand(direction: 1)
+    }
+
+    package func requestAnimatedArchive() {
+        guard currentPendingItem != nil else { return }
+        pendingSwipeAnimation = SwipeAnimationCommand(direction: -1)
+    }
+
     package func approveCurrentToEditing() {
         moveCurrentItem(to: .forEditing, pillText: "Para Edición", kind: .approved)
     }

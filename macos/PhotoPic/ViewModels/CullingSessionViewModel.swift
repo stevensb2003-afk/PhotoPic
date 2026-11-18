@@ -33,6 +33,12 @@ package struct CullingFeedbackPill: Equatable, Sendable {
     package let kind: Kind
 }
 
+/// Triggers an animated horizontal Tinder card throw from keyboard arrows or control buttons.
+package struct SwipeAnimationCommand: Equatable, Sendable {
+    package let id = UUID()
+    package let direction: Int // +1 = Para Edición, -1 = Archivar
+}
+
 /// Manages real-time tethered ingestion, Vision AI tag filtering, queue state,
 /// physical disk moves, and Archived recovery inside a shooting session.
 @MainActor
@@ -87,6 +93,7 @@ package final class CullingSessionViewModel {
     package internal(set) var isRenderingArchivedPreview: Bool = false
 
     package internal(set) var feedbackPill: CullingFeedbackPill?
+    package var pendingSwipeAnimation: SwipeAnimationCommand?
     package var errorMessage: String?
 
     package init(

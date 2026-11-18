@@ -8,9 +8,13 @@ package struct TinderCardStackView: View {
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
     @State private var swipeOffsetX: CGFloat = 0
+    @State private var swipeOpacity: Double = 1.0
+    @State private var cardEntranceScale: CGFloat = 1.0
     @State private var committedPanOffset: CGSize = .zero
     @State private var activePanDelta: CGSize = .zero
     @State private var holdZoomTask: Task<Void, Never>?
+    @State private var swipeCommitTask: Task<Void, Never>?
+    @State private var inFlightDirection: Int?
     @State private var isDraggingHorizontally = false
 
     package init(viewModel: CullingSessionViewModel) {
@@ -57,7 +61,22 @@ package struct TinderCardStackView: View {
         .onChange(of: viewModel.currentIndex) { _, _ in
             committedPanOffset = .zero
             activePanDelta = .zero
-            swipeOffsetX = 0
+            if inFlightDirection == nil {
+                swipeOffsetX = 0
+                swipeOpacity = 1.0
+            }
+        }
+        .onChange(of: viewModel.pendingSwipeAnimation) { _, cmd in
+            guard let cmd else { return }
+            runAnimatedSwipeThrow(direction: cmd.direction)
+        }
+        .onDisappear {
+            if let dir = inFlightDirection {
+                swipeCommitTask?.cancel()
+                swipeCommitTask = nil
+                inFlightDirection = nil
+                commitImmediateWithoutAnimation(direction: dir)
+            }
         }
         .onChange(of: viewModel.isLockedOneToOneZoom) { _, isLocked in
             if !isLocked {
@@ -94,10 +113,64 @@ package struct TinderCardStackView: View {
                 .stroke(cardBorderColor, lineWidth: AppSpacing.hairline)
         )
         .padding([.vertical, .leading], AppSpacing.md)
+        .scaleEffect(cardEntranceScale)
+        .opacity(swipeOpacity)
         .offset(x: viewModel.isAnyZoomActive ? 0 : swipeOffsetX)
         .rotationEffect(.degrees(rotationDegrees))
         .contentShape(Rectangle())
         .gesture(stageInteractionGesture(stageSize: size))
+    }
+
+    private func runAnimatedSwipeThrow(direction: Int) {
+        // Rapid-fire support: if user taps ←/→ again mid-animation, commit the previous card immediately.
+        if let prevDir = inFlightDirection {
+            swipeCommitTask?.cancel()
+            swipeCommitTask = nil
+            inFlightDirection = nil
+            commitImmediateWithoutAnimation(direction: prevDir)
+        }
+
+        guard viewModel.currentPendingItem != nil else { return }
+        if viewModel.isAnyZoomActive {
+            viewModel.resetZoomState()
+        }
+
+        inFlightDirection = direction
+        let throwDistance: CGFloat = reduceMotion ? 0 : CGFloat(direction) * 440
+
+        withAnimation(AppMotion.resolve(AppMotion.cardCommitThrow, reduceMotion: reduceMotion)) {
+            swipeOffsetX = throwDistance
+            swipeOpacity = 0.0
+        }
+
+        swipeCommitTask = Task { @MainActor in
+            let delayMs = reduceMotion ? 90 : 175
+            try? await Task.sleep(for: .milliseconds(delayMs))
+            guard !Task.isCancelled else { return }
+            let dir = inFlightDirection ?? direction
+            inFlightDirection = nil
+            swipeCommitTask = nil
+            commitImmediateWithoutAnimation(direction: dir)
+        }
+    }
+
+    private func commitImmediateWithoutAnimation(direction: Int) {
+        var noAnim = Transaction()
+        noAnim.disablesAnimations = true
+        withTransaction(noAnim) {
+            swipeOffsetX = 0
+            swipeOpacity = 0.0
+            cardEntranceScale = reduceMotion ? 1.0 : 0.965
+        }
+        if direction > 0 {
+            viewModel.approveCurrentToEditing()
+        } else {
+            viewModel.archiveCurrent()
+        }
+        withAnimation(AppMotion.resolve(AppMotion.quickEaseOut, reduceMotion: reduceMotion)) {
+            swipeOpacity = 1.0
+            cardEntranceScale = 1.0
+        }
     }
 
     private func stageInteractionGesture(stageSize: CGSize) -> some Gesture {
@@ -156,11 +229,9 @@ package struct TinderCardStackView: View {
                 )
 
                 if projected > AppMotion.swipeDistanceThreshold {
-                    swipeOffsetX = 0
-                    viewModel.approveCurrentToEditing()
+                    runAnimatedSwipeThrow(direction: 1)
                 } else if projected < -AppMotion.swipeDistanceThreshold {
-                    swipeOffsetX = 0
-                    viewModel.archiveCurrent()
+                    runAnimatedSwipeThrow(direction: -1)
                 } else {
                     withAnimation(AppMotion.resolve(AppMotion.cardSnapBack, reduceMotion: reduceMotion)) {
                         swipeOffsetX = 0

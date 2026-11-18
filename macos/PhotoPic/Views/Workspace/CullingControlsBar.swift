@@ -69,7 +69,7 @@ package struct CullingControlsBar: View {
                 .disabled(!viewModel.canUndo)
 
                 Button {
-                    viewModel.archiveCurrent()
+                    viewModel.requestAnimatedArchive()
                 } label: {
                     HStack(spacing: AppSpacing.xs) {
                         KeycapBadge("←")
@@ -80,7 +80,7 @@ package struct CullingControlsBar: View {
                 .disabled(viewModel.currentPendingItem == nil)
 
                 Button {
-                    viewModel.approveCurrentToEditing()
+                    viewModel.requestAnimatedApprove()
                 } label: {
                     HStack(spacing: AppSpacing.xs) {
                         Text("Para Edición")
