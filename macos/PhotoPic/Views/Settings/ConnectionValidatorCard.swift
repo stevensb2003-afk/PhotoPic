@@ -1,3 +1,4 @@
+import AppKit
 import SwiftUI
 
 /// Interactive 3-stage USB connection validator, native permission prompt waker,
@@ -6,6 +7,7 @@ package struct ConnectionValidatorCard: View {
     @Bindable var viewModel: DeviceManagerViewModel
     @State private var selectedGuide: DeviceBrandGuide = .samsungAndroid
     @State private var hasInitializedGuide = false
+    @State private var didCopyDiagnostics = false
 
     package init(viewModel: DeviceManagerViewModel) {
         self.viewModel = viewModel
@@ -54,7 +56,25 @@ package struct ConnectionValidatorCard: View {
 
             Spacer()
 
-            Button("Probar / Despertar Permiso en Móvil") {
+            if report.ptpLockedByMacOS, let targetFP = viewModel.connectedDevices.first?.fingerprint {
+                Button("Liberar macOS") {
+                    viewModel.releaseMacOSLock(for: targetFP)
+                }
+                .buttonStyle(StudioButtonStyle(.secondaryDark, compact: true))
+            }
+
+            Button(didCopyDiagnostics ? "Copiado ✓" : "Copiar Diagnóstico") {
+                NSPasteboard.general.clearContents()
+                NSPasteboard.general.setString(report.diagnosticSummaryText, forType: .string)
+                didCopyDiagnostics = true
+                Task { @MainActor in
+                    try? await Task.sleep(for: .seconds(2))
+                    didCopyDiagnostics = false
+                }
+            }
+            .buttonStyle(StudioButtonStyle(.secondaryDark, compact: true))
+
+            Button("Probar / Diagnosticar USB") {
                 Task { await viewModel.runDiagnosticProbe() }
             }
             .buttonStyle(StudioButtonStyle(.primaryLight, compact: true))

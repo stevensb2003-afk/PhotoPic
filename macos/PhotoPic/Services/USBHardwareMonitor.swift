@@ -12,6 +12,8 @@ package struct PhysicalUSBDevice: Identifiable, Sendable, Equatable, Hashable {
     package let productName: String
     package let serialNumber: String?
     package let category: DeviceCategory
+    package let linkSpeedMbps: Int?
+    package let ptpExclusiveOwner: String?
 
     package init(
         id: String,
@@ -20,7 +22,9 @@ package struct PhysicalUSBDevice: Identifiable, Sendable, Equatable, Hashable {
         vendorName: String,
         productName: String,
         serialNumber: String?,
-        category: DeviceCategory
+        category: DeviceCategory,
+        linkSpeedMbps: Int? = nil,
+        ptpExclusiveOwner: String? = nil
     ) {
         self.id = id
         self.vendorID = vendorID
@@ -29,6 +33,8 @@ package struct PhysicalUSBDevice: Identifiable, Sendable, Equatable, Hashable {
         self.productName = productName
         self.serialNumber = serialNumber
         self.category = category
+        self.linkSpeedMbps = linkSpeedMbps
+        self.ptpExclusiveOwner = ptpExclusiveOwner
     }
 
     package var displayName: String {
@@ -83,6 +89,7 @@ package final class USBHardwareMonitor {
         }
         defer { IOObjectRelease(iterator) }
 
+        let ptpOwners = scanPTPInterfaceOwners()
         var found: [PhysicalUSBDevice] = []
         while case let service = IOIteratorNext(iterator), service != 0 {
             defer { IOObjectRelease(service) }
@@ -102,6 +109,10 @@ package final class USBHardwareMonitor {
                 ?? ""
             let serial = (dict["USB Serial Number"] as? String)
                 ?? (dict["kUSBSerialNumberString"] as? String)
+            let linkBps = dict["UsbLinkSpeed"] as? Int
+            let speedMbps = linkBps.map { max(1, $0 / 1_000_000) }
+            let locationID = dict["locationID"] as? Int ?? 0
+            let owner = ptpOwners["\(vendorID):\(productID):\(locationID)"] ?? ptpOwners["\(vendorID):\(productID)"]
 
             guard let category = DeviceFingerprintMatcher.detectImagingHardware(
                 vendorID: vendorID,
@@ -121,11 +132,40 @@ package final class USBHardwareMonitor {
                     vendorName: vendorName,
                     productName: productName,
                     serialNumber: serial,
-                    category: category
+                    category: category,
+                    linkSpeedMbps: speedMbps,
+                    ptpExclusiveOwner: owner
                 ))
             }
         }
         return found
+    }
+
+    nonisolated private static func scanPTPInterfaceOwners() -> [String: String] {
+        guard let matching = IOServiceMatching("IOUSBHostInterface") else { return [:] }
+        var iterator: io_iterator_t = 0
+        guard IOServiceGetMatchingServices(kIOMainPortDefault, matching, &iterator) == KERN_SUCCESS else {
+            return [:]
+        }
+        defer { IOObjectRelease(iterator) }
+
+        var owners: [String: String] = [:]
+        while case let service = IOIteratorNext(iterator), service != 0 {
+            defer { IOObjectRelease(service) }
+            var propsRef: Unmanaged<CFMutableDictionary>?
+            guard IORegistryEntryCreateCFProperties(service, &propsRef, kCFAllocatorDefault, 0) == KERN_SUCCESS,
+                  let dict = propsRef?.takeRetainedValue() as? [String: Any],
+                  (dict["bInterfaceClass"] as? Int) == 6,
+                  let owner = dict["UsbExclusiveOwner"] as? String else {
+                continue
+            }
+            let vid = dict["idVendor"] as? Int ?? 0
+            let pid = dict["idProduct"] as? Int ?? 0
+            let loc = dict["locationID"] as? Int ?? 0
+            owners["\(vid):\(pid):\(loc)"] = owner
+            owners["\(vid):\(pid)"] = owner
+        }
+        return owners
     }
 
     nonisolated package static func detectConflictingProcesses() -> [String] {

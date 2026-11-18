@@ -122,9 +122,11 @@ package struct ConnectionValidationReport: Sendable, Equatable {
     package let recommendedGuide: DeviceBrandGuide
     package let hasUnmountedHardware: Bool
     package let conflictingApps: [String]
+    package let ptpLockedByMacOS: Bool
+    package let diagnosticSummaryText: String
 }
 
-/// Evaluates USB physical link, ImageCaptureCore visibility, and active PTP permission readiness.
+/// Evaluates USB physical link, ImageCaptureCore / Direct USB PTP visibility, and active session readiness.
 package enum DeviceConnectionDiagnostics {
     package static func evaluate(
         physical: [PhysicalUSBDevice],
@@ -137,31 +139,66 @@ package enum DeviceConnectionDiagnostics {
         let needsPermission = connected.contains {
             $0.status == .androidPermissionRequired || $0.status == .accessRestrictedLocked
         }
+        let hasError = connected.contains {
+            if case .error = $0.status { return true }
+            return false
+        }
         let unmounted = !physical.isEmpty && connected.isEmpty
+
+        let primaryPhys = physical.first
+        let primaryConn = connected.first
+        let ownerString = primaryPhys?.ptpExclusiveOwner ?? ""
+        let ownerLower = ownerString.lowercased()
+        let lockedByDaemon = ownerLower.contains("ptpcamera") || connected.contains { $0.status == .busyByMacOS }
+
+        let speedNote = primaryPhys?.linkSpeedMbps.map { " · \($0) Mbps" } ?? ""
+        let idNote: String = if let p = primaryPhys {
+            String(format: " (0x%04X:0x%04X)", p.vendorID, p.productID)
+        } else {
+            ""
+        }
 
         let stage1 = ValidationStageResult(
             title: "1. Enlace Físico USB",
             detail: physicalDetected
-                ? "Hardware detectado (\(physical.first?.displayName ?? connected.first?.deviceName ?? "USB"))."
-                : "Conectá un cable USB de datos (no solo carga).",
+                ? "\(primaryPhys?.displayName ?? primaryConn?.deviceName ?? "USB")\(idNote)\(speedNote)."
+                : "Sin cámara detectada en el bus USB (revisá cable o Autoapagado).",
             passed: physicalDetected,
             warning: false
         )
 
+        let stage2Detail: String
+        if lockedByDaemon {
+            stage2Detail = "Bloqueado por macOS (\(ownerString.isEmpty ? "ptpcamerad" : ownerString)). Pulsá 'Liberar macOS'."
+        } else if mountedInPTP {
+            let transport = primaryConn?.transportType ?? "PTP"
+            let ownerTag = ownerString.isEmpty ? "" : " · Dueño: \(ownerString)"
+            stage2Detail = "Canal \(transport) disponible\(ownerTag)."
+        } else if unmounted {
+            stage2Detail = "Cable detectado, pero el equipo ocultó PTP (revisá guía abajo)."
+        } else {
+            stage2Detail = "Esperando interfaz PTP."
+        }
         let stage2 = ValidationStageResult(
             title: "2. Protocolo PTP",
-            detail: mountedInPTP
-                ? "Visible para ImageCaptureCore."
-                : (unmounted ? "Cable detectado, pero el equipo ocultó PTP (revisá guía abajo)." : "Esperando dispositivo PTP."),
-            passed: mountedInPTP,
-            warning: unmounted
+            detail: stage2Detail,
+            passed: mountedInPTP && !lockedByDaemon,
+            warning: unmounted || lockedByDaemon
         )
 
         let stage3Detail: String
         if hasLiveReady {
-            stage3Detail = "Sesión abierta y transfiriendo originales."
+            stage3Detail = primaryConn?.usbVendorID == 0x04A9
+                ? "Sesión PTP Directa abierta (sin indexar SD, listo para disparar)."
+                : "Sesión abierta y transfiriendo originales."
         } else if needsPermission {
             stage3Detail = "Aceptá 'Permitir' / 'Confiar' en la pantalla del teléfono."
+        } else if let errConn = connected.first(where: { if case .error = $0.status { return true }; return false }),
+                  case .error(let errMsg) = errConn.status {
+            stage3Detail = "Fallo de sesión: \(errMsg)"
+        } else if let idxConn = connected.first(where: { $0.status.isIndexingCatalog }),
+                  case .indexingCatalog(let pct, let count) = idxConn.status {
+            stage3Detail = "Indexando catálogo SD (\(pct)% · \(count) archivos)."
         } else if mountedInPTP {
             stage3Detail = "Listo para vincular o abrir sesión."
         } else {
@@ -171,7 +208,7 @@ package enum DeviceConnectionDiagnostics {
             title: "3. Permiso y Sesión",
             detail: stage3Detail,
             passed: hasLiveReady,
-            warning: needsPermission
+            warning: needsPermission || hasError
         )
 
         let guide = pickGuide(physical: physical, connected: connected)
@@ -180,19 +217,31 @@ package enum DeviceConnectionDiagnostics {
         if hasLiveReady {
             headline = "Conexión validada y lista"
             subheadline = "Tethering activo en tiempo real."
+        } else if lockedByDaemon {
+            headline = "Canal USB retenido por macOS"
+            subheadline = "Usá 'Liberar macOS' para tomar control directo desde PhotoPic."
         } else if needsPermission {
             headline = "Falta confirmar permiso en el dispositivo"
             subheadline = guide.menuPathSummary
         } else if unmounted {
             headline = "Dispositivo conectado en modo incompatible"
-            subheadline = "Tu Mac ve el cable de \(physical.first?.displayName ?? "tu equipo"), pero no expone fotos PTP todavía."
+            subheadline = "Tu Mac ve el cable de \(primaryPhys?.displayName ?? "tu equipo"), pero no expone fotos PTP todavía."
         } else if !conflictingApps.isEmpty {
             headline = "Posible conflicto detectado: \(conflictingApps.joined(separator: ", "))"
             subheadline = "Cerrá apps competidoras si reclaman el puerto USB."
         } else {
             headline = "Listo para diagnosticar USB"
-            subheadline = "Conectá tu cámara o celular y pulsá 'Probar / Despertar Permiso'."
+            subheadline = "Conectá o despertá tu cámara y pulsá 'Probar Conexión'."
         }
+
+        let summaryLines = [
+            "PhotoPic USB Validator Report",
+            "Estado: \(headline) — \(subheadline)",
+            "1) \(stage1.title): \(stage1.detail)",
+            "2) \(stage2.title): \(stage2.detail)",
+            "3) \(stage3.title): \(stage3.detail)",
+            "Conflictos: \(conflictingApps.isEmpty ? "Ninguno" : conflictingApps.joined(separator: ", "))"
+        ]
 
         return ConnectionValidationReport(
             headline: headline,
@@ -200,7 +249,9 @@ package enum DeviceConnectionDiagnostics {
             stages: [stage1, stage2, stage3],
             recommendedGuide: guide,
             hasUnmountedHardware: unmounted,
-            conflictingApps: conflictingApps
+            conflictingApps: conflictingApps,
+            ptpLockedByMacOS: lockedByDaemon,
+            diagnosticSummaryText: summaryLines.joined(separator: "\n")
         )
     }
 
