@@ -52,15 +52,34 @@ extension CullingSessionViewModel {
             switch record.destinationFolder {
             case .archived:
                 archivedItems.removeAll { $0.id == record.item.id }
+                archivedThumbnails.removeValue(forKey: record.item.id)
+                if selectedArchivedID == record.item.id {
+                    selectedArchivedID = archivedItems.first?.id
+                    if let next = selectedArchivedItem {
+                        loadArchivedPreview(for: next)
+                    } else {
+                        archivedPreviewImage = nil
+                    }
+                }
             case .forEditing:
                 forEditingItems.removeAll { $0.id == record.item.id }
+                if selectedEditingID == record.item.id {
+                    selectedEditingID = forEditingItems.first?.id
+                    if let next = selectedEditingItem {
+                        loadEditingPreview(for: next)
+                    } else {
+                        editingPreviewImage = nil
+                    }
+                }
             case .raw, .jpg:
                 break
             }
-            let insertionIndex = min(max(0, currentIndex), pendingItems.count)
-            pendingItems.insert(restored, at: insertionIndex)
+            pendingItems.append(restored)
+            sortChronologically(&pendingItems)
             if let visibleIdx = visiblePendingItems.firstIndex(where: { $0.id == restored.id }) {
                 currentIndex = visibleIdx
+            } else {
+                clampCurrentIndex()
             }
             session.counts = SessionFileManager.readDiskCounts(for: session)
             resetZoomState()
@@ -76,7 +95,9 @@ extension CullingSessionViewModel {
             let record = try SessionFileManager.moveItem(item, to: .forEditing, in: session)
             let removedIndex = archivedItems.firstIndex(where: { $0.id == item.id }) ?? 0
             archivedItems.removeAll { $0.id == item.id }
+            archivedThumbnails.removeValue(forKey: item.id)
             forEditingItems.append(record.item)
+            sortChronologically(&forEditingItems)
             if selectedEditingID == nil {
                 selectedEditingID = record.item.id
             }
@@ -103,6 +124,7 @@ extension CullingSessionViewModel {
             let removedIndex = forEditingItems.firstIndex(where: { $0.id == item.id }) ?? 0
             forEditingItems.removeAll { $0.id == item.id }
             archivedItems.append(record.item)
+            sortChronologically(&archivedItems)
             if selectedArchivedID == nil {
                 selectedArchivedID = record.item.id
             }
@@ -129,6 +151,7 @@ extension CullingSessionViewModel {
             let removedIndex = forEditingItems.firstIndex(where: { $0.id == item.id }) ?? 0
             forEditingItems.removeAll { $0.id == item.id }
             pendingItems.append(record.item)
+            sortChronologically(&pendingItems)
             undoStack.removeAll { $0.item.id == item.id }
             if !forEditingItems.isEmpty {
                 selectedEditingID = forEditingItems[min(removedIndex, forEditingItems.count - 1)].id
@@ -136,14 +159,27 @@ extension CullingSessionViewModel {
                 selectedEditingID = nil
                 editingPreviewImage = nil
             }
+            clampCurrentIndex()
             session.counts = SessionFileManager.readDiskCounts(for: session)
-            renderActivePhotoIfNeeded(force: false)
+            renderActivePhotoIfNeeded(force: true)
             showFeedbackPill("Devuelta a Filtrar", kind: .recovered)
             if let next = selectedEditingItem {
                 loadEditingPreview(for: next)
             }
         } catch {
             errorMessage = error.localizedDescription
+        }
+    }
+
+    package func stepEditingSelection(delta: Int) {
+        if let target = steppedItem(in: forEditingItems, currentID: selectedEditingID, delta: delta) {
+            selectEditingItem(target)
+        }
+    }
+
+    package func stepArchivedSelection(delta: Int) {
+        if let target = steppedItem(in: archivedItems, currentID: selectedArchivedID, delta: delta) {
+            selectArchivedItem(target)
         }
     }
 
@@ -218,11 +254,13 @@ extension CullingSessionViewModel {
             pendingItems.removeAll { $0.id == current.id }
             if folder == .archived {
                 archivedItems.append(record.item)
+                sortChronologically(&archivedItems)
                 if selectedArchivedID == nil {
                     selectedArchivedID = record.item.id
                 }
             } else if folder == .forEditing {
                 forEditingItems.append(record.item)
+                sortChronologically(&forEditingItems)
                 if selectedEditingID == nil {
                     selectedEditingID = record.item.id
                 }
@@ -235,5 +273,21 @@ extension CullingSessionViewModel {
         } catch {
             errorMessage = error.localizedDescription
         }
+    }
+
+    private func sortChronologically(_ items: inout [PhotoItem]) {
+        items.sort { lhs, rhs in
+            if lhs.capturedAt == rhs.capturedAt {
+                return lhs.filename < rhs.filename
+            }
+            return lhs.capturedAt < rhs.capturedAt
+        }
+    }
+
+    private func steppedItem(in items: [PhotoItem], currentID: String?, delta: Int) -> PhotoItem? {
+        guard !items.isEmpty else { return nil }
+        let currentIdx = currentID.flatMap { id in items.firstIndex(where: { $0.id == id }) } ?? 0
+        let nextIdx = min(max(0, currentIdx + delta), items.count - 1)
+        return items[nextIdx]
     }
 }

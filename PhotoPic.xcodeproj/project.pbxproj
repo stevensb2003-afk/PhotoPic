@@ -49,6 +49,7 @@
 		BE3E59C8E287DBFF245FF7CE = {isa = PBXBuildFile; fileRef = C7617A8D85FB81C02EC52A49; };
 		4733A9BC9C3893DC300A4585 = {isa = PBXBuildFile; fileRef = 66FECD22AD4B16759085C5F6; };
 		816722AD7E477A4BE849EB53 = {isa = PBXBuildFile; fileRef = 1416ACDEDF51223DB098A676; };
+		527290CE030473FA2AD21F50 = {isa = PBXBuildFile; fileRef = C632829BBCE8AC601F3DD9E8; };
 		B942ACE53A29022DE4967441 = {isa = PBXBuildFile; fileRef = 2CC45DCDD19238BEB17B36A4; };
 		4FF3BBC330D7D16FC6EE6CD0 = {isa = PBXBuildFile; fileRef = 3B26714214F6CC205D610127; };
 		4566354D2DCF4A81F5E6A047 = {isa = PBXBuildFile; fileRef = 57FDAB23CF6DB53B7A9002BD; };
@@ -68,6 +69,7 @@
 		D44B7CA9BFDC1519B443474E = {isa = PBXBuildFile; fileRef = 95DFB68CB1D2D81C55A55E56; };
 		DD775DA670A7C1D41BAA719B = {isa = PBXBuildFile; fileRef = 8514D213D664E212B8D37F6E; };
 		F749A4795F269BCDB16F303D = {isa = PBXBuildFile; fileRef = F963F4B2F4064A2925529AAA; };
+		F79F718F4D341583D3B8AACE = {isa = PBXBuildFile; fileRef = 0D0C6D14FD4781C9F34FB19A; };
 		E37FBBCE1ED5816C5188511B = {isa = PBXBuildFile; fileRef = 43B75330EAE54853AA0DC2CF; };
 		0E75F0DD85B8659E26C4A341 = {isa = PBXBuildFile; fileRef = 097553DC273550BB3C75963C; };
 		5D0F1BB77112DFA812C9F5CF = {isa = PBXBuildFile; fileRef = 204CABAC968EC13877A03B15; };
@@ -149,6 +151,7 @@
 		C7617A8D85FB81C02EC52A49 = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = "SessionFileManager+BucketSync.swift"; path = "macos/PhotoPic/Services/SessionFileManager+BucketSync.swift"; sourceTree = "<group>"; };
 		66FECD22AD4B16759085C5F6 = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = "SessionFileManager+GroupsAndDelete.swift"; path = "macos/PhotoPic/Services/SessionFileManager+GroupsAndDelete.swift"; sourceTree = "<group>"; };
 		1416ACDEDF51223DB098A676 = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = "SessionFileManager.swift"; path = "macos/PhotoPic/Services/SessionFileManager.swift"; sourceTree = "<group>"; };
+		C632829BBCE8AC601F3DD9E8 = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = "SessionFolderImporter.swift"; path = "macos/PhotoPic/Services/SessionFolderImporter.swift"; sourceTree = "<group>"; };
 		2CC45DCDD19238BEB17B36A4 = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = "SessionIngestRouter.swift"; path = "macos/PhotoPic/Services/SessionIngestRouter.swift"; sourceTree = "<group>"; };
 		3B26714214F6CC205D610127 = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = "TetherBaselineGate.swift"; path = "macos/PhotoPic/Services/TetherBaselineGate.swift"; sourceTree = "<group>"; };
 		57FDAB23CF6DB53B7A9002BD = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = "TetherCaptureService+Delegate.swift"; path = "macos/PhotoPic/Services/TetherCaptureService+Delegate.swift"; sourceTree = "<group>"; };
@@ -168,6 +171,7 @@
 		95DFB68CB1D2D81C55A55E56 = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = "HelpCenterView.swift"; path = "macos/PhotoPic/Views/Help/HelpCenterView.swift"; sourceTree = "<group>"; };
 		8514D213D664E212B8D37F6E = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = "HomeDashboardView.swift"; path = "macos/PhotoPic/Views/Home/HomeDashboardView.swift"; sourceTree = "<group>"; };
 		F963F4B2F4064A2925529AAA = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = "HomeFilterAndGroupBar.swift"; path = "macos/PhotoPic/Views/Home/HomeFilterAndGroupBar.swift"; sourceTree = "<group>"; };
+		0D0C6D14FD4781C9F34FB19A = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = "ImportSessionSheet.swift"; path = "macos/PhotoPic/Views/Home/ImportSessionSheet.swift"; sourceTree = "<group>"; };
 		43B75330EAE54853AA0DC2CF = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = "NewSessionSheet.swift"; path = "macos/PhotoPic/Views/Home/NewSessionSheet.swift"; sourceTree = "<group>"; };
 		097553DC273550BB3C75963C = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = "SessionCardView.swift"; path = "macos/PhotoPic/Views/Home/SessionCardView.swift"; sourceTree = "<group>"; };
 		204CABAC968EC13877A03B15 = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = "SessionModalsView.swift"; path = "macos/PhotoPic/Views/Home/SessionModalsView.swift"; sourceTree = "<group>"; };
@@ -281,6 +285,7 @@
 				C7617A8D85FB81C02EC52A49,
 				66FECD22AD4B16759085C5F6,
 				1416ACDEDF51223DB098A676,
+				C632829BBCE8AC601F3DD9E8,
 				2CC45DCDD19238BEB17B36A4,
 				3B26714214F6CC205D610127,
 				57FDAB23CF6DB53B7A9002BD,
@@ -300,6 +305,7 @@
 				95DFB68CB1D2D81C55A55E56,
 				8514D213D664E212B8D37F6E,
 				F963F4B2F4064A2925529AAA,
+				0D0C6D14FD4781C9F34FB19A,
 				43B75330EAE54853AA0DC2CF,
 				097553DC273550BB3C75963C,
 				204CABAC968EC13877A03B15,
@@ -388,6 +394,7 @@
 				BE3E59C8E287DBFF245FF7CE,
 				4733A9BC9C3893DC300A4585,
 				816722AD7E477A4BE849EB53,
+				527290CE030473FA2AD21F50,
 				B942ACE53A29022DE4967441,
 				4FF3BBC330D7D16FC6EE6CD0,
 				4566354D2DCF4A81F5E6A047,
@@ -407,6 +414,7 @@
 				D44B7CA9BFDC1519B443474E,
 				DD775DA670A7C1D41BAA719B,
 				F749A4795F269BCDB16F303D,
+				F79F718F4D341583D3B8AACE,
 				E37FBBCE1ED5816C5188511B,
 				0E75F0DD85B8659E26C4A341,
 				5D0F1BB77112DFA812C9F5CF,

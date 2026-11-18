@@ -92,6 +92,7 @@ Si elegís mantener activa la IA, el analizador local genera etiquetas al ingres
 ```
 
 - **Movimiento sincronizado `RAW + JPG`:** Cada vez que aprobás (`→`), archivás (`←`), deshacés (`⌘Z` / `Ctrl+Z`), revisás en **`Seleccionadas`** (donde podés devolver fotos a `Filtrar` o moverlas a `Archivadas`) o recuperás desde **`Archivadas`**, PhotoPic mueve el par completo manteniendo `RAW/` y `JPG/` clasificados por separado en cada carpeta destino.
+- **Importar carpeta del Mac como sesión (`⌘I`, `v2.6.26`):** Elegí cualquier carpeta existente de tu computadora (RAW sueltos, pares `RAW + JPG` en la misma o distinta subcarpeta, o fotos `JPG`/`HEIC`), copiá o mové con nombres sin colisión preservando `.xmp`, y dispará reconocimiento de rostros, ojos cerrados y poses con un clic (`Detectar rostros`) incluso si venís del *Modo Ligero*.
 - **Tethering USB Directo, Wi-Fi PTP/IP (Bonjour) y Carpeta puente:** En macOS incluye enlace directo **`IOUSBHost`** (`DirectCanonUSBPTPService`) para Canon EOS (apertura `< 200ms` sin escanear la SD y soporte para mantener o limpiar originales en tarjeta `0xD11C`), además de **Carpeta puente** en vivo para transmisores inalámbricos (EOS Utility, Capture One, Air Direct, CamRanger, FTP local).
 - **Centro de Ayuda Interno (`?` / `⌘?`):** Guía paso a paso 100% offline dentro de la app, sincronizada con la base documental BRD en [`photopic_ai_agent_docs/`](photopic_ai_agent_docs/docs.md).
 
@@ -123,6 +124,7 @@ Dentro de la pestaña **`Seleccionadas`** podés inspeccionar todo lo aprobado e
 | **`←`** o **Swipe Izquierda** | Archivar foto (mueve físicamente de `RAW/` a `Archivadas/`) |
 | **`↑` / `↓`** | Navegar libremente por la cola sin mover archivos |
 | **`Espacio`** o **Clic sostenido + arrastrar** | Zoom **1:1 píxel real** sobre el sensor revelado para revisar foco crítico |
+| **`⌘I`** *(Mac)* | Importar carpeta existente del Mac y segregar `RAW / JPG` con IA |
 | **`⌘Z`** *(Mac)* / **`Ctrl+Z`** *(Win)* | Deshacer última clasificación (restaura el RAW y su `.xmp` a `RAW/`) |
 
 ---

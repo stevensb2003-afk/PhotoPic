@@ -29,21 +29,50 @@ extension CullingSessionViewModel {
 
     package func scheduleVisionAnalysisForPending() {
         visionBatchTask?.cancel()
+        visionBatchGeneration += 1
         guard autoTagOnIngest else {
             isAnalyzingVision = false
+            visionCompletedCount = 0
+            visionTotalCount = 0
             return
         }
-        let unanalyzed = pendingItems.filter { $0.visionTags == nil }
-        guard !unanalyzed.isEmpty else { return }
+        startVisionBatchAnalysis(respectAutoTagSetting: true)
+    }
 
+    /// Triggers batch Vision AI analysis (faces, closed eyes, poses) for all unanalyzed
+    /// pending photos even when global auto-tagging (`Modo Ligero`) is turned off.
+    package func runManualVisionAnalysisBatch() {
+        visionBatchTask?.cancel()
+        visionBatchGeneration += 1
+        startVisionBatchAnalysis(respectAutoTagSetting: false)
+    }
+
+    private func startVisionBatchAnalysis(respectAutoTagSetting: Bool) {
+        let generation = visionBatchGeneration
+        let unanalyzed = pendingItems.filter { $0.visionTags == nil }
+        guard !unanalyzed.isEmpty else {
+            isAnalyzingVision = false
+            visionCompletedCount = 0
+            visionTotalCount = 0
+            return
+        }
+
+        visionCompletedCount = 0
+        visionTotalCount = unanalyzed.count
         isAnalyzingVision = true
         visionBatchTask = Task { [weak self] in
             guard let self else { return }
             for item in unanalyzed {
-                guard !Task.isCancelled, self.autoTagOnIngest else { break }
+                guard !Task.isCancelled, self.visionBatchGeneration == generation else { break }
+                if respectAutoTagSetting, !self.autoTagOnIngest { break }
                 await self.runVisionAnalysis(for: item)
+                if self.visionBatchGeneration == generation {
+                    self.visionCompletedCount += 1
+                }
             }
-            self.isAnalyzingVision = false
+            if self.visionBatchGeneration == generation {
+                self.isAnalyzingVision = false
+            }
         }
     }
 
@@ -91,6 +120,14 @@ extension CullingSessionViewModel {
             PhotoTagStore.save(
                 tags: tags,
                 for: pendingItems[idx],
+                in: session,
+                writeSidecarAndFinderTags: syncSidecar
+            )
+        } else if let idx = forEditingItems.firstIndex(where: { $0.baseFilename == base }) {
+            forEditingItems[idx].visionTags = tags
+            PhotoTagStore.save(
+                tags: tags,
+                for: forEditingItems[idx],
                 in: session,
                 writeSidecarAndFinderTags: syncSidecar
             )

@@ -5,6 +5,7 @@ import SwiftUI
 /// and an isolated right-side floating PhotoInspectorCardView.
 package struct TinderCardStackView: View {
     @Bindable var viewModel: CullingSessionViewModel
+    @Environment(AppState.self) private var appState: AppState?
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
     @State private var swipeOffsetX: CGFloat = 0
@@ -279,11 +280,22 @@ package struct TinderCardStackView: View {
                 .font(AppTypography.pageTitle)
                 .foregroundStyle(AppColors.textPrimary)
 
-            Text("Dispará con tu cámara o celular conectado por USB. Cada RAW (.CR2, .CR3, .DNG, .ARW, .NEF, .RAF) aparecerá aquí al instante.")
+            Text("Dispará con tu cámara o celular conectado por USB, o importá una carpeta de tu Mac para segregar RAW/JPG y detectar rostros con IA.")
                 .font(AppTypography.body)
                 .foregroundStyle(AppColors.textSecondary)
                 .multilineTextAlignment(.center)
-                .frame(maxWidth: 460)
+                .frame(maxWidth: 480)
+
+            if let appState {
+                Button {
+                    appState.importPhotosIntoActiveSessionFromPicker()
+                } label: {
+                    Label("Importar carpeta a esta sesión", systemImage: "square.and.arrow.down")
+                }
+                .buttonStyle(StudioButtonStyle(.secondaryDark))
+                .help("Seleccionar una carpeta de tu Mac y organizar sus RAW/JPG en esta sesión (⌘I)")
+                .padding(.top, AppSpacing.xs)
+            }
         }
         .padding(AppSpacing.xxl)
     }

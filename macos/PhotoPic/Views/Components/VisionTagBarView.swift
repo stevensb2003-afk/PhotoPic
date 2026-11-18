@@ -6,17 +6,29 @@ package struct VisionTagFilterStrip: View {
     @Binding var selectedTag: String?
     let totalPendingCount: Int
     let isAnalyzing: Bool
+    let analyzedCount: Int
+    let totalAnalyzeCount: Int
+    let hasUnanalyzedItems: Bool
+    let onTriggerManualAnalysis: () -> Void
 
     package init(
         availableTags: [TagSummaryBadge],
         selectedTag: Binding<String?>,
         totalPendingCount: Int,
-        isAnalyzing: Bool
+        isAnalyzing: Bool,
+        analyzedCount: Int = 0,
+        totalAnalyzeCount: Int = 0,
+        hasUnanalyzedItems: Bool = false,
+        onTriggerManualAnalysis: @escaping () -> Void = {}
     ) {
         self.availableTags = availableTags
         self._selectedTag = selectedTag
         self.totalPendingCount = totalPendingCount
         self.isAnalyzing = isAnalyzing
+        self.analyzedCount = analyzedCount
+        self.totalAnalyzeCount = totalAnalyzeCount
+        self.hasUnanalyzedItems = hasUnanalyzedItems
+        self.onTriggerManualAnalysis = onTriggerManualAnalysis
     }
 
     package var body: some View {
@@ -53,11 +65,33 @@ package struct VisionTagFilterStrip: View {
                     HStack(spacing: AppSpacing.xxs) {
                         ProgressView()
                             .controlSize(.mini)
-                        Text("Etiquetando...")
+                        Text(totalAnalyzeCount > 0
+                            ? "Etiquetando \(analyzedCount)/\(totalAnalyzeCount)..."
+                            : "Etiquetando...")
                             .font(AppTypography.micro)
                             .foregroundStyle(AppColors.textTertiary)
                     }
                     .padding(.leading, AppSpacing.sm)
+                } else if hasUnanalyzedItems {
+                    Button(action: onTriggerManualAnalysis) {
+                        HStack(spacing: AppSpacing.xxs) {
+                            PictogrammersIcon(.faceRecognition, size: 12)
+                            Text("Detectar rostros")
+                                .font(AppTypography.captionMedium)
+                        }
+                        .foregroundStyle(AppColors.warningAmber)
+                        .padding(.horizontal, AppSpacing.sm)
+                        .padding(.vertical, AppSpacing.xxs)
+                        .background(AppColors.warningAmberTint)
+                        .clipShape(Capsule())
+                        .overlay(
+                            Capsule()
+                                .stroke(AppColors.warningAmber.opacity(0.45), lineWidth: AppSpacing.hairline)
+                        )
+                    }
+                    .buttonStyle(.plain)
+                    .padding(.leading, AppSpacing.xs)
+                    .help("Analizar rostros, ojos cerrados y poses en todas las fotos pendientes con Vision IA")
                 }
             }
             .padding(.horizontal, AppSpacing.lg)

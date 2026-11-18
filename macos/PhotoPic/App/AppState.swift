@@ -1,3 +1,4 @@
+import AppKit
 import Foundation
 import Observation
 
@@ -160,6 +161,141 @@ package final class AppState {
         }
     }
 
+    package func presentImportSessionFolderPicker() {
+        guard let chosenURL = pickSourceFolderPanel(
+            title: "Importar carpeta de fotos",
+            message: "Elegí una carpeta de tu Mac para organizar RAW, JPG o HEIC como nueva sesión"
+        ) else {
+            return
+        }
+        homeViewModel.prepareImportSheet(for: chosenURL)
+    }
+
+    package func repickImportSourceFolder() {
+        guard !homeViewModel.isImportingFolder,
+              let chosenURL = pickSourceFolderPanel(
+                  title: "Cambiar carpeta origen",
+                  message: "Elegí la carpeta de fotos que querés importar a PhotoPic"
+              ) else {
+            return
+        }
+        let suggested = SessionFileManager.sanitizeSessionName(chosenURL.lastPathComponent)
+        if !suggested.isEmpty {
+            homeViewModel.importSessionNameDraft = suggested
+        }
+        homeViewModel.scanImportFolder(at: chosenURL, includeSubfolders: homeViewModel.importIncludeSubfolders)
+    }
+
+    package func executeImportSession(
+        named name: String,
+        groupName: String?,
+        rawTags: String
+    ) {
+        guard !homeViewModel.isImportingFolder,
+              let rootFolderURL,
+              let summary = homeViewModel.importSourceSummary,
+              !summary.units.isEmpty else {
+            return
+        }
+
+        let parsedTags = SessionMetadata.parseCommaSeparatedTags(rawTags)
+        let transferMode = homeViewModel.importTransferMode
+        let runVisionAI = homeViewModel.importRunVisionAIOnOpen
+        let totalCount = summary.totalPhotoUnitsCount
+
+        homeViewModel.isImportingFolder = true
+        homeViewModel.importErrorMessage = nil
+        homeViewModel.importProgress = FolderImportProgress(
+            completedUnits: 0,
+            totalUnits: totalCount,
+            currentFilename: ""
+        )
+
+        Task { @MainActor [weak self] in
+            guard let self else { return }
+            do {
+                let result = try await SessionFolderImporter.importAsNewSession(
+                    from: summary,
+                    sessionName: name,
+                    groupName: groupName,
+                    initialTags: parsedTags,
+                    transferMode: transferMode,
+                    in: rootFolderURL
+                ) { progress in
+                    Task { @MainActor [weak self] in
+                        self?.homeViewModel.importProgress = progress
+                    }
+                }
+                self.homeViewModel.isImportingFolder = false
+                self.homeViewModel.isPresentingImportSheet = false
+                self.homeViewModel.importProgress = nil
+                self.homeViewModel.reloadSessions(in: rootFolderURL)
+                self.openSession(result.session)
+                if runVisionAI {
+                    self.activeSessionViewModel?.runManualVisionAnalysisBatch()
+                }
+                self.showTransientNotice(Self.formatImportSummaryNotice(result))
+            } catch {
+                self.homeViewModel.isImportingFolder = false
+                self.homeViewModel.importProgress = nil
+                self.homeViewModel.importErrorMessage = error.localizedDescription
+            }
+        }
+    }
+
+    package func importPhotosIntoActiveSessionFromPicker() {
+        guard let workspace = activeSessionViewModel,
+              let chosenURL = pickSourceFolderPanel(
+                  title: "Importar fotos a \"\(workspace.session.name)\"",
+                  message: "Elegí una carpeta para segregar sus RAW y JPG dentro de esta sesión"
+              ) else {
+            return
+        }
+
+        Task { @MainActor [weak self] in
+            guard let self else { return }
+            do {
+                let summary = try await Task.detached(priority: .userInitiated) {
+                    try SessionFolderImporter.scanFolder(at: chosenURL, includeSubfolders: true)
+                }.value
+                guard !summary.units.isEmpty else {
+                    self.showTransientNotice(SessionImportError.noSupportedPhotosFound.localizedDescription)
+                    return
+                }
+                let result = try await SessionFolderImporter.importIntoExistingSession(
+                    from: summary,
+                    into: workspace.session,
+                    transferMode: .copy
+                )
+                workspace.reloadFromDisk()
+                workspace.runManualVisionAnalysisBatch()
+                self.homeViewModel.updateSessionCounts(workspace.session)
+                self.showTransientNotice(Self.formatImportSummaryNotice(result))
+            } catch {
+                self.showTransientNotice(error.localizedDescription)
+            }
+        }
+    }
+
+    private func pickSourceFolderPanel(title: String, message: String) -> URL? {
+        let panel = NSOpenPanel()
+        panel.title = title
+        panel.message = message
+        panel.prompt = "Seleccionar carpeta"
+        panel.canChooseFiles = false
+        panel.canChooseDirectories = true
+        panel.allowsMultipleSelection = false
+        panel.canCreateDirectories = false
+        return panel.runModal() == .OK ? panel.url : nil
+    }
+
+    private static func formatImportSummaryNotice(_ result: FolderImportResult) -> String {
+        if result.rawCount > 0 && result.pairedJpgCount > 0 {
+            return "Importadas \(result.importedUnitsCount) tomas (\(result.rawCount) RAW · \(result.pairedJpgCount) JPG vinculados)"
+        }
+        return "Importadas \(result.importedUnitsCount) fotos listas para filtrar"
+    }
+
     package func deleteSessionPermanently(_ session: PhotoSession) {
         guard let rootFolderURL else { return }
         if activeSessionViewModel?.session.id == session.id {
@@ -210,6 +346,9 @@ package final class AppState {
         isPresentingSettings = false
         isPresentingHelp = false
         homeViewModel.isPresentingNewSessionSheet = false
+        if !homeViewModel.isImportingFolder {
+            homeViewModel.isPresentingImportSheet = false
+        }
     }
 
     package func attachWatchFolderFromPicker() {

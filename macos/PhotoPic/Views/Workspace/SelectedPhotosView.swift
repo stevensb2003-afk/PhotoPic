@@ -30,6 +30,11 @@ package struct SelectedPhotosView: View {
                 viewModel.loadEditingPreview(for: selected)
             }
         }
+        .onChange(of: viewModel.selectedEditingItem?.id) { _, _ in
+            if let selected = viewModel.selectedEditingItem {
+                viewModel.loadEditingPreview(for: selected)
+            }
+        }
     }
 
     private var selectedGridPane: some View {
@@ -117,11 +122,35 @@ package struct SelectedPhotosView: View {
                                 .padding(.vertical, 2)
                                 .background(AppColors.elevatedSurface)
                                 .clipShape(RoundedRectangle(cornerRadius: AppRadius.xs, style: .continuous))
+                            if selected.pairedCompressedURL != nil {
+                                Text("+JPG")
+                                    .font(AppTypography.monoMicro)
+                                    .foregroundStyle(AppColors.infoBlue)
+                                    .padding(.horizontal, AppSpacing.xs)
+                                    .padding(.vertical, 2)
+                                    .background(AppColors.elevatedSurface)
+                                    .clipShape(RoundedRectangle(cornerRadius: AppRadius.xs, style: .continuous))
+                            }
                         }
 
                         Text("\(selected.exif.compactHudSummary) · \(selected.formattedFileSize)")
                             .font(AppTypography.monoCaption)
                             .foregroundStyle(AppColors.textSecondary)
+
+                        if let tags = selected.visionTags, !tags.allTags.isEmpty {
+                            HStack(spacing: AppSpacing.xs) {
+                                ForEach(tags.allTags.prefix(4), id: \.self) { tag in
+                                    let isClosedEyes = tag == "Ojos cerrados"
+                                    Text(tag)
+                                        .font(AppTypography.monoMicro)
+                                        .foregroundStyle(isClosedEyes ? AppColors.warningAmber : AppColors.textSecondary)
+                                        .padding(.horizontal, AppSpacing.xs)
+                                        .padding(.vertical, 2)
+                                        .background(isClosedEyes ? AppColors.warningAmberTint : AppColors.elevatedSurface)
+                                        .clipShape(Capsule())
+                                }
+                            }
+                        }
                     }
 
                     Spacer()

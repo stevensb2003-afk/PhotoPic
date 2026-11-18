@@ -9,16 +9,17 @@ extension HelpGuideCatalog {
             title: "Flujo de Trabajo",
             subtitle: "Del primer arranque a la entrega organizada",
             iconSystemName: "square.stack.3d.up",
-            keywords: ["inicio", "e2e", "sesion", "carpeta raiz", "flujo", "lightroom", "dmg"],
-            summary: "PhotoPic no encierra tus fotos en un catálogo cerrado: trabaja directo sobre tus carpetas y sincroniza pares RAW + JPG mientras disparás.",
+            keywords: ["inicio", "e2e", "sesion", "carpeta raiz", "flujo", "lightroom", "dmg", "importar", "carpeta", "offline"],
+            summary: "PhotoPic no encierra tus fotos en un catálogo cerrado: trabaja directo sobre tus carpetas, segrega pares RAW + JPG tanto en vivo como al importar carpetas existentes, y sincroniza todo.",
             steps: [
                 "1. En el Asistente Inicial confirmá el perfil de hardware (IA completa, Equilibrado o Modo Ligero).",
                 "2. Elegí tu Carpeta Raíz Global donde vivirán tus grupos y sesiones.",
-                "3. Creá una sesión con 'Nueva sesión' (⌘N) o agrupala con 'Crear grupo': se generan RAW/, JPG/, Para_Edicion/{RAW,JPG} y Archivadas/{RAW,JPG}.",
-                "4. Conectá tu cámara o teléfono por USB (o vinculá una Carpeta puente).",
+                "3. Creá una sesión vacía con 'Nueva sesión' (⌘N) o usá 'Importar carpeta' (⌘I) para traer una carpeta existente de tu Mac: PhotoPic separa RAW/ y JPG/ automáticamente y analiza rostros.",
+                "4. También podés conectar tu cámara o teléfono por USB (o vincular una Carpeta puente).",
                 "5. Revisá nitidez al Zoom 1:1 (Espacio), aprobá hacia Seleccionadas (→) o descartá con ←."
             ],
             canDo: [
+                "Importar carpetas ya guardadas en tu Mac (con o sin subcarpetas) para segregar RAW + JPG y detectar rostros, ojos cerrados y poses en lote.",
                 "Abrir cualquier carpeta de sesión directo en Lightroom Classic, Capture One o Affinity.",
                 "Trabajar 100% sin internet para captura/culling, y actualizarse automáticamente cuando haya conexión."
             ],

@@ -50,12 +50,16 @@ package struct SessionWorkspaceView: View {
 
             workspaceSubHeader
 
-            if viewModel.activeTab == .cullPending && (viewModel.autoTagOnIngest || !viewModel.availablePendingTags.isEmpty) {
+            if viewModel.activeTab == .cullPending && (!viewModel.pendingItems.isEmpty || !viewModel.availablePendingTags.isEmpty) {
                 VisionTagFilterStrip(
                     availableTags: viewModel.availablePendingTags,
                     selectedTag: $viewModel.selectedTagFilter,
                     totalPendingCount: viewModel.pendingItems.count,
-                    isAnalyzing: viewModel.isAnalyzingVision
+                    isAnalyzing: viewModel.isAnalyzingVision,
+                    analyzedCount: viewModel.visionCompletedCount,
+                    totalAnalyzeCount: viewModel.visionTotalCount,
+                    hasUnanalyzedItems: viewModel.pendingItems.contains { $0.visionTags == nil },
+                    onTriggerManualAnalysis: { viewModel.runManualVisionAnalysisBatch() }
                 )
             }
 
@@ -113,35 +117,68 @@ package struct SessionWorkspaceView: View {
             let keyCode = event.keyCode
             let handled = MainActor.assumeIsolated {
                 guard !appState.isPresentingSettings,
-                      viewModel.activeTab == .cullPending,
+                      !appState.isPresentingHelp,
                       NSApp.keyWindow?.sheets.isEmpty != false,
                       !(NSApp.keyWindow?.firstResponder is NSTextView) else {
                     return false
                 }
 
-                switch keyCode {
-                case 123: // Left Arrow -> Archivar (animado)
-                    viewModel.requestAnimatedArchive()
-                    return true
-                case 124: // Right Arrow -> Para Edición (animado)
-                    viewModel.requestAnimatedApprove()
-                    return true
-                case 126: // Up Arrow -> Anterior
-                    viewModel.navigatePrevious()
-                    return true
-                case 125: // Down Arrow -> Siguiente
-                    viewModel.navigateNext()
-                    return true
-                case 49:  // Space -> Zoom 1:1
-                    viewModel.toggleLockedOneToOneZoom()
-                    return true
-                case 53:  // Escape -> Salir de Zoom 1:1
-                    if viewModel.isAnyZoomActive {
-                        viewModel.resetZoomState()
+                switch viewModel.activeTab {
+                case .cullPending:
+                    switch keyCode {
+                    case 123: // Left Arrow -> Archivar (animado)
+                        viewModel.requestAnimatedArchive()
                         return true
+                    case 124: // Right Arrow -> Para Edición (animado)
+                        viewModel.requestAnimatedApprove()
+                        return true
+                    case 126: // Up Arrow -> Anterior
+                        viewModel.navigatePrevious()
+                        return true
+                    case 125: // Down Arrow -> Siguiente
+                        viewModel.navigateNext()
+                        return true
+                    case 49:  // Space -> Zoom 1:1
+                        viewModel.toggleLockedOneToOneZoom()
+                        return true
+                    case 53:  // Escape -> Salir de Zoom 1:1
+                        if viewModel.isAnyZoomActive {
+                            viewModel.resetZoomState()
+                            return true
+                        }
+                        return false
+                    default:
+                        return false
                     }
-                    return false
-                default:
+                case .forEditing:
+                    switch keyCode {
+                    case 126: // Up Arrow -> Anterior
+                        viewModel.stepEditingSelection(delta: -1)
+                        return true
+                    case 125: // Down Arrow -> Siguiente
+                        viewModel.stepEditingSelection(delta: 1)
+                        return true
+                    case 123: // Left Arrow -> Mover a Archivadas
+                        if let selected = viewModel.selectedEditingItem {
+                            viewModel.moveEditingItemToArchived(selected)
+                            return true
+                        }
+                        return false
+                    default:
+                        return false
+                    }
+                case .archived:
+                    switch keyCode {
+                    case 126: // Up Arrow -> Anterior
+                        viewModel.stepArchivedSelection(delta: -1)
+                        return true
+                    case 125: // Down Arrow -> Siguiente
+                        viewModel.stepArchivedSelection(delta: 1)
+                        return true
+                    default:
+                        return false
+                    }
+                case .liveView:
                     return false
                 }
             }

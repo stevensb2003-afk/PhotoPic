@@ -65,7 +65,8 @@ extension SessionFileManager {
         in session: PhotoSession
     ) throws -> MoveHistoryRecord {
         try ensureSubfoldersExist(for: session)
-        let folderURL = item.formatKind == .raw
+        // Standalone compressed shots live alongside RAWs in `RAW/` while pending culling so `loadPhotoItems` finds them.
+        let folderURL = (destinationFolder == .raw || item.formatKind == .raw)
             ? session.rawBucketURL(for: destinationFolder)
             : session.jpgBucketURL(for: destinationFolder)
         let targetURL = uniqueDestinationURL(in: folderURL, preferredFilename: item.fileURL.lastPathComponent)
@@ -77,10 +78,9 @@ extension SessionFileManager {
             throw SessionFileError.fileMoveFailed(error.localizedDescription)
         }
 
-        var updatedItem = item
-        updatedItem.fileURL = targetURL
         var originalCompanion: URL?
         var movedCompanion: URL?
+        var nextCompanionURL = item.pairedCompressedURL
 
         if item.formatKind == .raw, let companion = resolveCompanionURL(for: item, in: session) {
             let jpgDestDir = session.jpgBucketURL(for: destinationFolder)
@@ -89,9 +89,20 @@ extension SessionFileManager {
                 try? FileManager.default.moveItem(at: companion, to: jpgTarget)
                 originalCompanion = companion
                 movedCompanion = jpgTarget
-                updatedItem.pairedCompressedURL = jpgTarget
+                nextCompanionURL = jpgTarget
             }
         }
+
+        let updatedItem = PhotoItem(
+            fileURL: targetURL,
+            pairedCompressedURL: nextCompanionURL,
+            fileSizeBytes: item.fileSizeBytes,
+            capturedAt: item.capturedAt,
+            sourceDeviceAlias: item.sourceDeviceAlias,
+            sourceCategory: item.sourceCategory,
+            exif: item.exif,
+            visionTags: item.visionTags
+        )
 
         return MoveHistoryRecord(
             item: updatedItem,
@@ -118,9 +129,7 @@ extension SessionFileManager {
             throw SessionFileError.fileMoveFailed(error.localizedDescription)
         }
 
-        var restored = record.item
-        restored.fileURL = targetURL
-
+        var restoredCompanionURL = record.item.pairedCompressedURL
         if let movedComp = record.movedCompanionURL,
            let origComp = record.originalCompanionURL,
            FileManager.default.fileExists(atPath: movedComp.path) {
@@ -128,9 +137,19 @@ extension SessionFileManager {
                 ? origComp
                 : uniqueDestinationURL(in: origComp.deletingLastPathComponent(), preferredFilename: origComp.lastPathComponent)
             try? FileManager.default.moveItem(at: movedComp, to: restoredComp)
-            restored.pairedCompressedURL = restoredComp
+            restoredCompanionURL = restoredComp
         }
-        return restored
+
+        return PhotoItem(
+            fileURL: targetURL,
+            pairedCompressedURL: restoredCompanionURL,
+            fileSizeBytes: record.item.fileSizeBytes,
+            capturedAt: record.item.capturedAt,
+            sourceDeviceAlias: record.item.sourceDeviceAlias,
+            sourceCategory: record.item.sourceCategory,
+            exif: record.item.exif,
+            visionTags: record.item.visionTags
+        )
     }
 
     static func resolveCompanionURL(for item: PhotoItem, in session: PhotoSession) -> URL? {

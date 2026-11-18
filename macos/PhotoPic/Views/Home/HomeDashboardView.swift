@@ -75,6 +75,54 @@ package struct HomeDashboardView: View {
                 }
             )
         }
+        .sheet(isPresented: Binding(
+            get: { appState.homeViewModel.isPresentingImportSheet },
+            set: { newValue in
+                if !newValue { appState.homeViewModel.cancelImportSheet() }
+            }
+        )) {
+            ImportSessionSheet(
+                sessionName: Binding(
+                    get: { appState.homeViewModel.importSessionNameDraft },
+                    set: { appState.homeViewModel.importSessionNameDraft = $0 }
+                ),
+                selectedGroup: Binding(
+                    get: { appState.homeViewModel.importSessionGroupDraft },
+                    set: { appState.homeViewModel.importSessionGroupDraft = $0 }
+                ),
+                tagsDraft: Binding(
+                    get: { appState.homeViewModel.importSessionTagsDraft },
+                    set: { appState.homeViewModel.importSessionTagsDraft = $0 }
+                ),
+                includeSubfolders: Binding(
+                    get: { appState.homeViewModel.importIncludeSubfolders },
+                    set: { appState.homeViewModel.importIncludeSubfolders = $0 }
+                ),
+                transferMode: Binding(
+                    get: { appState.homeViewModel.importTransferMode },
+                    set: { appState.homeViewModel.importTransferMode = $0 }
+                ),
+                runVisionAIOnOpen: Binding(
+                    get: { appState.homeViewModel.importRunVisionAIOnOpen },
+                    set: { appState.homeViewModel.importRunVisionAIOnOpen = $0 }
+                ),
+                scanSummary: appState.homeViewModel.importSourceSummary,
+                availableGroups: appState.homeViewModel.masterGroups,
+                rootFolderURL: appState.rootFolderURL,
+                isScanning: appState.homeViewModel.isScanningImportFolder,
+                isImporting: appState.homeViewModel.isImportingFolder,
+                progress: appState.homeViewModel.importProgress,
+                errorMessage: appState.homeViewModel.importErrorMessage,
+                onChangeSourceFolder: { appState.repickImportSourceFolder() },
+                onRescan: { sourceURL, includeSub in
+                    appState.homeViewModel.scanImportFolder(at: sourceURL, includeSubfolders: includeSub)
+                },
+                onCancel: { appState.homeViewModel.cancelImportSheet() },
+                onConfirmImport: { name, groupName, rawTags in
+                    appState.executeImportSession(named: name, groupName: groupName, rawTags: rawTags)
+                }
+            )
+        }
         .sheet(item: Binding(
             get: { appState.homeViewModel.sessionPendingDeletion },
             set: { appState.homeViewModel.sessionPendingDeletion = $0 }
@@ -113,6 +161,14 @@ package struct HomeDashboardView: View {
             }
             .buttonStyle(StudioButtonStyle(.secondaryDark))
             .help("Actualizar sesiones desde el disco")
+
+            Button {
+                appState.presentImportSessionFolderPicker()
+            } label: {
+                Label("Importar carpeta", systemImage: "square.and.arrow.down")
+            }
+            .buttonStyle(StudioButtonStyle(.secondaryDark))
+            .help("Importar fotos desde una carpeta de tu Mac y segregar RAW/JPG (⌘I)")
 
             Button("Nueva sesión") {
                 appState.homeViewModel.prepareNewSessionSheet()
@@ -280,11 +336,21 @@ package struct HomeDashboardView: View {
             Text("El grupo \"\(group)\" todavía no tiene sesiones")
                 .font(AppTypography.cardTitle)
                 .foregroundStyle(AppColors.textPrimary)
-            Button("Nueva sesión") {
-                vm.prepareNewSessionSheet()
+            HStack(spacing: AppSpacing.sm) {
+                Button {
+                    appState.presentImportSessionFolderPicker()
+                } label: {
+                    Label("Importar carpeta", systemImage: "square.and.arrow.down")
+                }
+                .buttonStyle(StudioButtonStyle(.secondaryDark, compact: true))
+                .help("Importar una carpeta existente dentro de este grupo (⌘I)")
+
+                Button("Nueva sesión") {
+                    vm.prepareNewSessionSheet()
+                }
+                .buttonStyle(StudioButtonStyle(.primaryLight, compact: true))
+                .help("Crear una sesión dentro del grupo \(group)")
             }
-            .buttonStyle(StudioButtonStyle(.primaryLight, compact: true))
-            .help("Crear una sesión dentro del grupo \(group)")
         }
         .padding(.vertical, AppSpacing.xl)
         .frame(maxWidth: .infinity)
@@ -318,17 +384,27 @@ package struct HomeDashboardView: View {
                 .font(AppTypography.sectionTitle)
                 .foregroundStyle(AppColors.textPrimary)
 
-            Text("Hacé clic en \"Nueva sesión\" para preparar las carpetas de trabajo y empezar a capturar.")
+            Text("Creá una sesión vacía para disparos en vivo o importá una carpeta existente de tu Mac para organizar RAW y detectar rostros.")
                 .font(AppTypography.body)
                 .foregroundStyle(AppColors.textSecondary)
                 .multilineTextAlignment(.center)
-                .frame(maxWidth: 440)
+                .frame(maxWidth: 460)
 
-            Button("Nueva sesión") {
-                appState.homeViewModel.prepareNewSessionSheet()
+            HStack(spacing: AppSpacing.md) {
+                Button {
+                    appState.presentImportSessionFolderPicker()
+                } label: {
+                    Label("Importar carpeta", systemImage: "square.and.arrow.down")
+                }
+                .buttonStyle(StudioButtonStyle(.secondaryDark))
+                .help("Importar una carpeta existente de tu Mac (⌘I)")
+
+                Button("Nueva sesión") {
+                    appState.homeViewModel.prepareNewSessionSheet()
+                }
+                .buttonStyle(StudioButtonStyle(.primaryLight))
+                .help("Crear nueva sesión de fotografía (⌘N)")
             }
-            .buttonStyle(StudioButtonStyle(.primaryLight))
-            .help("Crear nueva sesión de fotografía (⌘N)")
             .padding(.top, AppSpacing.xs)
         }
         .padding(.vertical, AppSpacing.xxxl)

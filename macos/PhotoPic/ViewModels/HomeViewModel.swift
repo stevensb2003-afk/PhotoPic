@@ -23,8 +23,21 @@ package final class HomeViewModel {
     package var newSessionNameDraft: String = ""
     package var newSessionGroupDraft: String = ""
     package var newSessionTagsDraft: String = ""
+    package var isPresentingImportSheet: Bool = false
+    package var importSourceSummary: FolderImportScanSummary? = nil
+    package var importSessionNameDraft: String = ""
+    package var importSessionGroupDraft: String = ""
+    package var importSessionTagsDraft: String = ""
+    package var importIncludeSubfolders: Bool = true
+    package var importTransferMode: FolderImportTransferMode = .copy
+    package var importRunVisionAIOnOpen: Bool = true
+    package var isScanningImportFolder: Bool = false
+    package var isImportingFolder: Bool = false
+    package var importProgress: FolderImportProgress? = nil
+    package var importErrorMessage: String? = nil
     package var sessionPendingDeletion: PhotoSession? = nil
     package var errorMessage: String?
+    private var importScanTask: Task<Void, Never>?
 
     package init() {}
 
@@ -103,6 +116,64 @@ package final class HomeViewModel {
         newSessionTagsDraft = ""
         errorMessage = nil
         isPresentingNewSessionSheet = true
+    }
+
+    package func prepareImportSheet(for sourceURL: URL) {
+        let suggestedName = SessionFileManager.sanitizeSessionName(sourceURL.lastPathComponent)
+        importSessionNameDraft = suggestedName.isEmpty ? Self.defaultSuggestedSessionName() : suggestedName
+        if case .group(let activeGroup) = groupFilter {
+            importSessionGroupDraft = activeGroup
+        } else {
+            importSessionGroupDraft = ""
+        }
+        importSessionTagsDraft = ""
+        importIncludeSubfolders = true
+        importTransferMode = .copy
+        importRunVisionAIOnOpen = true
+        importSourceSummary = nil
+        importProgress = nil
+        importErrorMessage = nil
+        isPresentingImportSheet = true
+        scanImportFolder(at: sourceURL, includeSubfolders: true)
+    }
+
+    package func scanImportFolder(at sourceURL: URL, includeSubfolders: Bool) {
+        importScanTask?.cancel()
+        importIncludeSubfolders = includeSubfolders
+        isScanningImportFolder = true
+        importErrorMessage = nil
+
+        importScanTask = Task { [weak self] in
+            let outcome = await Task.detached(priority: .userInitiated) {
+                Result {
+                    try SessionFolderImporter.scanFolder(
+                        at: sourceURL,
+                        includeSubfolders: includeSubfolders
+                    )
+                }
+            }.value
+
+            guard let self, !Task.isCancelled else { return }
+            self.isScanningImportFolder = false
+            switch outcome {
+            case .success(let summary):
+                self.importSourceSummary = summary
+                if summary.units.isEmpty {
+                    self.importErrorMessage = SessionImportError.noSupportedPhotosFound.localizedDescription
+                }
+            case .failure(let error):
+                self.importSourceSummary = nil
+                self.importErrorMessage = error.localizedDescription
+            }
+        }
+    }
+
+    package func cancelImportSheet() {
+        guard !isImportingFolder else { return }
+        importScanTask?.cancel()
+        isPresentingImportSheet = false
+        importErrorMessage = nil
+        importProgress = nil
     }
 
     @discardableResult

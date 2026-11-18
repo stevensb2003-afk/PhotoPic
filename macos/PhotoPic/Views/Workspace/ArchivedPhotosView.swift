@@ -31,6 +31,11 @@ package struct ArchivedPhotosView: View {
                 viewModel.loadArchivedPreview(for: selected)
             }
         }
+        .onChange(of: viewModel.selectedArchivedItem?.id) { _, _ in
+            if let selected = viewModel.selectedArchivedItem {
+                viewModel.loadArchivedPreview(for: selected)
+            }
+        }
     }
 
     private var archivedGridPane: some View {

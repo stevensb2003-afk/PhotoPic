@@ -51,6 +51,7 @@ package final class CullingSessionViewModel {
     var renderTask: Task<Void, Never>?
     var fullSensorTask: Task<Void, Never>?
     var visionBatchTask: Task<Void, Never>?
+    var visionBatchGeneration: Int = 0
     var feedbackDismissTask: Task<Void, Never>?
     var timerTickTask: Task<Void, Never>?
     var undoStack: [MoveHistoryRecord] = []
@@ -88,6 +89,8 @@ package final class CullingSessionViewModel {
     package internal(set) var isRenderingFullSensor: Bool = false
     package internal(set) var activeRenderedItemID: String?
     package internal(set) var isAnalyzingVision: Bool = false
+    package internal(set) var visionCompletedCount: Int = 0
+    package internal(set) var visionTotalCount: Int = 0
 
     // Selected (Para_Edicion) & Archived inspectors
     package var selectedEditingID: String?

@@ -41,6 +41,17 @@ package struct PhotoPicApp: App {
                 }
                 .keyboardShortcut("n", modifiers: .command)
                 .disabled(appState.needsOnboarding || appState.activeSessionViewModel != nil)
+
+                Button("Importar carpeta...") {
+                    guard !appState.needsOnboarding else { return }
+                    if appState.activeSessionViewModel != nil {
+                        appState.importPhotosIntoActiveSessionFromPicker()
+                    } else {
+                        appState.presentImportSessionFolderPicker()
+                    }
+                }
+                .keyboardShortcut("i", modifiers: .command)
+                .disabled(appState.needsOnboarding)
             }
 
             CommandGroup(replacing: .appSettings) {

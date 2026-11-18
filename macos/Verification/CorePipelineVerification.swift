@@ -19,6 +19,7 @@ package enum CorePipelineVerification {
         try await testVisionAutoTaggingAndXMPSidecarSync(rootURL: tempRoot)
         try await testRawPureSensorMetalDecode(rootURL: tempRoot)
         testDeviceClassificationAndStore(rootURL: tempRoot)
+        try await testFolderSessionImportAndAuditFixes(rootURL: tempRoot)
 
         print("ALL PHOTOPIC CORE VERIFICATIONS PASSED")
     }
@@ -302,5 +303,140 @@ package enum CorePipelineVerification {
         store2.forget(fingerprint: dev.fingerprint)
         assert(store2.devices.isEmpty)
         print("[PASS] 6. Hardware fingerprinting, category classification & KnownDevicesStore JSON")
+    }
+
+    private static func testFolderSessionImportAndAuditFixes(rootURL: URL) async throws {
+        let fm = FileManager.default
+        let externalShoot = rootURL.appendingPathComponent("ExternalShoot", isDirectory: true)
+        let subA = externalShoot.appendingPathComponent("SubA", isDirectory: true)
+        let subB = externalShoot.appendingPathComponent("SubB", isDirectory: true)
+        let splitRAW = externalShoot.appendingPathComponent("SplitRAW", isDirectory: true)
+        let splitJPG = externalShoot.appendingPathComponent("SplitJPG", isDirectory: true)
+        let mobileDir = externalShoot.appendingPathComponent("Mobile", isDirectory: true)
+
+        for dir in [subA, subB, splitRAW, splitJPG, mobileDir] {
+            try fm.createDirectory(at: dir, withIntermediateDirectories: true)
+        }
+
+        // Same-dir RAW + JPG + XMP sidecar
+        let img101Dng = subA.appendingPathComponent("IMG_101.DNG")
+        let img101Jpg = subA.appendingPathComponent("IMG_101.JPG")
+        let img101Xmp = subA.appendingPathComponent("IMG_101.xmp")
+        try SyntheticDNGGenerator.writeSyntheticDNG(to: img101Dng, width: 320, height: 240)
+        try SyntheticDNGGenerator.writeSyntheticJPEGWithExif(to: img101Jpg, iso: 200, aperture: 2.8, exposureSeconds: 1.0 / 250.0)
+        try Data("<x:xmpmeta/>".utf8).write(to: img101Xmp)
+
+        // Colliding stem in SubB -> must allocate IMG_101_2.DNG + IMG_101_2.JPG preserving pair
+        let img101BDng = subB.appendingPathComponent("IMG_101.DNG")
+        let img101BJpg = subB.appendingPathComponent("IMG_101.JPG")
+        try SyntheticDNGGenerator.writeSyntheticDNG(to: img101BDng, width: 320, height: 240)
+        try SyntheticDNGGenerator.writeSyntheticJPEGWithExif(to: img101BJpg, iso: 400, aperture: 2.0, exposureSeconds: 1.0 / 125.0)
+
+        // Cross-subdirectory RAW + JPG pairing
+        try SyntheticDNGGenerator.writeSyntheticDNG(to: splitRAW.appendingPathComponent("IMG_202.DNG"), width: 320, height: 240)
+        try SyntheticDNGGenerator.writeSyntheticJPEGWithExif(to: splitJPG.appendingPathComponent("IMG_202.JPG"), iso: 100, aperture: 4.0, exposureSeconds: 1.0 / 500.0)
+
+        // Standalone compressed photo
+        try SyntheticDNGGenerator.writeSyntheticJPEGWithExif(to: mobileDir.appendingPathComponent("SOLO_303.JPG"), iso: 160, aperture: 1.8, exposureSeconds: 1.0 / 1000.0)
+
+        let topOnlySummary = try SessionFolderImporter.scanFolder(at: externalShoot, includeSubfolders: false)
+        try assertTrue(topOnlySummary.totalPhotoUnitsCount == 0, "Top-level only scan should find 0 units")
+
+        let deepSummary = try SessionFolderImporter.scanFolder(at: externalShoot, includeSubfolders: true)
+        try assertTrue(
+            deepSummary.rawUnitsCount == 3
+                && deepSummary.pairedJpgCount == 3
+                && deepSummary.standaloneCompressedCount == 1
+                && deepSummary.totalPhotoUnitsCount == 4,
+            "Two-pass scan counts mismatch: raw=\(deepSummary.rawUnitsCount) paired=\(deepSummary.pairedJpgCount) standalone=\(deepSummary.standaloneCompressedCount)"
+        )
+
+        let copyResult = try await SessionFolderImporter.importAsNewSession(
+            from: deepSummary,
+            sessionName: "Imported_Boda",
+            groupName: "Bodas_2026",
+            initialTags: ["Offline", "RAW"],
+            transferMode: .copy,
+            in: rootURL
+        )
+        try assertTrue(
+            copyResult.importedUnitsCount == 4
+                && copyResult.rawCount == 3
+                && copyResult.pairedJpgCount == 3
+                && copyResult.standaloneCompressedCount == 1,
+            "Copy import counts mismatch"
+        )
+        try assertTrue(fm.fileExists(atPath: img101Dng.path), "Copy mode must keep source IMG_101.DNG")
+        try assertTrue(fm.fileExists(atPath: copyResult.session.rawFolderURL.appendingPathComponent("IMG_101.xmp").path), "XMP sidecar must copy alongside IMG_101.DNG")
+        try assertTrue(fm.fileExists(atPath: copyResult.session.rawFolderURL.appendingPathComponent("IMG_101_2.DNG").path), "Colliding RAW must get _2 stem")
+        try assertTrue(fm.fileExists(atPath: copyResult.session.jpgFolderURL.appendingPathComponent("IMG_101_2.JPG").path), "Colliding paired JPG must get _2 stem")
+
+        let vm = CullingSessionViewModel(
+            session: copyResult.session,
+            renderer: RawImageRenderer(),
+            visionAnalyzer: PhotoVisionAnalyzer()
+        )
+        vm.autoTagOnIngest = false
+        try assertTrue(vm.pendingItems.count == 4, "Imported session must load 4 pending items")
+
+        // Audit Bug #1: Standalone compressed item round-tripping from Seleccionadas back to Filtrar
+        guard let soloIndex = vm.pendingItems.firstIndex(where: { $0.filename == "SOLO_303.JPG" }) else {
+            throw NSError(domain: "PhotoPicVerify", code: 101, userInfo: [NSLocalizedDescriptionKey: "SOLO_303.JPG missing in pendingItems"])
+        }
+        vm.jumpToIndex(soloIndex)
+        vm.approveCurrentToEditing()
+        guard let soloEditing = vm.forEditingItems.first(where: { $0.filename == "SOLO_303.JPG" }) else {
+            throw NSError(domain: "PhotoPicVerify", code: 102, userInfo: [NSLocalizedDescriptionKey: "SOLO_303.JPG missing in forEditingItems"])
+        }
+        vm.returnEditingItemToPending(soloEditing)
+        vm.reloadFromDisk()
+        try assertTrue(
+            vm.pendingItems.contains(where: { $0.filename == "SOLO_303.JPG" }),
+            "Returned standalone compressed item must remain visible in pendingItems after reloadFromDisk"
+        )
+
+        // Audit Bug #2: Custom tag + XMP sidecar sync inside Seleccionadas (forEditingItems)
+        vm.jumpToIndex(0)
+        vm.approveCurrentToEditing()
+        guard let approvedItem = vm.forEditingItems.first else {
+            throw NSError(domain: "PhotoPicVerify", code: 103, userInfo: [NSLocalizedDescriptionKey: "Expected at least 1 approved item in forEditingItems"])
+        }
+        vm.addCustomTag("Portada", to: approvedItem)
+        try assertTrue(
+            vm.forEditingItems[0].visionTags?.allTags.contains("Portada") == true,
+            "addCustomTag must update forEditingItems in-memory"
+        )
+        try assertTrue(
+            fm.fileExists(atPath: PhotoTagStore.xmpSidecarURL(for: approvedItem.fileURL).path),
+            "XMP sidecar must exist inside Para_Edicion/ when tagging selected item"
+        )
+
+        // Manual batch Vision AI must analyze all pending items even with autoTagOnIngest == false
+        vm.runManualVisionAnalysisBatch()
+        let deadline = Date().addingTimeInterval(10.0)
+        while vm.isAnalyzingVision && Date() < deadline {
+            try await Task.sleep(for: .milliseconds(50))
+        }
+        try assertTrue(!vm.isAnalyzingVision, "Manual batch Vision AI timed out")
+        try assertTrue(vm.pendingItems.allSatisfy { $0.visionTags != nil }, "Manual batch Vision AI must tag all pending items")
+
+        // Move transfer mode check
+        let moveShoot = rootURL.appendingPathComponent("MoveShoot", isDirectory: true)
+        try fm.createDirectory(at: moveShoot, withIntermediateDirectories: true)
+        let moveDng = moveShoot.appendingPathComponent("MOVE_01.DNG")
+        try SyntheticDNGGenerator.writeSyntheticDNG(to: moveDng, width: 320, height: 240)
+        let moveSummary = try SessionFolderImporter.scanFolder(at: moveShoot, includeSubfolders: true)
+        let moveResult = try await SessionFolderImporter.importAsNewSession(
+            from: moveSummary,
+            sessionName: "Moved_Shoot",
+            groupName: nil,
+            initialTags: [],
+            transferMode: .move,
+            in: rootURL
+        )
+        try assertTrue(!fm.fileExists(atPath: moveDng.path), "Move mode must remove source MOVE_01.DNG")
+        try assertTrue(fm.fileExists(atPath: moveResult.session.rawFolderURL.appendingPathComponent("MOVE_01.DNG").path), "Moved DNG must exist in destination RAW/")
+
+        print("[PASS] 7. Folder session import (2-pass RAW/JPG segregation, collision stems, XMP copy/move, standalone JPG roundtrip & manual batch Vision AI)")
     }
 }

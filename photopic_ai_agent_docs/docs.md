@@ -1,4 +1,4 @@
-# Base Documental Funcional de PhotoPic (`v2.6.24`)
+# Base Documental Funcional de PhotoPic (`v2.6.26`)
 > **Propósito**: Documentación operativa estilo BRD paso a paso para el Centro de Ayuda interno y Agentes IA de soporte, cubriendo macOS (`Swift 6 / SwiftUI / IOUSBHost`) y Windows (`PySide6 Qt6`).
 > **Carpeta Exclusiva**: `photopic_ai_agent_docs/` (índice maestro en `00-CONTENT-TABLE.md`).
 
@@ -14,7 +14,7 @@
 
 ## 1. Visión General del Sistema y Filosofía de Archivos [ROL: TODOS]
 
-PhotoPic es una aplicación de escritorio 100% offline y nativa. Recibe capturas en vivo desde cámaras DSLR/Mirrorless (incluyendo enlace directo `IOUSBHost` Canon EOS con controles adaptativos y protección para flash externo de zapata), teléfonos Android/iPhone, cámaras de acción UVC o una **Carpeta puente**. Clasifica en los módulos **Filtrar**, **Vista en Vivo**, **Seleccionadas** y **Archivadas**, moviendo pares **RAW + JPG** y sidecars `.xmp` en disco (`RAW/`, `JPG/`, `Para_Edicion/{RAW,JPG}` y `Archivadas/{RAW,JPG}`).
+PhotoPic es una aplicación de escritorio 100% offline y nativa. Recibe capturas en vivo desde cámaras DSLR/Mirrorless (incluyendo enlace directo `IOUSBHost` Canon EOS con controles adaptativos y protección para flash externo de zapata), teléfonos Android/iPhone, cámaras de acción UVC o una **Carpeta puente**, y también permite usar **`Importar carpeta (⌘I)`** para importar carpetas ya guardadas en la computadora segregando pares **RAW + JPG** y disparando análisis facial IA por lotes. Clasifica en los módulos **Filtrar**, **Vista en Vivo**, **Seleccionadas** y **Archivadas**, moviendo pares **RAW + JPG** y sidecars `.xmp` en disco (`RAW/`, `JPG/`, `Para_Edicion/{RAW,JPG}` y `Archivadas/{RAW,JPG}`).
 
 ## 2. Cómo Usar esta Documentación [ROL: TODOS]
 
