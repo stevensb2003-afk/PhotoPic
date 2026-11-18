@@ -6,7 +6,7 @@ from collections import OrderedDict
 from dataclasses import dataclass
 from pathlib import Path
 
-from PIL import Image, ExifTags
+from PIL import ExifTags, Image, ImageOps
 
 from .models import MediaFormatKind, PhotoExifMetadata, PhotoItem
 
@@ -46,6 +46,12 @@ class RawImageRendererWin:
             while len(self._cache) > self._max_cached:
                 self._cache.popitem(last=False)
         return payload
+
+    def evict_cache(self, path: Path) -> None:
+        prefix = f"{path}|"
+        stale = [k for k in self._cache if k.startswith(prefix)]
+        for k in stale:
+            self._cache.pop(k, None)
 
     @staticmethod
     def read_exif(path: Path, companion_path: Path | None = None) -> PhotoExifMetadata:
@@ -120,7 +126,8 @@ class RawImageRendererWin:
     def _decode_compressed(path: Path, max_dimension: int, full_sensor: bool) -> RenderedWinPayload | None:
         try:
             with Image.open(path) as img:
-                rgb_img = img.convert("RGB")
+                oriented = ImageOps.exif_transpose(img)
+                rgb_img = oriented.convert("RGB")
                 if not full_sensor and max(rgb_img.size) > max_dimension:
                     rgb_img.thumbnail((max_dimension, max_dimension), Image.Resampling.LANCZOS)
                 return RenderedWinPayload(

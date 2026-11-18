@@ -148,6 +148,46 @@ def sanitize_folder_name(raw_name: str) -> str:
     return re.sub(r'[<>:"/\\|?*]', "-", raw_name).strip()
 
 
+def has_group_marker(directory: Path) -> bool:
+    return (directory / GROUP_MARKER_FILENAME).exists()
+
+
+def is_session_directory(directory: Path) -> bool:
+    """Returns True only if `directory` is a real PhotoPic session (never a Master Group,
+    even when a session inside that group happens to be named `RAW`)."""
+    if not directory.is_dir() or has_group_marker(directory):
+        return False
+    raw_dir = directory / "RAW"
+    if not raw_dir.is_dir():
+        return False
+    if (raw_dir / "RAW").is_dir() and (raw_dir / "Para_Edicion").is_dir():
+        return False
+    return True
+
+
+def suggested_imported_session_name(source_dir: Path) -> str:
+    """Suggests a meaningful session name when importing a generic subfolder like `RAW/`, `JPG/`, or `DCIM/`."""
+    generic_names = {
+        "raw", "jpg", "jpeg", "heic", "dcim", "fotos", "photos",
+        "images", "imagenes", "imágenes", "para_edicion", "archivadas",
+    }
+    system_parents = {"desktop", "downloads", "documents", "pictures", "users", "volumes", ""}
+
+    leaf = sanitize_folder_name(source_dir.name)
+    if leaf and leaf.lower() not in generic_names:
+        return leaf
+
+    parent_name = sanitize_folder_name(source_dir.parent.name)
+    if (
+        parent_name
+        and parent_name.lower() not in generic_names
+        and parent_name.lower() not in system_parents
+    ):
+        return parent_name
+
+    return f"Sesion_{time.strftime('%Y-%m-%d')}"
+
+
 def load_master_groups(root_dir: Path) -> list[str]:
     if not root_dir.exists():
         return []
@@ -155,10 +195,10 @@ def load_master_groups(root_dir: Path) -> list[str]:
     for entry in root_dir.iterdir():
         if not entry.is_dir() or entry.name.startswith("."):
             continue
-        if (entry / "RAW").is_dir():
+        if is_session_directory(entry):
             continue
-        if (entry / GROUP_MARKER_FILENAME).exists() or any(
-            sub.is_dir() and not sub.name.startswith(".") and (sub / "RAW").is_dir()
+        if has_group_marker(entry) or any(
+            sub.is_dir() and not sub.name.startswith(".") and is_session_directory(sub)
             for sub in entry.iterdir()
         ):
             groups.append(entry.name)
@@ -168,9 +208,9 @@ def load_master_groups(root_dir: Path) -> list[str]:
 def create_master_group(raw_name: str, root_dir: Path) -> str:
     sanitized = sanitize_folder_name(raw_name)
     if not sanitized:
-        raise ValueError("El nombre de la carpeta máster no es válido.")
+        raise ValueError("El nombre del grupo no es válido.")
     group_dir = root_dir / sanitized
-    if (group_dir / "RAW").is_dir():
+    if is_session_directory(group_dir):
         idx = 2
         group_dir = root_dir / f"{sanitized}_Grupo"
         while group_dir.exists():
@@ -203,7 +243,7 @@ def permanently_delete_session_dir(session_dir: Path, root_dir: Path) -> None:
 
     if len(rel.parts) not in (1, 2):
         raise ValueError("Bloqueo de seguridad: profundidad de sesión inválida.")
-    if not (target_resolved / "RAW").is_dir():
+    if not is_session_directory(target_resolved):
         raise ValueError("Bloqueo de seguridad: la carpeta no es una sesión válida de PhotoPic (falta RAW/).")
 
     shutil.rmtree(target_resolved)
@@ -218,11 +258,11 @@ def load_all_sessions_with_counts(root_dir: Path, count_fn, unique_dir_fn=None) 
     for entry in root_dir.iterdir():
         if not entry.is_dir() or entry.name.startswith("."):
             continue
-        if (entry / "RAW").is_dir():
+        if is_session_directory(entry):
             sessions.append(build_loaded_session(entry, group_name=None, count_fn=count_fn))
             continue
         for sub in entry.iterdir():
-            if sub.is_dir() and not sub.name.startswith(".") and (sub / "RAW").is_dir():
+            if sub.is_dir() and not sub.name.startswith(".") and is_session_directory(sub):
                 sessions.append(build_loaded_session(sub, group_name=entry.name, count_fn=count_fn))
     return sorted(sessions, key=lambda s: s.created_at, reverse=True)
 
@@ -250,3 +290,60 @@ def move_session_dir_to_group(session, group_name: str | None, root_dir: Path, u
     dest_dir = unique_dir_fn(parent_dir, session.directory.name)
     shutil.move(str(session.directory), str(dest_dir))
     return build_loaded_session(dest_dir, group_name=resolved_group, count_fn=count_fn)
+
+
+def rename_session_dir(session, raw_new_name: str, root_dir: Path, unique_dir_fn, count_fn):
+    sanitized = sanitize_folder_name(raw_new_name)
+    if not sanitized:
+        raise ValueError("El nombre de la sesión no es válido.")
+
+    root_resolved = root_dir.resolve()
+    source_resolved = session.directory.resolve()
+    try:
+        source_resolved.relative_to(root_resolved)
+    except ValueError as exc:
+        raise ValueError("Bloqueo de seguridad: la sesión está fuera de la Carpeta Raíz Global.") from exc
+    if not is_session_directory(source_resolved):
+        raise ValueError("Bloqueo de seguridad: la carpeta seleccionada no es una sesión válida.")
+
+    current_name = source_resolved.name
+    if sanitized == current_name:
+        return session
+
+    parent_dir = source_resolved.parent
+    if sanitized.lower() == current_name.lower():
+        temp_dir = unique_dir_fn(parent_dir, f".photopic_rename_{int(time.time() * 1000)}")
+        shutil.move(str(source_resolved), str(temp_dir))
+        dest_dir = parent_dir / sanitized
+        shutil.move(str(temp_dir), str(dest_dir))
+    else:
+        dest_dir = unique_dir_fn(parent_dir, sanitized)
+        shutil.move(str(source_resolved), str(dest_dir))
+
+    return build_loaded_session(dest_dir, group_name=session.group_name, count_fn=count_fn)
+
+
+def rename_master_group(old_group_name: str, raw_new_name: str, root_dir: Path, unique_dir_fn) -> str:
+    sanitized = sanitize_folder_name(raw_new_name)
+    if not sanitized:
+        raise ValueError("El nombre del grupo no es válido.")
+    if sanitized == old_group_name:
+        return old_group_name
+
+    old_dir = root_dir / old_group_name
+    if not old_dir.is_dir() or is_session_directory(old_dir):
+        raise ValueError("El grupo seleccionado no existe en disco.")
+
+    if sanitized.lower() == old_group_name.lower():
+        temp_dir = unique_dir_fn(root_dir, f".photopic_group_rename_{int(time.time() * 1000)}")
+        shutil.move(str(old_dir), str(temp_dir))
+        target_dir = root_dir / sanitized
+        shutil.move(str(temp_dir), str(target_dir))
+    else:
+        target_dir = unique_dir_fn(root_dir, sanitized)
+        shutil.move(str(old_dir), str(target_dir))
+
+    marker = target_dir / GROUP_MARKER_FILENAME
+    if not marker.exists():
+        marker.write_text('{"kind":"photopic_master_group"}\n', encoding="utf-8")
+    return target_dir.name

@@ -18,10 +18,11 @@ from .ui_setup_wizard import ArchiveDeletePopover
 
 
 class ArchivedTabWidget(QWidget):
-    def __init__(self, session: PhotoSession, on_items_changed, parent=None) -> None:
+    def __init__(self, session: PhotoSession, on_items_changed, on_rotate_item=None, parent=None) -> None:
         super().__init__(parent)
         self.session = session
         self.on_items_changed = on_items_changed
+        self.on_rotate_item = on_rotate_item
         self._items: list[PhotoItem] = []
 
         lay = QVBoxLayout(self)
@@ -33,19 +34,34 @@ class ArchivedTabWidget(QWidget):
         self._empty_btn.setObjectName("ArchiveButton")
         self._empty_btn.clicked.connect(self._confirm_empty)
 
+        self._rotate_btn = QPushButton("Rotar 90° (Shift)")
+        self._rotate_btn.clicked.connect(self._rotate_selected)
+
         self._delete_btn = QPushButton("Eliminar archivo...")
         self._delete_btn.setObjectName("ArchiveButton")
         self._delete_btn.clicked.connect(self._confirm_delete_one)
 
-        self._recover_btn = QPushButton("Recuperar para Edición")
+        self._recover_btn = QPushButton("Recuperar a Seleccionadas")
         self._recover_btn.setObjectName("ApproveButton")
         self._recover_btn.clicked.connect(self._recover_selected)
 
         row.addWidget(self._empty_btn)
         row.addStretch()
+        row.addWidget(self._rotate_btn)
         row.addWidget(self._delete_btn)
         row.addWidget(self._recover_btn)
         lay.addLayout(row)
+
+    def current_item(self) -> PhotoItem | None:
+        row = self._list.currentRow()
+        if 0 <= row < len(self._items):
+            return self._items[row]
+        return None
+
+    def _rotate_selected(self) -> None:
+        item = self.current_item()
+        if item is not None and self.on_rotate_item is not None:
+            self.on_rotate_item(item)
 
     def set_items(self, items: list[PhotoItem]) -> None:
         self._items = items
@@ -56,6 +72,7 @@ class ArchivedTabWidget(QWidget):
             self._list.setCurrentRow(0)
         has_items = bool(items)
         self._empty_btn.setEnabled(has_items)
+        self._rotate_btn.setEnabled(has_items)
         self._delete_btn.setEnabled(has_items)
         self._recover_btn.setEnabled(has_items)
 

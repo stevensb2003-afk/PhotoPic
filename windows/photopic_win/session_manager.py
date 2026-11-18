@@ -21,6 +21,8 @@ from .session_metadata import (
     load_all_sessions_with_counts,
     move_session_dir_to_group,
     permanently_delete_session_dir,
+    rename_master_group,
+    rename_session_dir,
     resolve_group_parent,
     sanitize_folder_name,
 )
@@ -105,6 +107,14 @@ class SessionFileManager:
         return move_session_dir_to_group(session, group_name, root_dir, cls._unique_dir, cls.read_disk_counts)
 
     @classmethod
+    def rename_session(cls, session: PhotoSession, new_name: str, root_dir: Path) -> PhotoSession:
+        return rename_session_dir(session, new_name, root_dir, cls._unique_dir, cls.read_disk_counts)
+
+    @classmethod
+    def rename_group(cls, old_name: str, new_name: str, root_dir: Path) -> str:
+        return rename_master_group(old_name, new_name, root_dir, cls._unique_dir)
+
+    @classmethod
     def permanently_delete_session(cls, session: PhotoSession, root_dir: Path) -> None:
         permanently_delete_session_dir(session.directory, root_dir)
 
@@ -116,6 +126,17 @@ class SessionFileManager:
             archived=cls._count_bucket(session.archived_raw_folder, session.archived_jpg_folder, session.archived_folder),
             companion_jpgs=cls._count_images(session.jpg_folder),
         )
+
+    @classmethod
+    def load_for_editing_items(cls, session: PhotoSession, tag_map: dict | None = None) -> list[PhotoItem]:
+        primary = cls.load_photo_items(session.for_editing_raw_folder, session.for_editing_jpg_folder, tag_map, session.jpg_folder)
+        legacy = cls.load_photo_items(session.for_editing_folder, session.for_editing_jpg_folder, tag_map, session.jpg_folder)
+        raw_bases = {i.base_filename for i in primary + legacy}
+        standalone = [
+            i for i in cls.load_photo_items(session.for_editing_jpg_folder, session.for_editing_jpg_folder, tag_map)
+            if i.base_filename not in raw_bases
+        ]
+        return sorted(primary + legacy + standalone, key=lambda i: (i.captured_at, i.filename))
 
     @classmethod
     def load_archived_items(cls, session: PhotoSession, tag_map: dict | None = None) -> list[PhotoItem]:
@@ -175,12 +196,17 @@ class SessionFileManager:
     @classmethod
     def move_item(cls, item: PhotoItem, dest_folder_name: str, session: PhotoSession) -> MoveRecord:
         cls.ensure_subfolders(session)
-        target_dir = session.raw_bucket(dest_folder_name) if item.format_kind == MediaFormatKind.RAW else session.jpg_bucket(dest_folder_name)
+        # Standalone compressed photos live in `RAW/` while pending culling so `load_photo_items` finds them.
+        if dest_folder_name == "RAW" or item.format_kind == MediaFormatKind.RAW:
+            target_dir = session.raw_bucket(dest_folder_name)
+        else:
+            target_dir = session.jpg_bucket(dest_folder_name)
         target_path = cls._unique_file(target_dir, item.file_path.name)
         old_path = item.file_path
         shutil.move(str(old_path), str(target_path))
         PhotoTagStore.relocate_sidecar_if_present(old_path, target_path)
         item.file_path = target_path
+        item.id = target_path.name.lower()
 
         orig_comp: Path | None = None
         moved_comp: Path | None = None

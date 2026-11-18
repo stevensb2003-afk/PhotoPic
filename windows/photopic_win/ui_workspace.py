@@ -15,8 +15,10 @@ from PySide6.QtWidgets import (
 )
 
 from .design_system import AppSpacing
+from .folder_importer import FolderImportTransferMode, SessionFolderImporter
 from .hardware_auditor import PerformancePreferences
 from .models import DeviceCategory, KnownDevice, PhotoItem, PhotoSession, PhotoVisionTags
+from .photo_orientation import PhotoOrientationService
 from .raw_renderer import RawImageRendererWin
 from .session_manager import MoveRecord, SessionFileManager
 from .tag_store import PhotoTagStore
@@ -27,6 +29,7 @@ from .ui_inspector_and_timer import (
     SwipeablePhotoStage,
 )
 from .ui_live_view import LiveViewTabWidget
+from .ui_selected_tab import SelectedTabWidget
 from .ui_workspace_bars import build_workspace_bottom_controls, build_workspace_topbar
 from .vision_autotagger import VisionAutoTaggerWin
 
@@ -38,6 +41,7 @@ class SessionWorkspaceWidget(QWidget):
         tether_service,
         on_back,
         performance_prefs: PerformancePreferences | None = None,
+        run_vision_ai_on_open: bool = False,
         parent=None,
     ) -> None:
         super().__init__(parent)
@@ -49,15 +53,19 @@ class SessionWorkspaceWidget(QWidget):
         self.tagger = VisionAutoTaggerWin()
 
         self.pending_items: list[PhotoItem] = []
+        self.for_editing_items: list[PhotoItem] = []
         self.archived_items: list[PhotoItem] = []
         self.undo_stack: list[MoveRecord] = []
         self.current_index = 0
         self.zoom_one_to_one = False
         self.follow_latest = False
+        self._shift_tap_armed = False
 
         self.setFocusPolicy(Qt.FocusPolicy.StrongFocus)
         self._build_ui()
         self.reload_from_disk()
+        if run_vision_ai_on_open:
+            QTimer.singleShot(80, self.run_manual_vision_analysis_batch)
 
     def _build_ui(self) -> None:
         root = QVBoxLayout(self)
@@ -72,8 +80,11 @@ class SessionWorkspaceWidget(QWidget):
             self._attach_watch_folder,
             self._open_help,
             timer_widget=self._timer_bar,
+            on_import_folder=self._import_folder_into_session,
+            on_detect_faces=self.run_manual_vision_analysis_batch,
         )
         self._tab_cull_btn = refs["tab_cull"]
+        self._tab_sel_btn = refs["tab_sel"]
         self._tab_arch_btn = refs["tab_arch"]
         self._editing_badge = refs["edit_badge"]
         root.addWidget(top)
@@ -99,7 +110,18 @@ class SessionWorkspaceWidget(QWidget):
         self._live_tab = LiveViewTabWidget(on_reference_saved=self.handle_staged_file)
         self._stack.addWidget(self._live_tab)
 
-        self._archived_tab = ArchivedTabWidget(self.session, on_items_changed=self._on_archived_changed)
+        self._selected_tab = SelectedTabWidget(
+            self.session,
+            on_items_changed=self._on_bucket_items_changed,
+            on_rotate_item=self.rotate_photo_clockwise,
+        )
+        self._stack.addWidget(self._selected_tab)
+
+        self._archived_tab = ArchivedTabWidget(
+            self.session,
+            on_items_changed=self._on_bucket_items_changed,
+            on_rotate_item=self.rotate_photo_clockwise,
+        )
         self._stack.addWidget(self._archived_tab)
         root.addWidget(self._stack, stretch=1)
 
@@ -107,6 +129,7 @@ class SessionWorkspaceWidget(QWidget):
             "prev": self.navigate_prev,
             "next": self.navigate_next,
             "zoom": self.toggle_zoom,
+            "rotate": self.rotate_active_photo_clockwise,
             "undo": self.undo_last,
             "archive": self.archive_current,
             "approve": self.approve_current,
@@ -121,7 +144,12 @@ class SessionWorkspaceWidget(QWidget):
     def reload_from_disk(self) -> None:
         tag_map = PhotoTagStore.load_all(self.session)
         self.pending_items = SessionFileManager.load_photo_items(self.session.raw_folder, self.session.jpg_folder, tag_map)
+        self.for_editing_items = SessionFileManager.load_for_editing_items(self.session, tag_map)
         self.archived_items = SessionFileManager.load_archived_items(self.session, tag_map)
+        if self.pending_items:
+            self.current_index = min(max(0, self.current_index), len(self.pending_items) - 1)
+        else:
+            self.current_index = 0
         self._refresh_counters_and_stage()
         if self.perf_prefs.enable_vision_autotagging:
             QTimer.singleShot(50, self._analyze_unanalyzed_pending)
@@ -181,14 +209,60 @@ class SessionWorkspaceWidget(QWidget):
             return
         restored = SessionFileManager.undo_move(self.undo_stack.pop())
         self.archived_items = [i for i in self.archived_items if i.id != restored.id]
-        self.pending_items.insert(min(self.current_index, len(self.pending_items)), restored)
+        self.for_editing_items = [i for i in self.for_editing_items if i.id != restored.id]
+        self.pending_items.append(restored)
+        self.pending_items.sort(key=lambda i: (i.captured_at, i.filename))
+        for idx, item in enumerate(self.pending_items):
+            if item.id == restored.id:
+                self.current_index = idx
+                break
         self._refresh_counters_and_stage()
 
+    def rotate_active_photo_clockwise(self) -> None:
+        tab = self._stack.currentIndex()
+        item: PhotoItem | None = None
+        if tab == 0 and 0 <= self.current_index < len(self.pending_items):
+            item = self.pending_items[self.current_index]
+        elif tab == 2:
+            item = self._selected_tab.current_item()
+        elif tab == 3:
+            item = self._archived_tab.current_item()
+        if item is not None:
+            self.rotate_photo_clockwise(item)
+
+    def rotate_photo_clockwise(self, item: PhotoItem) -> None:
+        try:
+            PhotoOrientationService.rotate_clockwise_90(item)
+            self.renderer.evict_cache(item.file_path)
+            if item.paired_compressed_path is not None:
+                self.renderer.evict_cache(item.paired_compressed_path)
+            self.zoom_one_to_one = False
+            self._refresh_counters_and_stage()
+        except Exception:
+            pass
+
     def keyPressEvent(self, event: QKeyEvent) -> None:
+        key = event.key()
+        if key == Qt.Key.Key_Shift and not event.isAutoRepeat():
+            mods = event.modifiers() & (
+                Qt.KeyboardModifier.ControlModifier
+                | Qt.KeyboardModifier.AltModifier
+                | Qt.KeyboardModifier.MetaModifier
+            )
+            self._shift_tap_armed = (mods == Qt.KeyboardModifier.NoModifier)
+            super().keyPressEvent(event)
+            return
+
+        self._shift_tap_armed = False
+
+        if key == Qt.Key.Key_I and event.modifiers() & Qt.KeyboardModifier.ControlModifier:
+            self._import_folder_into_session()
+            return
+
         if self._stack.currentIndex() != 0:
             super().keyPressEvent(event)
             return
-        key = event.key()
+
         actions = {
             Qt.Key.Key_Left: self.archive_current,
             Qt.Key.Key_Right: self.approve_current,
@@ -203,6 +277,14 @@ class SessionWorkspaceWidget(QWidget):
         else:
             super().keyPressEvent(event)
 
+    def keyReleaseEvent(self, event: QKeyEvent) -> None:
+        if event.key() == Qt.Key.Key_Shift and not event.isAutoRepeat() and self._shift_tap_armed:
+            self._shift_tap_armed = False
+            if self._stack.currentIndex() != 1:
+                self.rotate_active_photo_clockwise()
+                return
+        super().keyReleaseEvent(event)
+
     def _move_current(self, dest_folder: str) -> None:
         if not (0 <= self.current_index < len(self.pending_items)):
             return
@@ -211,19 +293,25 @@ class SessionWorkspaceWidget(QWidget):
         self.undo_stack.append(rec)
         if dest_folder == "Archivadas":
             self.archived_items.append(rec.item)
+            self.archived_items.sort(key=lambda i: (i.captured_at, i.filename))
+        elif dest_folder == "Para_Edicion":
+            self.for_editing_items.append(rec.item)
+            self.for_editing_items.sort(key=lambda i: (i.captured_at, i.filename))
         self.current_index = min(self.current_index, len(self.pending_items) - 1) if self.pending_items else 0
         self.zoom_one_to_one = False
         self._refresh_counters_and_stage()
 
-    def _on_archived_changed(self, removed_ids: set[str]) -> None:
+    def _on_bucket_items_changed(self, removed_ids: set[str]) -> None:
         self.undo_stack = [r for r in self.undo_stack if r.item.id not in removed_ids]
-        self._refresh_counters_and_stage()
+        self.reload_from_disk()
 
     def _refresh_counters_and_stage(self) -> None:
         self.session.counts = SessionFileManager.read_disk_counts(self.session)
         self._tab_cull_btn.setText(f"Filtrar ({self.session.counts.pending})")
+        self._tab_sel_btn.setText(f"Seleccionadas ({self.session.counts.for_editing})")
         self._tab_arch_btn.setText(f"Archivadas ({self.session.counts.archived})")
-        self._editing_badge.setText(f"Para Edición: {self.session.counts.for_editing}")
+        self._editing_badge.setText(f"Seleccionadas: {self.session.counts.for_editing}")
+        self._selected_tab.set_items(self.for_editing_items)
         self._archived_tab.set_items(self.archived_items)
 
         if not (0 <= self.current_index < len(self.pending_items)):
@@ -255,11 +343,17 @@ class SessionWorkspaceWidget(QWidget):
             return
         for item in self.pending_items:
             if item.vision_tags is None:
-                self._analyze_item(item)
+                self._analyze_item(item, ignore_auto_setting=False)
         self._refresh_counters_and_stage()
 
-    def _analyze_item(self, item: PhotoItem) -> None:
-        if not self.perf_prefs.enable_vision_autotagging:
+    def run_manual_vision_analysis_batch(self) -> None:
+        for item in self.pending_items:
+            if item.vision_tags is None:
+                self._analyze_item(item, ignore_auto_setting=True)
+        self._refresh_counters_and_stage()
+
+    def _analyze_item(self, item: PhotoItem, ignore_auto_setting: bool = False) -> None:
+        if not ignore_auto_setting and not self.perf_prefs.enable_vision_autotagging:
             return
         payload = self.renderer.render_image(item, max_dimension=960, full_sensor=False)
         if payload:
@@ -268,6 +362,24 @@ class SessionWorkspaceWidget(QWidget):
             )
             item.vision_tags = tags
             PhotoTagStore.save(tags, item, self.session, write_xmp=True)
+
+    def _import_folder_into_session(self) -> None:
+        folder = QFileDialog.getExistingDirectory(self, f"Importar fotos a '{self.session.name}'")
+        if not folder:
+            return
+        try:
+            summary = SessionFolderImporter.scan_folder(Path(folder), include_subfolders=True)
+            if not summary.units:
+                return
+            SessionFolderImporter.import_into_existing_session(
+                summary=summary,
+                session=self.session,
+                transfer_mode=FolderImportTransferMode.COPY,
+            )
+            self.reload_from_disk()
+            self.run_manual_vision_analysis_batch()
+        except Exception:
+            pass
 
     def _prompt_custom_tag(self) -> None:
         if not (0 <= self.current_index < len(self.pending_items)):

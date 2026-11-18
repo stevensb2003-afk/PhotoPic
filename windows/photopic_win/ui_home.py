@@ -4,6 +4,7 @@ from __future__ import annotations
 
 from pathlib import Path
 from PySide6.QtCore import Qt
+from PySide6.QtGui import QKeySequence, QShortcut
 from PySide6.QtWidgets import (
     QComboBox,
     QFileDialog,
@@ -21,12 +22,15 @@ from PySide6.QtWidgets import (
 )
 
 from .design_system import AppColors, AppSpacing
+from .folder_importer import SessionFolderImporter
 from .models import PhotoSession
 from .session_manager import SessionFileManager
 from .session_metadata import SessionMetadataStore, create_master_group, load_master_groups
 from .ui_home_dialogs import (
+    ImportSessionDialog,
     NewSessionDialog,
     SessionOrganizationDialog,
+    build_group_card,
     build_session_card,
     confirm_permanent_delete_session,
 )
@@ -92,29 +96,40 @@ class HomeDashboardWidget(QWidget):
 
         header = QHBoxLayout()
         header.setContentsMargins(AppSpacing.XL, AppSpacing.XL, AppSpacing.XL, AppSpacing.SM)
-        h_text = QLabel("Sesiones de Estudio")
+        h_text = QLabel("📷  Sesiones de Fotografía")
         h_text.setStyleSheet("font-size: 22px; font-weight: 600;")
         header.addWidget(h_text)
         header.addStretch()
 
-        new_group_btn = QPushButton("+ Carpeta Máster")
+        new_group_btn = QPushButton("Crear grupo")
+        new_group_btn.setToolTip("Crear una carpeta de grupo para organizar sesiones")
         new_group_btn.clicked.connect(self._create_new_group)
         header.addWidget(new_group_btn)
 
         refresh_btn = QPushButton("Actualizar")
+        refresh_btn.setToolTip("Actualizar sesiones desde el disco")
         refresh_btn.clicked.connect(self.reload_sessions)
         header.addWidget(refresh_btn)
 
-        new_btn = QPushButton("+ Nueva Sesión de Filtrado")
+        import_btn = QPushButton("Importar carpeta")
+        import_btn.setToolTip("Importar fotos desde una carpeta de tu PC y segregar RAW/JPG (Ctrl+I)")
+        import_btn.clicked.connect(self._import_folder_session)
+        header.addWidget(import_btn)
+
+        new_btn = QPushButton("Nueva sesión")
         new_btn.setObjectName("PrimaryButton")
+        new_btn.setToolTip("Crear nueva sesión de fotografía (Ctrl+N)")
         new_btn.clicked.connect(self._create_new_session)
         header.addWidget(new_btn)
         root_layout.addLayout(header)
 
+        QShortcut(QKeySequence("Ctrl+I"), self).activated.connect(self._import_folder_session)
+        QShortcut(QKeySequence("Ctrl+N"), self).activated.connect(self._create_new_session)
+
         filter_bar = QHBoxLayout()
         filter_bar.setContentsMargins(AppSpacing.XL, 0, AppSpacing.XL, AppSpacing.MD)
         self._search_input = QLineEdit()
-        self._search_input.setPlaceholderText("Buscar sesión, carpeta máster o etiqueta...")
+        self._search_input.setPlaceholderText("Buscar sesión, grupo o etiqueta...")
         self._search_input.textChanged.connect(self._render_filtered_grid)
         filter_bar.addWidget(self._search_input, stretch=1)
 
@@ -207,22 +222,103 @@ class HomeDashboardWidget(QWidget):
 
         if self.root_dir is None:
             return
+
+        gf = str(self._group_filter.currentData() or "__ALL__")
+        tf = str(self._tag_filter.currentData() or "__ALL__")
+        is_searching = bool(self._search_input.text().strip()) or tf != "__ALL__"
         sessions = self._filtered_sessions()
+        row = 0
+
+        if gf not in ("__ALL__", "__UNGROUPED__"):
+            bar = QWidget()
+            bar_lay = QHBoxLayout(bar)
+            bar_lay.setContentsMargins(0, 0, 0, AppSpacing.SM)
+            back_btn = QPushButton("← Regresar")
+            back_btn.clicked.connect(lambda: self._select_group_filter("__ALL__"))
+            grp_lbl = QLabel(f"📁  {gf}")
+            grp_lbl.setStyleSheet("font-size: 16px; font-weight: 600;")
+            ren_btn = QPushButton("Renombrar")
+            ren_btn.clicked.connect(lambda _=False, g=gf: self._rename_group(g))
+            count_lbl = QLabel(f"{len(sessions)} sesión(es)")
+            count_lbl.setStyleSheet(f"color: {AppColors.TEXT_TERTIARY}; font-size: 12px;")
+            bar_lay.addWidget(back_btn)
+            bar_lay.addWidget(grp_lbl)
+            bar_lay.addWidget(ren_btn)
+            bar_lay.addStretch()
+            bar_lay.addWidget(count_lbl)
+            self._grid.addWidget(bar, row, 0, 1, 3)
+            row += 1
+
+            if not sessions:
+                empty = QLabel(f"El grupo '{gf}' todavía no tiene sesiones.")
+                empty.setStyleSheet(f"color: {AppColors.TEXT_SECONDARY}; padding: 36px;")
+                empty.setAlignment(Qt.AlignmentFlag.AlignCenter)
+                self._grid.addWidget(empty, row, 0, 1, 3)
+                return
+
+            for idx, session in enumerate(sessions):
+                card = build_session_card(
+                    session,
+                    self.on_open_session,
+                    self._organize_session,
+                    self._delete_session,
+                    on_rename=self._rename_session,
+                    show_group_badge=False,
+                )
+                self._grid.addWidget(card, row + idx // 3, idx % 3)
+            return
+
+        if gf == "__ALL__" and not is_searching and self._groups:
+            grp_title = QLabel("Grupos")
+            grp_title.setStyleSheet("font-size: 15px; font-weight: 600;")
+            self._grid.addWidget(grp_title, row, 0, 1, 3)
+            row += 1
+            for idx, group_name in enumerate(self._groups):
+                cnt = sum(1 for s in self._all_sessions if (s.group_name or "").lower() == group_name.lower())
+                gcard = build_group_card(
+                    group_name,
+                    cnt,
+                    on_open=self._select_group_filter,
+                    on_rename=self._rename_group,
+                )
+                self._grid.addWidget(gcard, row + idx // 3, idx % 3)
+            row += (len(self._groups) + 2) // 3
+            sessions = [s for s in sessions if s.group_name is None]
+            if sessions:
+                sec_title = QLabel("Sesiones sin grupo")
+                sec_title.setStyleSheet("font-size: 15px; font-weight: 600; padding-top: 8px;")
+                self._grid.addWidget(sec_title, row, 0, 1, 3)
+                row += 1
+
         if not sessions:
+            if gf == "__ALL__" and not is_searching and self._groups:
+                return
             msg = (
-                "Todavía no hay sesiones. Creá una con '+ Nueva Sesión de Filtrado'."
-                if not self._all_sessions
+                "Todavía no hay sesiones. Creá una con 'Nueva sesión' o importá una carpeta con 'Importar carpeta' (Ctrl+I)."
+                if not self._all_sessions and not self._groups
                 else "Ninguna sesión coincide con tu búsqueda o filtros actuales."
             )
             empty = QLabel(msg)
             empty.setStyleSheet(f"color: {AppColors.TEXT_SECONDARY}; padding: 36px;")
             empty.setAlignment(Qt.AlignmentFlag.AlignCenter)
-            self._grid.addWidget(empty, 0, 0)
+            self._grid.addWidget(empty, row, 0, 1, 3)
             return
 
         for idx, session in enumerate(sessions):
-            card = build_session_card(session, self.on_open_session, self._organize_session, self._delete_session)
-            self._grid.addWidget(card, idx // 3, idx % 3)
+            card = build_session_card(
+                session,
+                self.on_open_session,
+                self._organize_session,
+                self._delete_session,
+                on_rename=self._rename_session,
+                show_group_badge=True,
+            )
+            self._grid.addWidget(card, row + idx // 3, idx % 3)
+
+    def _select_group_filter(self, group_value: str) -> None:
+        idx = self._group_filter.findData(group_value)
+        if idx >= 0:
+            self._group_filter.setCurrentIndex(idx)
 
     def _pick_root(self) -> None:
         chosen = QFileDialog.getExistingDirectory(self, "Elegir Carpeta Raíz Global")
@@ -241,10 +337,69 @@ class HomeDashboardWidget(QWidget):
         if self.root_dir is None:
             self._pick_root()
             return
-        name, ok = QInputDialog.getText(self, "Nueva Carpeta Máster", "Nombre del grupo (ej. Sesiones Navideñas 2026):")
+        name, ok = QInputDialog.getText(self, "Crear grupo", "Nombre del grupo (ej. Sesiones Navideñas 2026):")
         if ok and name.strip():
-            create_master_group(name.strip(), self.root_dir)
+            created = create_master_group(name.strip(), self.root_dir)
             self.reload_sessions()
+            self._select_group_filter(created)
+
+    def _import_folder_session(self) -> None:
+        if self.root_dir is None:
+            self._pick_root()
+            return
+        chosen = QFileDialog.getExistingDirectory(self, "Importar carpeta de fotos")
+        if not chosen:
+            return
+        active_group = str(self._group_filter.currentData() or "")
+        default_g = "" if active_group in ("__ALL__", "__UNGROUPED__") else active_group
+        dlg = ImportSessionDialog(Path(chosen), self._groups, default_group=default_g, parent=self)
+        if dlg.exec():
+            summary, name, group, tags, mode, run_ai = dlg.values()
+            try:
+                result = SessionFolderImporter.import_as_new_session(
+                    summary=summary,
+                    session_name=name,
+                    root_dir=self.root_dir,
+                    group_name=group,
+                    initial_tags=tags,
+                    transfer_mode=mode,
+                )
+                self.reload_sessions()
+                try:
+                    self.on_open_session(result.session, run_vision_ai=run_ai)
+                except TypeError:
+                    self.on_open_session(result.session)
+            except Exception as exc:
+                QMessageBox.critical(self, "Error al importar carpeta", str(exc))
+
+    def _rename_session(self, session: PhotoSession) -> None:
+        if self.root_dir is None:
+            return
+        new_name, ok = QInputDialog.getText(
+            self, "Renombrar sesión", "Nuevo nombre (también renombra la carpeta en disco):", text=session.name
+        )
+        if ok and new_name.strip():
+            try:
+                SessionFileManager.rename_session(session, new_name.strip(), self.root_dir)
+                self.reload_sessions()
+            except Exception as exc:
+                QMessageBox.critical(self, "Error al renombrar sesión", str(exc))
+
+    def _rename_group(self, group_name: str) -> None:
+        if self.root_dir is None:
+            return
+        new_name, ok = QInputDialog.getText(
+            self, "Renombrar grupo", "Nuevo nombre (también renombra la carpeta en disco):", text=group_name
+        )
+        if ok and new_name.strip():
+            try:
+                was_active = str(self._group_filter.currentData() or "") == group_name
+                renamed = SessionFileManager.rename_group(group_name, new_name.strip(), self.root_dir)
+                self.reload_sessions()
+                if was_active:
+                    self._select_group_filter(renamed)
+            except Exception as exc:
+                QMessageBox.critical(self, "Error al renombrar grupo", str(exc))
 
     def _create_new_session(self) -> None:
         if self.root_dir is None:

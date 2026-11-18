@@ -151,7 +151,7 @@ class PhotoPicMainWindow(QMainWindow):
         if self._cloud_updater.install_staged_and_restart():
             QApplication.quit()
 
-    def open_session(self, session: PhotoSession) -> None:
+    def open_session(self, session: PhotoSession, run_vision_ai: bool = False) -> None:
         if self._workspace is not None:
             self._stack.removeWidget(self._workspace)
             self._workspace.deleteLater()
@@ -160,6 +160,7 @@ class PhotoPicMainWindow(QMainWindow):
             self.tether_service,
             on_back=self.close_session,
             performance_prefs=self._perf_prefs,
+            run_vision_ai_on_open=run_vision_ai,
         )
         self._stack.addWidget(self._workspace)
         self._stack.setCurrentWidget(self._workspace)
