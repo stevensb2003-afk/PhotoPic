@@ -308,6 +308,32 @@ package enum HardwareAndArchiveDeleteVerification {
         let idxStatus = DeviceConnectionStatus.indexingCatalog(percent: 42, scannedCount: 1850)
         try assertTrue(idxStatus.isIndexingCatalog && idxStatus.label.contains("42%"), "SD catalog indexing status exposes live percentage")
 
+        // Direct Canon USB PTP codec & 0x9116 GetEvent parser verification
+        var evtPacket = Data()
+        func appendLE32(_ v: UInt32, to d: inout Data) {
+            var le = v.littleEndian; withUnsafeBytes(of: &le) { d.append(contentsOf: $0) }
+        }
+        func appendLE16(_ v: UInt16, to d: inout Data) {
+            var le = v.littleEndian; withUnsafeBytes(of: &le) { d.append(contentsOf: $0) }
+        }
+        // Entry 1: 0xC186 RequestObjectTransfer (RAM-direct shot IMG_9999.CR2)
+        var entry1 = Data(repeating: 0, count: 0x1C)
+        let name1 = "IMG_9999.CR2\0".data(using: .utf8)!
+        entry1.append(name1)
+        let len1 = UInt32(entry1.count)
+        entry1.replaceSubrange(0..<4, with: withUnsafeBytes(of: len1.littleEndian) { Data($0) })
+        entry1.replaceSubrange(4..<8, with: withUnsafeBytes(of: CanonPTPCode.eventRequestObjectTransfer.littleEndian) { Data($0) })
+        entry1.replaceSubrange(0x08..<0x0C, with: withUnsafeBytes(of: UInt32(0x1234_5678).littleEndian) { Data($0) })
+        entry1.replaceSubrange(0x0C..<0x0E, with: withUnsafeBytes(of: CanonPTPCode.formatCanonCRW3.littleEndian) { Data($0) })
+        entry1.replaceSubrange(0x14..<0x18, with: withUnsafeBytes(of: UInt32(14_500_000).littleEndian) { Data($0) })
+        evtPacket.append(entry1)
+        // Entry 2: Sentinel end (size=8, code=0)
+        appendLE32(8, to: &evtPacket); appendLE32(0, to: &evtPacket)
+
+        var counter = 0
+        let parsedEvents = CanonUSBPTPCodec.parseEOSCaptureEvents(from: evtPacket, fallbackCounter: &counter)
+        try assertTrue(parsedEvents.count == 1 && parsedEvents[0].handle == 0x1234_5678 && parsedEvents[0].filename == "IMG_9999.CR2" && parsedEvents[0].isRAMTransfer, "Direct Canon 0xC186 RAM capture event parsed cleanly")
+
         let autoRoot = rootURL.appendingPathComponent("AutoQuickRoot", isDirectory: true)
         try FileManager.default.createDirectory(at: autoRoot, withIntermediateDirectories: true)
         let suite = "com.kairosvisuals.photopic.verify.\(UUID().uuidString)"

@@ -49,7 +49,7 @@ def build_pbxproj():
 
     frefs.append(f'\t\t{prod_id} = {{isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = PhotoPic.app; sourceTree = BUILT_PRODUCTS_DIR; }};')
 
-    fws = ["AppKit", "AVFoundation", "CoreImage", "CoreMedia", "IOKit", "ImageCaptureCore", "ImageIO", "Metal", "UniformTypeIdentifiers", "Vision"]
+    fws = ["AppKit", "AVFoundation", "CoreImage", "CoreMedia", "IOKit", "IOUSBHost", "ImageCaptureCore", "ImageIO", "Metal", "UniformTypeIdentifiers", "Vision"]
     fbids, frids = [], []
     for fw in fws:
         fid, bid = uid(f"FW:{fw}"), uid(f"FB:{fw}")

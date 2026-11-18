@@ -34,6 +34,7 @@ let package = Package(
                 .linkedFramework("ImageCaptureCore"),
                 .linkedFramework("ImageIO"),
                 .linkedFramework("IOKit"),
+                .linkedFramework("IOUSBHost"),
                 .linkedFramework("Metal"),
                 .linkedFramework("UniformTypeIdentifiers"),
                 .linkedFramework("Vision")

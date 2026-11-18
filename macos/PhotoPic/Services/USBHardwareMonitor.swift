@@ -45,6 +45,7 @@ package struct PhysicalUSBDevice: Identifiable, Sendable, Equatable, Hashable {
 package final class USBHardwareMonitor {
     package private(set) var physicalImagingDevices: [PhysicalUSBDevice] = []
     package private(set) var conflictingProcesses: [String] = []
+    package var onPhysicalDevicesUpdated: (([PhysicalUSBDevice]) -> Void)?
 
     private var pollTask: Task<Void, Never>?
 
@@ -55,7 +56,7 @@ package final class USBHardwareMonitor {
         pollTask = Task { @MainActor [weak self] in
             while !Task.isCancelled {
                 await self?.refreshNow()
-                try? await Task.sleep(for: .milliseconds(2500))
+                try? await Task.sleep(for: .milliseconds(1200))
             }
         }
     }
@@ -71,6 +72,7 @@ package final class USBHardwareMonitor {
         }.value
         physicalImagingDevices = devices
         conflictingProcesses = conflicts
+        onPhysicalDevicesUpdated?(devices)
     }
 
     nonisolated package static func scanIOKitImagingDevices() -> [PhysicalUSBDevice] {

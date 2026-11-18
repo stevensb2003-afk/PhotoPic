@@ -25,13 +25,14 @@ package struct LiveViewWorkspacePane: View {
 
     private var live: LiveViewCameraService { appState.liveViewService }
     private var ptpLive: PTPLiveViewService { appState.ptpLiveViewService }
+    private var directCanon: DirectCanonUSBPTPService { appState.discoveryService.directCanonService }
     private var gphoto: GPhoto2LiveBridge { appState.gphotoBridge }
     private var network: NetworkMJPEGStreamService { appState.networkStreamService }
     private var primaryUSBDevice: ConnectedDeviceState? { appState.discoveryService.primaryLiveDevice }
 
     private var isLiveActive: Bool {
         switch bridgeMode {
-        case .usbPTPDirect: return ptpLive.isStreaming
+        case .usbPTPDirect: return ptpLive.isStreaming || directCanon.isDirectLiveViewStreaming
         case .nativeUVC: return live.isRunning
         case .networkMJPEG: return network.isStreaming
         case .classicGPhoto2: return gphoto.isStreaming
@@ -50,7 +51,7 @@ package struct LiveViewWorkspacePane: View {
                         connectedDevice: primaryUSBDevice,
                         modeTitle: emptyModeTitle,
                         explanation: emptyExplanation,
-                        feedbackMessage: captureFeedback ?? ptpLive.statusNote ?? live.statusMessage ?? network.statusNote ?? gphoto.statusNote,
+                        feedbackMessage: captureFeedback ?? directCanon.directLiveViewStatusNote ?? ptpLive.statusNote ?? live.statusMessage ?? network.statusNote ?? gphoto.statusNote,
                         isActive: isLiveActive,
                         onToggle: { Task { await toggleStream() } }
                     )
@@ -249,7 +250,9 @@ package struct LiveViewWorkspacePane: View {
         HStack(spacing: AppSpacing.md) {
             let statusLabel: String = switch bridgeMode {
             case .usbPTPDirect:
-                if ptpLive.isStreaming {
+                if directCanon.isDirectLiveViewStreaming {
+                    "Visor USB Directo activo · ~\(max(1, directCanon.directLiveViewFPS)) fps"
+                } else if ptpLive.isStreaming {
                     "Visor PTP USB activo · ~\(max(1, ptpLive.fpsEstimate)) fps"
                 } else if let dev = primaryUSBDevice {
                     "\(dev.alias) · \(dev.status.label)"
@@ -267,7 +270,7 @@ package struct LiveViewWorkspacePane: View {
 
             Spacer()
 
-            if ptpLive.isStreaming || appState.discoveryService.canTriggerPrimaryShutter {
+            if directCanon.isDirectLiveViewStreaming || ptpLive.isStreaming || appState.discoveryService.canTriggerPrimaryShutter {
                 Button {
                     Task { await firePTPRemoteShutter() }
                 } label: {
@@ -318,6 +321,14 @@ package struct LiveViewWorkspacePane: View {
                 captureFeedback = "No hay ninguna cámara USB conectada."
                 return
             }
+            if directCanon.hasSession(for: dev.fingerprint) {
+                directCanon.startLiveView(
+                    for: dev.fingerprint,
+                    onFrame: { frame in live.injectExternalPreviewFrame(frame) },
+                    onError: { err in captureFeedback = err }
+                )
+                return
+            }
             if case .indexingCatalog(let pct, _) = dev.status {
                 captureFeedback = "Esperá a que termine el índice SD (\(pct)%) para abrir el visor PTP en vivo."
                 return
@@ -357,7 +368,10 @@ package struct LiveViewWorkspacePane: View {
     }
 
     private func firePTPRemoteShutter() async {
-        if ptpLive.isStreaming {
+        if let dev = primaryUSBDevice, directCanon.hasSession(for: dev.fingerprint) {
+            let ok = await directCanon.triggerRemoteShutter(for: dev.fingerprint)
+            captureFeedback = ok ? "Disparo enviado por USB directo — recibiendo foto..." : "La cámara no pudo disparar (revisá enfoque AF/MF)."
+        } else if ptpLive.isStreaming {
             let ok = await ptpLive.triggerRemoteShutter()
             captureFeedback = ok ? "Disparo enviado a la cámara — recibiendo RAW/JPG..." : "La cámara no pudo disparar (revisá foco AF/MF)."
         } else {

@@ -192,6 +192,7 @@ package final class AppState {
     package func stopAllLiveView() {
         liveViewService.stop()
         ptpLiveViewService.stopStream()
+        discoveryService.directCanonService.stopLiveView()
         networkStreamService.stopStream()
         if gphotoBridge.isStreaming {
             gphotoBridge.stopPreviewStream()

@@ -167,6 +167,7 @@ package struct SessionWorkspaceView: View {
                     badgeColor: AppColors.approveGreen,
                     liveActive: appState.liveViewService.isRunning
                         || appState.ptpLiveViewService.isStreaming
+                        || appState.discoveryService.directCanonService.isDirectLiveViewStreaming
                         || appState.networkStreamService.isStreaming
                         || appState.gphotoBridge.isStreaming
                 )

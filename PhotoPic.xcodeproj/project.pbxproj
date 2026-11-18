@@ -31,6 +31,7 @@
 		85B99EBC0A3C5BF49071DB68 = {isa = PBXBuildFile; fileRef = C601FA496CB695F931BDBCE5; };
 		F99D3D9D550ABCABBF5DECE8 = {isa = PBXBuildFile; fileRef = 4A59295FCA5F8C7493D411FB; };
 		74D95543104C96135EFD5764 = {isa = PBXBuildFile; fileRef = 1906D3B4DDE63186E90DEF85; };
+		A2772EEA06637EFA24AEA8A4 = {isa = PBXBuildFile; fileRef = 62D3610B7DD764ED030BD91E; };
 		1530452D060A4B177CF913E2 = {isa = PBXBuildFile; fileRef = B5D87AE32398932B5C777098; };
 		09E6F3F9720A6D2CA0770F68 = {isa = PBXBuildFile; fileRef = 627B0326BEB1A0537EF94E7A; };
 		F5F7FA3256002DC144CE56E7 = {isa = PBXBuildFile; fileRef = 244136FECAB29959893549BD; };
@@ -92,6 +93,7 @@
 		37DDE6658409A002713AC42C = {isa = PBXBuildFile; fileRef = 7E0C18D26916A045327901F9; };
 		22983BAC09D15BD8EFB13F08 = {isa = PBXBuildFile; fileRef = 814090D952402EEC4221C879; };
 		AE4CD87731CB12B894536DE3 = {isa = PBXBuildFile; fileRef = C0D417A5229E345D7505F9BD; };
+		9F1247BE33ECC5FA6AA831A2 = {isa = PBXBuildFile; fileRef = A39AF2AE83BCDC0548469F3F; };
 		DD65020E5A98016375C72AF6 = {isa = PBXBuildFile; fileRef = D10DDA0DFC07522672244D78; };
 		4361F4695668F58CEC6E448C = {isa = PBXBuildFile; fileRef = DB62CFAE437E1C290AB4F94F; };
 		A632725CD4028854D8F41BB8 = {isa = PBXBuildFile; fileRef = 2748FE84529D698B92390AB7; };
@@ -125,6 +127,7 @@
 		C601FA496CB695F931BDBCE5 = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = "DeviceDiscoveryService+Delegate.swift"; path = "macos/PhotoPic/Services/DeviceDiscoveryService+Delegate.swift"; sourceTree = "<group>"; };
 		4A59295FCA5F8C7493D411FB = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = "DeviceDiscoveryService.swift"; path = "macos/PhotoPic/Services/DeviceDiscoveryService.swift"; sourceTree = "<group>"; };
 		1906D3B4DDE63186E90DEF85 = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = "DeviceFingerprintMatcher.swift"; path = "macos/PhotoPic/Services/DeviceFingerprintMatcher.swift"; sourceTree = "<group>"; };
+		62D3610B7DD764ED030BD91E = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = "DirectCanonUSBPTPService.swift"; path = "macos/PhotoPic/Services/DirectCanonUSBPTPService.swift"; sourceTree = "<group>"; };
 		B5D87AE32398932B5C777098 = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = "ExifMetadataReader.swift"; path = "macos/PhotoPic/Services/ExifMetadataReader.swift"; sourceTree = "<group>"; };
 		627B0326BEB1A0537EF94E7A = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = "FolderWatchTetherService.swift"; path = "macos/PhotoPic/Services/FolderWatchTetherService.swift"; sourceTree = "<group>"; };
 		244136FECAB29959893549BD = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = "GPhoto2LiveBridge.swift"; path = "macos/PhotoPic/Services/GPhoto2LiveBridge.swift"; sourceTree = "<group>"; };
@@ -189,6 +192,7 @@
 		7E0C18D26916A045327901F9 = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = CoreImage.framework; path = System/Library/Frameworks/CoreImage.framework; sourceTree = SDKROOT; };
 		814090D952402EEC4221C879 = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = CoreMedia.framework; path = System/Library/Frameworks/CoreMedia.framework; sourceTree = SDKROOT; };
 		C0D417A5229E345D7505F9BD = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = IOKit.framework; path = System/Library/Frameworks/IOKit.framework; sourceTree = SDKROOT; };
+		A39AF2AE83BCDC0548469F3F = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = IOUSBHost.framework; path = System/Library/Frameworks/IOUSBHost.framework; sourceTree = SDKROOT; };
 		D10DDA0DFC07522672244D78 = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = ImageCaptureCore.framework; path = System/Library/Frameworks/ImageCaptureCore.framework; sourceTree = SDKROOT; };
 		DB62CFAE437E1C290AB4F94F = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = ImageIO.framework; path = System/Library/Frameworks/ImageIO.framework; sourceTree = SDKROOT; };
 		2748FE84529D698B92390AB7 = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = Metal.framework; path = System/Library/Frameworks/Metal.framework; sourceTree = SDKROOT; };
@@ -202,6 +206,7 @@
 				37DDE6658409A002713AC42C,
 				22983BAC09D15BD8EFB13F08,
 				AE4CD87731CB12B894536DE3,
+				9F1247BE33ECC5FA6AA831A2,
 				DD65020E5A98016375C72AF6,
 				4361F4695668F58CEC6E448C,
 				A632725CD4028854D8F41BB8,
@@ -216,6 +221,7 @@
 				7E0C18D26916A045327901F9,
 				814090D952402EEC4221C879,
 				C0D417A5229E345D7505F9BD,
+				A39AF2AE83BCDC0548469F3F,
 				D10DDA0DFC07522672244D78,
 				DB62CFAE437E1C290AB4F94F,
 				2748FE84529D698B92390AB7,
@@ -249,6 +255,7 @@
 				C601FA496CB695F931BDBCE5,
 				4A59295FCA5F8C7493D411FB,
 				1906D3B4DDE63186E90DEF85,
+				62D3610B7DD764ED030BD91E,
 				B5D87AE32398932B5C777098,
 				627B0326BEB1A0537EF94E7A,
 				244136FECAB29959893549BD,
@@ -351,6 +358,7 @@
 				85B99EBC0A3C5BF49071DB68,
 				F99D3D9D550ABCABBF5DECE8,
 				74D95543104C96135EFD5764,
+				A2772EEA06637EFA24AEA8A4,
 				1530452D060A4B177CF913E2,
 				09E6F3F9720A6D2CA0770F68,
 				F5F7FA3256002DC144CE56E7,
