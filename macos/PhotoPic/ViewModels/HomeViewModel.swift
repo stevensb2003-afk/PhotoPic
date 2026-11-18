@@ -119,8 +119,7 @@ package final class HomeViewModel {
     }
 
     package func prepareImportSheet(for sourceURL: URL) {
-        let suggestedName = SessionFileManager.sanitizeSessionName(sourceURL.lastPathComponent)
-        importSessionNameDraft = suggestedName.isEmpty ? Self.defaultSuggestedSessionName() : suggestedName
+        importSessionNameDraft = Self.suggestedImportedSessionName(for: sourceURL)
         if case .group(let activeGroup) = groupFilter {
             importSessionGroupDraft = activeGroup
         } else {
@@ -135,6 +134,35 @@ package final class HomeViewModel {
         importErrorMessage = nil
         isPresentingImportSheet = true
         scanImportFolder(at: sourceURL, includeSubfolders: true)
+    }
+
+    /// Suggests a meaningful session name when importing a generic subfolder such as `RAW/`, `JPG/`, or `DCIM/`.
+    package static func suggestedImportedSessionName(for sourceURL: URL) -> String {
+        let genericNames: Set<String> = [
+            "raw", "jpg", "jpeg", "heic", "dcim", "fotos", "photos",
+            "images", "imagenes", "imágenes", "para_edicion", "archivadas"
+        ]
+        let systemParents: Set<String> = [
+            "desktop", "downloads", "documents", "pictures", "users", "volumes", ""
+        ]
+
+        let leaf = SessionFileManager.sanitizeSessionName(sourceURL.lastPathComponent)
+        if !leaf.isEmpty, !genericNames.contains(leaf.lowercased()) {
+            return leaf
+        }
+
+        let parentName = SessionFileManager.sanitizeSessionName(
+            sourceURL.deletingLastPathComponent().lastPathComponent
+        )
+        if !parentName.isEmpty,
+           !genericNames.contains(parentName.lowercased()),
+           !systemParents.contains(parentName.lowercased()) {
+            return parentName
+        }
+
+        let formatter = DateFormatter()
+        formatter.dateFormat = "yyyy-MM-dd"
+        return "Sesion_\(formatter.string(from: Date()))"
     }
 
     package func scanImportFolder(at sourceURL: URL, includeSubfolders: Bool) {

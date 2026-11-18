@@ -179,10 +179,7 @@ package final class AppState {
               ) else {
             return
         }
-        let suggested = SessionFileManager.sanitizeSessionName(chosenURL.lastPathComponent)
-        if !suggested.isEmpty {
-            homeViewModel.importSessionNameDraft = suggested
-        }
+        homeViewModel.importSessionNameDraft = HomeViewModel.suggestedImportedSessionName(for: chosenURL)
         homeViewModel.scanImportFolder(at: chosenURL, includeSubfolders: homeViewModel.importIncludeSubfolders)
     }
 

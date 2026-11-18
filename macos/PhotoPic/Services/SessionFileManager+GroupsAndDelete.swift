@@ -18,7 +18,7 @@ extension SessionFileManager {
             let values = try? entry.resourceValues(forKeys: [.isDirectoryKey, .creationDateKey])
             guard values?.isDirectory == true else { continue }
 
-            if hasSessionRawSubfolder(at: entry) {
+            if isSessionDirectory(at: entry) {
                 sessions.append(buildLoadedSession(at: entry, groupName: nil, createdAt: values?.creationDate))
                 continue
             }
@@ -32,7 +32,7 @@ extension SessionFileManager {
             }
             for subEntry in nested {
                 let subValues = try? subEntry.resourceValues(forKeys: [.isDirectoryKey, .creationDateKey])
-                guard subValues?.isDirectory == true, hasSessionRawSubfolder(at: subEntry) else { continue }
+                guard subValues?.isDirectory == true, isSessionDirectory(at: subEntry) else { continue }
                 sessions.append(
                     buildLoadedSession(
                         at: subEntry,
@@ -59,10 +59,9 @@ extension SessionFileManager {
         var groups: [String] = []
         for entry in entries {
             let values = try? entry.resourceValues(forKeys: [.isDirectoryKey])
-            guard values?.isDirectory == true, !hasSessionRawSubfolder(at: entry) else { continue }
+            guard values?.isDirectory == true, !isSessionDirectory(at: entry) else { continue }
 
-            let markerURL = entry.appendingPathComponent(groupMarkerFilename, isDirectory: false)
-            if fm.fileExists(atPath: markerURL.path) {
+            if hasGroupMarker(at: entry) {
                 groups.append(entry.lastPathComponent)
                 continue
             }
@@ -70,7 +69,7 @@ extension SessionFileManager {
                 at: entry,
                 includingPropertiesForKeys: [.isDirectoryKey],
                 options: [.skipsHiddenFiles]
-            ), nested.contains(where: { hasSessionRawSubfolder(at: $0) }) {
+            ), nested.contains(where: { isSessionDirectory(at: $0) }) {
                 groups.append(entry.lastPathComponent)
             }
         }
@@ -86,7 +85,7 @@ extension SessionFileManager {
         }
         var targetName = sanitized
         var groupURL = rootURL.appendingPathComponent(targetName, isDirectory: true)
-        if hasSessionRawSubfolder(at: groupURL) {
+        if isSessionDirectory(at: groupURL) {
             groupURL = uniqueDirectoryURL(in: rootURL, preferredName: "\(sanitized)_Grupo")
             targetName = groupURL.lastPathComponent
         }
@@ -185,17 +184,34 @@ extension SessionFileManager {
         guard relativeComponents.count == 1 || relativeComponents.count == 2 else {
             throw SessionFileError.unsafeDeleteTarget
         }
-        guard hasSessionRawSubfolder(at: session.directoryURL) else {
+        guard isSessionDirectory(at: session.directoryURL) else {
             throw SessionFileError.unsafeDeleteTarget
         }
 
         try FileManager.default.removeItem(at: session.directoryURL)
     }
 
-    private static func hasSessionRawSubfolder(at directoryURL: URL) -> Bool {
-        var isDir: ObjCBool = false
+    private static func hasGroupMarker(at directoryURL: URL) -> Bool {
+        let markerURL = directoryURL.appendingPathComponent(groupMarkerFilename, isDirectory: false)
+        return FileManager.default.fileExists(atPath: markerURL.path)
+    }
+
+    /// Distinguishes a PhotoPic session from a Master Group even if a session inside a group
+    /// happens to be named `RAW`.
+    private static func isSessionDirectory(at directoryURL: URL) -> Bool {
+        guard !hasGroupMarker(at: directoryURL) else { return false }
+        let fm = FileManager.default
         let rawURL = directoryURL.appendingPathComponent(SessionSubfolder.raw.rawValue, isDirectory: true)
-        return FileManager.default.fileExists(atPath: rawURL.path, isDirectory: &isDir) && isDir.boolValue
+        var isDir: ObjCBool = false
+        guard fm.fileExists(atPath: rawURL.path, isDirectory: &isDir), isDir.boolValue else {
+            return false
+        }
+        let nestedRaw = rawURL.appendingPathComponent(SessionSubfolder.raw.rawValue, isDirectory: true)
+        let nestedEditing = rawURL.appendingPathComponent(SessionSubfolder.forEditing.rawValue, isDirectory: true)
+        if fm.fileExists(atPath: nestedRaw.path), fm.fileExists(atPath: nestedEditing.path) {
+            return false
+        }
+        return true
     }
 
     private static func buildLoadedSession(at entry: URL, groupName: String?, createdAt: Date?) -> PhotoSession {
@@ -217,7 +233,7 @@ extension SessionFileManager {
             throw SessionFileError.invalidGroupName
         }
         let candidate = rootURL.appendingPathComponent(sanitized, isDirectory: true)
-        if FileManager.default.fileExists(atPath: candidate.path), !hasSessionRawSubfolder(at: candidate) {
+        if FileManager.default.fileExists(atPath: candidate.path), !isSessionDirectory(at: candidate) {
             writeGroupMarkerIfNeeded(in: candidate)
             return candidate
         }

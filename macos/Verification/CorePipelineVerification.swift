@@ -437,6 +437,33 @@ package enum CorePipelineVerification {
         try assertTrue(!fm.fileExists(atPath: moveDng.path), "Move mode must remove source MOVE_01.DNG")
         try assertTrue(fm.fileExists(atPath: moveResult.session.rawFolderURL.appendingPathComponent("MOVE_01.DNG").path), "Moved DNG must exist in destination RAW/")
 
+        // Regression test: importing a session literally named `RAW` inside a Master Group must NOT turn the group into a 0-photo session
+        let christmasGroup = try SessionFileManager.createMasterGroup(named: "2026 Sesiones Navidenas", in: rootURL)
+        let rawSubfolderShoot = rootURL.appendingPathComponent("Familia_Navidad/RAW", isDirectory: true)
+        try fm.createDirectory(at: rawSubfolderShoot, withIntermediateDirectories: true)
+        try SyntheticDNGGenerator.writeSyntheticDNG(to: rawSubfolderShoot.appendingPathComponent("NAV_01.DNG"), width: 320, height: 240)
+        try assertTrue(
+            HomeViewModel.suggestedImportedSessionName(for: rawSubfolderShoot) == "Familia_Navidad",
+            "Importing a generic RAW subfolder must suggest its parent folder name"
+        )
+        let rawSubSummary = try SessionFolderImporter.scanFolder(at: rawSubfolderShoot, includeSubfolders: false)
+        _ = try await SessionFolderImporter.importAsNewSession(
+            from: rawSubSummary,
+            sessionName: "RAW",
+            groupName: christmasGroup,
+            initialTags: [],
+            transferMode: .copy,
+            in: rootURL
+        )
+        let discoveredGroups = SessionFileManager.loadMasterGroups(in: rootURL)
+        let discoveredSessions = SessionFileManager.loadSessions(in: rootURL)
+        try assertTrue(discoveredGroups.contains(christmasGroup), "Group containing a session named RAW must still be detected as a group")
+        try assertTrue(!discoveredSessions.contains(where: { $0.name == christmasGroup && $0.groupName == nil }), "Group must never be misclassified as a 0-photo session")
+        try assertTrue(
+            discoveredSessions.contains(where: { $0.name == "RAW" && $0.groupName == christmasGroup && $0.counts.pending == 1 }),
+            "Session named RAW inside group must be loaded under its group with real counts"
+        )
+
         print("[PASS] 7. Folder session import (2-pass RAW/JPG segregation, collision stems, XMP copy/move, standalone JPG roundtrip & manual batch Vision AI)")
     }
 }
