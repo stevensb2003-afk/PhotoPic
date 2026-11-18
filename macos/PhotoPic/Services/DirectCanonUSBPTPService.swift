@@ -369,20 +369,25 @@ private final class CanonUSBTransport: @unchecked Sendable {
         closeSync()
         isClosed = false
 
-        guard let service = Self.findCanonPTPInterfaceService(vendorID: vendorID, productID: productID) else {
-            throw CanonUSBTransportError.interfaceNotFound
-        }
-        defer { IOObjectRelease(service) }
-
         var opened: IOUSBHostInterface?
         var lastError: NSError?
 
-        // First attempt: polite seize; if macOS ptpcamerad holds it, terminate ptpcamerad and retry.
-        for attempt in 0..<3 {
+        // Release macOS ptpcamerad first, then acquire IOUSBHostInterface before launchd/icdd respawns it.
+        for attempt in 0..<10 {
+            Self.killMacOSPTPDaemonSync()
+            Thread.sleep(forTimeInterval: attempt == 0 ? 0.06 : 0.08)
+
+            guard let service = Self.findCanonPTPInterfaceService(vendorID: vendorID, productID: productID) else {
+                if attempt == 9 {
+                    throw CanonUSBTransportError.interfaceNotFound
+                }
+                continue
+            }
+
             do {
                 let iface = try IOUSBHostInterface(
                     __ioService: service,
-                    options: [.deviceSeize],
+                    options: [],
                     queue: nil
                 ) { [weak self] _, messageType, _ in
                     // kIOMessageServiceIsTerminated == 0xE0000010
@@ -390,14 +395,27 @@ private final class CanonUSBTransport: @unchecked Sendable {
                         self?.onUnexpectedDisconnect()
                     }
                 }
+                IOObjectRelease(service)
                 opened = iface
                 break
             } catch {
                 lastError = error as NSError
-                if attempt == 0 || attempt == 1 {
-                    Self.killMacOSPTPDaemonSync()
-                    Thread.sleep(forTimeInterval: 0.30)
+                // Retry once with .deviceSeize on the same service if needed
+                if let seized = try? IOUSBHostInterface(
+                    __ioService: service,
+                    options: [.deviceSeize],
+                    queue: nil,
+                    interestHandler: { [weak self] _, messageType, _ in
+                        if messageType == 0xE000_0010 {
+                            self?.onUnexpectedDisconnect()
+                        }
+                    }
+                ) {
+                    IOObjectRelease(service)
+                    opened = seized
+                    break
                 }
+                IOObjectRelease(service)
             }
         }
 
@@ -553,7 +571,6 @@ private final class CanonUSBTransport: @unchecked Sendable {
 
     private static func findCanonPTPInterfaceService(vendorID: Int, productID: Int) -> io_service_t? {
         guard let matching = IOServiceMatching("IOUSBHostInterface") as NSMutableDictionary? else { return nil }
-        matching["bInterfaceClass"] = CanonPTPCode.ptpInterfaceClass
 
         var iterator: io_iterator_t = 0
         guard IOServiceGetMatchingServices(kIOMainPortDefault, matching, &iterator) == KERN_SUCCESS else {
@@ -565,9 +582,10 @@ private final class CanonUSBTransport: @unchecked Sendable {
             var propsRef: Unmanaged<CFMutableDictionary>?
             if IORegistryEntryCreateCFProperties(service, &propsRef, kCFAllocatorDefault, 0) == KERN_SUCCESS,
                let dict = propsRef?.takeRetainedValue() as? [String: Any] {
+                let intfClass = dict["bInterfaceClass"] as? Int ?? -1
                 let vid = (dict["idVendor"] as? Int) ?? parentIntProperty(service, key: "idVendor")
                 let pid = (dict["idProduct"] as? Int) ?? parentIntProperty(service, key: "idProduct")
-                if vid == vendorID && (productID == 0 || pid == productID) {
+                if intfClass == CanonPTPCode.ptpInterfaceClass && vid == vendorID && (productID == 0 || pid == productID) {
                     return service // Caller owns & releases
                 }
             }
@@ -587,33 +605,39 @@ private final class CanonUSBTransport: @unchecked Sendable {
     private static func findBulkEndpointAddresses(on interface: IOUSBHostInterface) -> (outAddr: UInt8, inAddr: UInt8)? {
         let cfg = interface.configurationDescriptor
         let intf = interface.interfaceDescriptor
-        let cfgEnd = UnsafeRawPointer(cfg).advanced(by: Int(cfg.pointee.wTotalLength))
+        let totalLength = Int(cfg.pointee.wTotalLength)
+        guard totalLength >= 9 else { return nil }
+
+        let raw = Data(bytes: cfg, count: totalLength)
         let targetInterfaceNumber = intf.pointee.bInterfaceNumber
         let targetAltSetting = intf.pointee.bAlternateSetting
 
-        var current: UnsafePointer<IOUSBDescriptorHeader>? = UnsafePointer<IOUSBDescriptorHeader>(OpaquePointer(intf))
         var outAddr: UInt8?
         var inAddr: UInt8?
+        var offset = 0
+        var insideTargetInterface = false
 
-        while let next = IOUSBGetNextDescriptorWithType(cfg, current, UInt8(kUSBAnyDesc)) {
-            if UnsafeRawPointer(next) >= cfgEnd { break }
-            current = next
-            let descType = next.pointee.bDescriptorType
-            if descType == UInt8(kUSBInterfaceDesc) {
-                let nextIntf = UnsafeRawPointer(next).assumingMemoryBound(to: IOUSBInterfaceDescriptor.self).pointee
-                if nextIntf.bInterfaceNumber != targetInterfaceNumber || nextIntf.bAlternateSetting != targetAltSetting {
-                    break
-                }
-            } else if descType == UInt8(kUSBEndpointDesc) {
-                let ep = UnsafeRawPointer(next).assumingMemoryBound(to: IOUSBEndpointDescriptor.self).pointee
-                let transferType = ep.bmAttributes & 0x03 // 2 == Bulk
-                guard transferType == 2 else { continue }
-                if (ep.bEndpointAddress & 0x80) == 0 {
-                    outAddr = ep.bEndpointAddress
-                } else {
-                    inAddr = ep.bEndpointAddress
+        while offset + 2 <= raw.count {
+            let len = Int(raw[offset])
+            let descType = raw[offset + 1]
+            guard len >= 2, offset + len <= raw.count else { break }
+
+            if descType == UInt8(kUSBInterfaceDesc) && len >= 9 {
+                let ifaceNum = raw[offset + 2]
+                let altSetting = raw[offset + 3]
+                insideTargetInterface = (ifaceNum == targetInterfaceNumber && altSetting == targetAltSetting)
+            } else if insideTargetInterface && descType == UInt8(kUSBEndpointDesc) && len >= 7 {
+                let addr = raw[offset + 2]
+                let transferType = raw[offset + 3] & 0x03 // 2 == Bulk
+                if transferType == 2 {
+                    if (addr & 0x80) == 0 {
+                        outAddr = addr
+                    } else {
+                        inAddr = addr
+                    }
                 }
             }
+            offset += len
         }
 
         if let outAddr, let inAddr {
