@@ -97,6 +97,22 @@ package struct SavedDeviceRowView: View {
                 .padding(AppSpacing.sm)
                 .background(AppColors.warningAmberTint)
                 .clipShape(RoundedRectangle(cornerRadius: AppRadius.sm, style: .continuous))
+            } else if case .error = liveState?.status {
+                HStack(spacing: AppSpacing.sm) {
+                    Image(systemName: "exclamationmark.triangle.fill")
+                        .foregroundStyle(AppColors.archiveRed)
+                    Text("No se pudo completar el enlace PTP.")
+                        .font(AppTypography.caption)
+                        .foregroundStyle(AppColors.textSecondary)
+                    Spacer()
+                    Button("Liberar macOS", action: onReleaseMacOSLock)
+                        .buttonStyle(StudioButtonStyle(.secondaryDark, compact: true))
+                    Button("Reintentar", action: onRetryConnection)
+                        .buttonStyle(StudioButtonStyle(.primaryLight, compact: true))
+                }
+                .padding(AppSpacing.sm)
+                .background(AppColors.archiveRed.opacity(0.12))
+                .clipShape(RoundedRectangle(cornerRadius: AppRadius.sm, style: .continuous))
             }
 
             HStack {

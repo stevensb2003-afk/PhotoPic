@@ -32,7 +32,11 @@ package final class TetherCaptureService: NSObject {
 
         let isRestrictedApple = camera.isAccessRestrictedAppleDevice
         let initialStatus: DeviceConnectionStatus = isRestrictedApple ? .accessRestrictedLocked : .connecting
-        let gate = TetherBaselineGate(connectedAtTimestamp: Date())
+        let requirePostConnectionTimestamp = profile.category == .iPhoneIOS || profile.category == .androidPTP
+        let gate = TetherBaselineGate(
+            connectedAtTimestamp: Date(),
+            requirePostConnectionTimestamp: requirePostConnectionTimestamp
+        )
         contexts[fingerprint] = ActiveCameraContext(
             camera: camera, profile: profile, gate: gate, lastStatus: initialStatus
         )
@@ -91,10 +95,14 @@ package final class TetherCaptureService: NSObject {
         contexts[fingerprint] = ctx
     }
 
-    func finalizeCatalogAndStartWatcher(for fingerprint: String, camera: ICCameraDevice) {
+    func finalizeCatalogAndStartWatcher(for fingerprint: String, camera: ICCameraDevice, bypassedCatalog: Bool = false) {
         cancelWatchdogs(for: fingerprint)
+        if contexts[fingerprint]?.gate.isCatalogComplete == true {
+            return
+        }
 
-        if let ctx = contexts[fingerprint],
+        if !bypassedCatalog,
+           let ctx = contexts[fingerprint],
            ctx.profile.category == .androidPTP,
            (camera.mediaFiles ?? []).isEmpty,
            (camera.contents ?? []).isEmpty {
@@ -108,6 +116,11 @@ package final class TetherCaptureService: NSObject {
 
         indexExistingCatalog(for: fingerprint, camera: camera)
         guard var ctx = contexts[fingerprint] else { return }
+        if bypassedCatalog {
+            // Protect against pre-existing SD photos arriving late while background catalog finishes.
+            ctx.gate.enablePostConnectionTimestampGuard()
+            logger.info("Bypassing full SD catalog wait for \(fingerprint, privacy: .public); active live session ready")
+        }
         ctx.gate.markCatalogComplete()
         ctx.lastStatus = .connectedReady
         ctx.deltaTask?.cancel()

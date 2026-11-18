@@ -42,7 +42,8 @@ extension TetherCaptureService: ICCameraDeviceDelegate {
                     self.onStatusChanged?(fp, .error(message: nsErr.localizedDescription), nil)
                 }
             } else if let cam = device as? ICCameraDevice {
-                if cam.capabilities.contains(ICDeviceCapability.cameraDeviceSupportsHEIF.rawValue) {
+                if cam.capabilities.contains(ICDeviceCapability.cameraDeviceSupportsHEIF.rawValue),
+                   cam.mediaPresentation != .originalAssets {
                     cam.mediaPresentation = .originalAssets
                 }
                 self.indexExistingCatalog(for: fp, camera: cam)
@@ -227,7 +228,7 @@ extension TetherCaptureService: ICCameraDeviceDelegate {
     func startOpenWatchdog(for fingerprint: String, category: DeviceCategory) {
         contexts[fingerprint]?.openTimeoutTask?.cancel()
         contexts[fingerprint]?.openTimeoutTask = Task { @MainActor [weak self] in
-            try? await Task.sleep(for: .milliseconds(5000))
+            try? await Task.sleep(for: .milliseconds(10000))
             guard !Task.isCancelled else { return }
             self?.handleSessionTimeout(for: fingerprint, category: category, isCatalogPhase: false)
         }
@@ -236,9 +237,13 @@ extension TetherCaptureService: ICCameraDeviceDelegate {
     func startCatalogWatchdog(for fingerprint: String, category: DeviceCategory) {
         contexts[fingerprint]?.catalogTimeoutTask?.cancel()
         contexts[fingerprint]?.catalogTimeoutTask = Task { @MainActor [weak self] in
-            try? await Task.sleep(for: .milliseconds(25000))
-            guard !Task.isCancelled else { return }
-            self?.handleSessionTimeout(for: fingerprint, category: category, isCatalogPhase: true)
+            try? await Task.sleep(for: .milliseconds(3500))
+            guard !Task.isCancelled, let self else { return }
+            if category == .androidPTP {
+                self.handleSessionTimeout(for: fingerprint, category: category, isCatalogPhase: true)
+            } else if let ctx = self.contexts[fingerprint], ctx.camera.hasOpenSession, !ctx.gate.isCatalogComplete {
+                self.finalizeCatalogAndStartWatcher(for: fingerprint, camera: ctx.camera, bypassedCatalog: true)
+            }
         }
     }
 

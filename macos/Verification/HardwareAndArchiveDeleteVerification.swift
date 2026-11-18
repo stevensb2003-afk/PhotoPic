@@ -264,6 +264,36 @@ package enum HardwareAndArchiveDeleteVerification {
         let liveKey = TetherBaselineGate.itemKey(ptpHandle: 42, filename: "DSC00042.ARW", fileSize: 25_000_000)
         try assertTrue(gate.shouldDownloadLiveItem(key: liveKey, itemDate: deadClockDate, wasAddedAfterCatalog: true), "Dead-clock DSLR live shot accepted")
 
+        // Empty-baseline delta poll must reject stale & undated items
+        let emptyBaseStaleKey = TetherBaselineGate.itemKey(ptpHandle: 43, filename: "OLD_DELTA.JPG", fileSize: 3_000_000)
+        try assertTrue(!gate.shouldDownloadLiveItem(key: emptyBaseStaleKey, itemDate: Date().addingTimeInterval(-300), wasAddedAfterCatalog: false), "Empty-baseline stale delta item rejected")
+        let emptyBaseNilKey = TetherBaselineGate.itemKey(ptpHandle: 44, filename: "UNDATED.PNG", fileSize: 1_000_000)
+        try assertTrue(!gate.shouldDownloadLiveItem(key: emptyBaseNilKey, itemDate: nil, wasAddedAfterCatalog: false), "Empty-baseline undated delta item rejected")
+
+        // Smartphone strict timestamp gate: rejects 120 old photos streamed via didAdd: or delta poll after catalog completion
+        let phoneConnectTime = Date()
+        var phoneGate = TetherBaselineGate(connectedAtTimestamp: phoneConnectTime, requirePostConnectionTimestamp: true)
+        phoneGate.markCatalogComplete()
+        for idx in 1...120 {
+            let oldKey = TetherBaselineGate.itemKey(ptpHandle: UInt32(1000 + idx), filename: "IMG_\(idx).HEIC", fileSize: 2_500_000)
+            let oldDate = phoneConnectTime.addingTimeInterval(-Double(idx * 3600))
+            try assertTrue(!phoneGate.shouldDownloadLiveItem(key: oldKey, itemDate: oldDate, wasAddedAfterCatalog: idx % 2 == 0), "Phone old gallery item #\(idx) rejected even after catalog complete")
+        }
+        let phoneUndatedKey = TetherBaselineGate.itemKey(ptpHandle: 9998, filename: "SCREENSHOT.PNG", fileSize: 500_000)
+        try assertTrue(!phoneGate.shouldDownloadLiveItem(key: phoneUndatedKey, itemDate: nil, wasAddedAfterCatalog: true), "Phone undated item rejected")
+        let phoneNewKey = TetherBaselineGate.itemKey(ptpHandle: 9999, filename: "IMG_NEW.HEIC", fileSize: 3_200_000)
+        try assertTrue(phoneGate.shouldDownloadLiveItem(key: phoneNewKey, itemDate: phoneConnectTime.addingTimeInterval(2), wasAddedAfterCatalog: true), "Phone brand-new shot accepted")
+        try assertTrue(!phoneGate.shouldDownloadLiveItem(key: phoneNewKey, itemDate: phoneConnectTime.addingTimeInterval(2), wasAddedAfterCatalog: false), "Phone brand-new shot not duplicated")
+
+        // DSLR catalog-bypass mode: promotes session to live-ready while rejecting late pre-existing SD items
+        var dslrBypassGate = TetherBaselineGate(connectedAtTimestamp: phoneConnectTime)
+        dslrBypassGate.enablePostConnectionTimestampGuard()
+        dslrBypassGate.markCatalogComplete()
+        let lateOldSDKey = TetherBaselineGate.itemKey(ptpHandle: 5001, filename: "IMG_OLD.CR2", fileSize: 22_000_000)
+        try assertTrue(!dslrBypassGate.shouldDownloadLiveItem(key: lateOldSDKey, itemDate: phoneConnectTime.addingTimeInterval(-300), wasAddedAfterCatalog: true), "Bypassed DSLR rejects late pre-existing SD photo")
+        let freshDSLRKey = TetherBaselineGate.itemKey(ptpHandle: 5002, filename: "IMG_LIVE.CR2", fileSize: 24_000_000)
+        try assertTrue(dslrBypassGate.shouldDownloadLiveItem(key: freshDSLRKey, itemDate: phoneConnectTime.addingTimeInterval(3), wasAddedAfterCatalog: true), "Bypassed DSLR accepts new live shot immediately")
+
         let autoRoot = rootURL.appendingPathComponent("AutoQuickRoot", isDirectory: true)
         try FileManager.default.createDirectory(at: autoRoot, withIntermediateDirectories: true)
         let suite = "com.kairosvisuals.photopic.verify.\(UUID().uuidString)"

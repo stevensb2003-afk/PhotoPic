@@ -4,13 +4,18 @@ import Foundation
 /// live PTP notifications, and Android Smart Delta Watcher polling.
 package struct TetherBaselineGate: Sendable {
     package let connectedAtTimestamp: Date
+    package private(set) var requirePostConnectionTimestamp: Bool
     package private(set) var isCatalogComplete: Bool = false
     package private(set) var baselineKeys: Set<String> = []
     package private(set) var downloadedOrInFlightKeys: Set<String> = []
     package private(set) var baselineMaxDeviceDate: Date?
 
-    package init(connectedAtTimestamp: Date = Date()) {
+    package init(
+        connectedAtTimestamp: Date = Date(),
+        requirePostConnectionTimestamp: Bool = false
+    ) {
         self.connectedAtTimestamp = connectedAtTimestamp
+        self.requirePostConnectionTimestamp = requirePostConnectionTimestamp
     }
 
     package static func itemKey(
@@ -38,6 +43,10 @@ package struct TetherBaselineGate: Sendable {
         isCatalogComplete = true
     }
 
+    package mutating func enablePostConnectionTimestampGuard() {
+        requirePostConnectionTimestamp = true
+    }
+
     /// Decides whether a candidate item represents a brand-new capture made after USB connection.
     package mutating func shouldDownloadLiveItem(
         key: String,
@@ -52,23 +61,37 @@ package struct TetherBaselineGate: Sendable {
             return false
         }
 
+        let skewTolerance: TimeInterval = 5.0
+
+        if requirePostConnectionTimestamp {
+            // Smartphones (iOS / Android) stream pre-existing gallery items via `didAdd:` and
+            // delta polls even after catalog completion, and have network-synced clocks.
+            // Never download items without a timestamp at or after USB connection.
+            guard let itemDate,
+                  itemDate >= connectedAtTimestamp.addingTimeInterval(-skewTolerance) else {
+                baselineKeys.insert(key)
+                return false
+            }
+            downloadedOrInFlightKeys.insert(key)
+            return true
+        }
+
         if wasAddedAfterCatalog {
             downloadedOrInFlightKeys.insert(key)
             return true
         }
 
-        // Smart Delta Watcher path (Android PTP batching): tolerate 2s clock skew against
-        // either the newest pre-existing item or the Mac's connection timestamp.
-        let skewTolerance: TimeInterval = 2.0
+        // Smart Delta Watcher path (camera polling): tolerate clock skew against
+        // either the newest pre-existing item (if known) or the Mac's connection timestamp.
         let isNewerThanBaseline: Bool
         if let itemDate {
             let afterConnection = itemDate >= connectedAtTimestamp.addingTimeInterval(-skewTolerance)
             let afterMaxPreexisting = baselineMaxDeviceDate.map {
                 itemDate >= $0.addingTimeInterval(-skewTolerance)
-            } ?? true
+            } ?? false
             isNewerThanBaseline = afterConnection || afterMaxPreexisting
         } else {
-            isNewerThanBaseline = true
+            isNewerThanBaseline = false
         }
 
         if isNewerThanBaseline {
