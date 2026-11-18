@@ -57,12 +57,24 @@ package final class DeviceDiscoveryService: NSObject {
     package var primaryLiveDevice: ConnectedDeviceState? {
         connectedDevices.first { $0.status.isLiveSessionOpen }
             ?? connectedDevices.first {
-                $0.status == .connecting
+                $0.status.isConnectingOrIndexing
                     || $0.status == .busyByMacOS
                     || $0.status == .androidPermissionRequired
                     || $0.status == .accessRestrictedLocked
             }
             ?? connectedDevices.first
+    }
+
+    package var activePrimaryICCamera: ICCameraDevice? {
+        if let fp = primaryLiveDevice?.fingerprint, let cam = captureService.activeCamera(for: fp) {
+            return cam
+        }
+        for dev in connectedDevices {
+            if let cam = captureService.activeCamera(for: dev.fingerprint) {
+                return cam
+            }
+        }
+        return nil
     }
 
     package func connectAndSaveDevice(fingerprint: String, customAlias: String? = nil) {
@@ -245,13 +257,16 @@ package final class DeviceDiscoveryService: NSObject {
             if self.unknownDeviceBanner?.fingerprint == fingerprint {
                 self.unknownDeviceBanner = self.connectedDevices[idx]
             }
-            if previousStatus == .connecting && status == .connectedReady {
+            if status == .connectedReady && previousStatus != .connectedReady && !previousStatus.isLiveSessionOpen {
                 let alias = self.connectedDevices[idx].alias
-                self.statusToastMessage = "Conectado por USB: \(alias)"
-            } else if status == .androidPermissionRequired && previousStatus == .connecting {
+                self.statusToastMessage = "Conectado y listo: \(alias) — tethering activo en tiempo real"
+            } else if status == .androidPermissionRequired && previousStatus.isConnectingOrIndexing {
                 self.statusToastMessage = "Android sin permiso PTP: cambiá 'Solo carga' a 'Transferir imágenes (PTP)' y tocá Permitir."
             } else if status == .accessRestrictedLocked && previousStatus != .accessRestrictedLocked {
                 self.statusToastMessage = "Dispositivo bloqueado: desbloqueá tu iPhone y tocá 'Confiar' para conectar."
+            } else if case .error(let msg) = status {
+                let alias = self.connectedDevices[idx].alias
+                self.statusToastMessage = "Alerta USB (\(alias)): \(msg)"
             }
         }
         captureService.onFileStaged = { [weak self] stagedURL, filename, profile in

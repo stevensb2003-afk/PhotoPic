@@ -32,6 +32,14 @@ package struct HomeDashboardView: View {
                 }
             }
 
+            if let primary = appState.discoveryService.primaryLiveDevice {
+                DynamicDeviceStatusBanner(
+                    device: primary,
+                    onRetry: { appState.discoveryService.connectDevice(fingerprint: primary.fingerprint) },
+                    onReleaseMacOSLock: { appState.discoveryService.releaseMacOSPTPCameraLock(for: primary.fingerprint) }
+                )
+            }
+
             ScrollView {
                 VStack(alignment: .leading, spacing: AppSpacing.xl) {
                     headerActionsSection

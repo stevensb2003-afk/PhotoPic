@@ -26,10 +26,7 @@ package enum DeviceCategory: String, Codable, Sendable, CaseIterable, Equatable,
     }
 
     package var defaultAllowsJpgFallback: Bool {
-        switch self {
-        case .androidPTP, .iPhoneIOS: return true
-        case .dslrMirrorless, .compactAction: return false
-        }
+        true
     }
 }
 
@@ -38,6 +35,7 @@ package enum DeviceConnectionStatus: Sendable, Equatable, Hashable {
     case waiting
     case detectedNotConnected
     case connecting
+    case indexingCatalog(percent: Int, scannedCount: Int)
     case connectedReady
     case capturing(activeDownloads: Int)
     case busyByMacOS
@@ -54,6 +52,11 @@ package enum DeviceConnectionStatus: Sendable, Equatable, Hashable {
             return "Detectado por USB (sin vincular)"
         case .connecting:
             return "Abriendo sesión PTP..."
+        case .indexingCatalog(let percent, let scannedCount):
+            if scannedCount > 0 {
+                return "Sincronizando tarjeta SD (\(percent)% · \(scannedCount) archivos en tarjeta)..."
+            }
+            return "Sincronizando catálogo PTP (\(percent)%)..."
         case .connectedReady:
             return "Conectado y listo"
         case .capturing(let activeDownloads):
@@ -80,6 +83,20 @@ package enum DeviceConnectionStatus: Sendable, Equatable, Hashable {
     package var isLiveSessionOpen: Bool {
         switch self {
         case .connectedReady, .capturing:
+            return true
+        default:
+            return false
+        }
+    }
+
+    package var isIndexingCatalog: Bool {
+        if case .indexingCatalog = self { return true }
+        return false
+    }
+
+    package var isConnectingOrIndexing: Bool {
+        switch self {
+        case .connecting, .indexingCatalog:
             return true
         default:
             return false

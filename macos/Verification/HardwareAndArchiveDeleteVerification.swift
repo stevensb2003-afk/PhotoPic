@@ -294,6 +294,20 @@ package enum HardwareAndArchiveDeleteVerification {
         let freshDSLRKey = TetherBaselineGate.itemKey(ptpHandle: 5002, filename: "IMG_LIVE.CR2", fileSize: 24_000_000)
         try assertTrue(dslrBypassGate.shouldDownloadLiveItem(key: freshDSLRKey, itemDate: phoneConnectTime.addingTimeInterval(3), wasAddedAfterCatalog: true), "Bypassed DSLR accepts new live shot immediately")
 
+        // PTP Live View framing & JPEG extractor + SD catalog progress status
+        let ptpSvc = PTPLiveViewService()
+        try assertTrue(ptpSvc.supportsDirectPTPLiveView(vendorID: 0x04A9), "Canon EOS 70D vendor 0x04A9 supported for direct PTP Live View")
+        try assertTrue(ptpSvc.supportsDirectPTPLiveView(vendorID: 0x04B0), "Nikon vendor 0x04B0 supported for direct PTP Live View")
+        let cmdPacket = PTPLiveViewService.buildCommandContainer(opCode: 0x9153, transID: 77, params: [0x0020_0000])
+        try assertTrue(cmdPacket.count == 16, "PTP 1-param command container is 16 bytes")
+        var fakeResp = Data([0x0C, 0x00, 0x00, 0x00, 0x03, 0x00, 0x01, 0x20, 0x4D, 0x00, 0x00, 0x00])
+        try assertTrue(PTPLiveViewService.parseResponseCode(from: fakeResp) == 0x2001, "PTP response code 0x2001 parsed in little-endian")
+        fakeResp.append(contentsOf: [0x00, 0x00, 0xFF, 0xD8, 0xFF, 0xE0, 0x11, 0x22, 0xFF, 0xD9, 0x00])
+        let extractedJPG = PTPLiveViewService.extractEmbeddedJPEG(from: fakeResp)
+        try assertTrue(extractedJPG?.count == 8 && extractedJPG?.first == 0xFF && extractedJPG?.last == 0xD9, "Embedded EVF JPEG extracted cleanly")
+        let idxStatus = DeviceConnectionStatus.indexingCatalog(percent: 42, scannedCount: 1850)
+        try assertTrue(idxStatus.isIndexingCatalog && idxStatus.label.contains("42%"), "SD catalog indexing status exposes live percentage")
+
         let autoRoot = rootURL.appendingPathComponent("AutoQuickRoot", isDirectory: true)
         try FileManager.default.createDirectory(at: autoRoot, withIntermediateDirectories: true)
         let suite = "com.kairosvisuals.photopic.verify.\(UUID().uuidString)"

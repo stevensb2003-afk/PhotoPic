@@ -236,13 +236,44 @@ extension TetherCaptureService: ICCameraDeviceDelegate {
 
     func startCatalogWatchdog(for fingerprint: String, category: DeviceCategory) {
         contexts[fingerprint]?.catalogTimeoutTask?.cancel()
+        if let cam = contexts[fingerprint]?.camera {
+            let initialPct = max(0, min(99, cam.contentCatalogPercentCompleted))
+            let initialCount = (cam.mediaFiles ?? []).count
+            contexts[fingerprint]?.lastStatus = .indexingCatalog(percent: initialPct, scannedCount: initialCount)
+            onStatusChanged?(fingerprint, .indexingCatalog(percent: initialPct, scannedCount: initialCount), batteryValue(for: cam))
+        }
         contexts[fingerprint]?.catalogTimeoutTask = Task { @MainActor [weak self] in
-            try? await Task.sleep(for: .milliseconds(3500))
-            guard !Task.isCancelled, let self else { return }
-            if category == .androidPTP {
-                self.handleSessionTimeout(for: fingerprint, category: category, isCatalogPhase: true)
-            } else if let ctx = self.contexts[fingerprint], ctx.camera.hasOpenSession, !ctx.gate.isCatalogComplete {
-                self.finalizeCatalogAndStartWatcher(for: fingerprint, camera: ctx.camera, bypassedCatalog: true)
+            var zeroProgressTicks = 0
+            while !Task.isCancelled {
+                try? await Task.sleep(for: .milliseconds(500))
+                guard !Task.isCancelled, let self,
+                      let ctx = self.contexts[fingerprint],
+                      !ctx.gate.isCatalogComplete else { return }
+
+                let cam = ctx.camera
+                if cam.contentCatalogPercentCompleted >= 100 {
+                    self.finalizeCatalogAndStartWatcher(for: fingerprint, camera: cam)
+                    return
+                }
+
+                let pct = max(0, min(99, cam.contentCatalogPercentCompleted))
+                let count = (cam.mediaFiles ?? []).count
+                let status = DeviceConnectionStatus.indexingCatalog(percent: pct, scannedCount: count)
+                if self.contexts[fingerprint]?.lastStatus != status {
+                    self.contexts[fingerprint]?.lastStatus = status
+                    self.onStatusChanged?(fingerprint, status, self.batteryValue(for: cam))
+                }
+
+                if pct == 0 && count == 0 {
+                    zeroProgressTicks += 1
+                    let maxStalledTicks = category == .androidPTP ? 30 : 60 // 15s Android, 30s DSLR
+                    if zeroProgressTicks >= maxStalledTicks {
+                        self.handleSessionTimeout(for: fingerprint, category: category, isCatalogPhase: true)
+                        return
+                    }
+                } else {
+                    zeroProgressTicks = 0
+                }
             }
         }
     }

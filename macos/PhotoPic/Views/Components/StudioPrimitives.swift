@@ -261,3 +261,119 @@ package struct FloatingToastBanner: View {
         )
     }
 }
+
+/// Real-time dynamic diagnostic & progress banner for SD catalog indexing, macOS PTP locks, and USB errors.
+package struct DynamicDeviceStatusBanner: View {
+    let device: ConnectedDeviceState
+    let onRetry: () -> Void
+    let onReleaseMacOSLock: () -> Void
+
+    package init(
+        device: ConnectedDeviceState,
+        onRetry: @escaping () -> Void,
+        onReleaseMacOSLock: @escaping () -> Void
+    ) {
+        self.device = device
+        self.onRetry = onRetry
+        self.onReleaseMacOSLock = onReleaseMacOSLock
+    }
+
+    package var body: some View {
+        switch device.status {
+        case .indexingCatalog(let pct, let count):
+            HStack(spacing: AppSpacing.md) {
+                ProgressView()
+                    .controlSize(.small)
+
+                VStack(alignment: .leading, spacing: 2) {
+                    Text("Sincronizando índice SD de \(device.alias) — \(pct)% (\(count) archivos leídos, 0 descargados)")
+                        .font(AppTypography.bodyMedium)
+                        .foregroundStyle(AppColors.textPrimary)
+                    Text("macOS pone en cola tus fotos nuevas hasta completar el índice al 100%. Tip: Con una tarjeta SD vacía conecta en <1 seg.")
+                        .font(AppTypography.caption)
+                        .foregroundStyle(AppColors.textSecondary)
+                }
+
+                Spacer()
+
+                ProgressView(value: Double(max(2, pct)), total: 100)
+                    .frame(width: 110)
+                    .tint(AppColors.infoBlue)
+            }
+            .padding(.horizontal, AppSpacing.lg)
+            .padding(.vertical, AppSpacing.sm)
+            .background(AppColors.infoBlue.opacity(0.10))
+            .overlay(
+                Rectangle()
+                    .frame(height: AppSpacing.hairline)
+                    .foregroundStyle(AppColors.infoBlue.opacity(0.35)),
+                alignment: .bottom
+            )
+
+        case .busyByMacOS:
+            HStack(spacing: AppSpacing.md) {
+                Image(systemName: "exclamationmark.triangle.fill")
+                    .font(AppTypography.sectionTitle)
+                    .foregroundStyle(AppColors.warningAmber)
+
+                VStack(alignment: .leading, spacing: 2) {
+                    Text("\(device.alias) está retenida por un proceso PTP de macOS (Fotos / PTPCamera)")
+                        .font(AppTypography.bodyMedium)
+                        .foregroundStyle(AppColors.textPrimary)
+                    Text("Liberá el bloqueo con un clic para abrir la sesión de tethering directo en PhotoPic.")
+                        .font(AppTypography.caption)
+                        .foregroundStyle(AppColors.textSecondary)
+                }
+
+                Spacer()
+
+                Button("Liberar macOS y Conectar", action: onReleaseMacOSLock)
+                    .buttonStyle(StudioButtonStyle(.primaryLight, compact: true))
+            }
+            .padding(.horizontal, AppSpacing.lg)
+            .padding(.vertical, AppSpacing.sm)
+            .background(AppColors.warningAmberTint)
+            .overlay(
+                Rectangle()
+                    .frame(height: AppSpacing.hairline)
+                    .foregroundStyle(AppColors.warningAmber.opacity(0.45)),
+                alignment: .bottom
+            )
+
+        case .error(let message):
+            HStack(spacing: AppSpacing.md) {
+                Image(systemName: "bolt.trianglebadge.exclamationmark.fill")
+                    .font(AppTypography.sectionTitle)
+                    .foregroundStyle(AppColors.archiveRed)
+
+                VStack(alignment: .leading, spacing: 2) {
+                    Text("Alerta de conexión en \(device.alias): \(message)")
+                        .font(AppTypography.bodyMedium)
+                        .foregroundStyle(AppColors.textPrimary)
+                    Text("Verificá que la cámara esté encendida (sin menú abierto) o destrabá el servicio PTP de macOS.")
+                        .font(AppTypography.caption)
+                        .foregroundStyle(AppColors.textSecondary)
+                }
+
+                Spacer()
+
+                Button("Liberar macOS", action: onReleaseMacOSLock)
+                    .buttonStyle(StudioButtonStyle(.secondaryDark, compact: true))
+                Button("Reintentar", action: onRetry)
+                    .buttonStyle(StudioButtonStyle(.primaryLight, compact: true))
+            }
+            .padding(.horizontal, AppSpacing.lg)
+            .padding(.vertical, AppSpacing.sm)
+            .background(AppColors.archiveRedTint)
+            .overlay(
+                Rectangle()
+                    .frame(height: AppSpacing.hairline)
+                    .foregroundStyle(AppColors.archiveRed.opacity(0.45)),
+                alignment: .bottom
+            )
+
+        default:
+            EmptyView()
+        }
+    }
+}

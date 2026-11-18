@@ -69,6 +69,11 @@ package final class TetherCaptureService: NSObject {
         contexts[profile.fingerprint]?.profile = profile
     }
 
+    package func activeCamera(for fingerprint: String) -> ICCameraDevice? {
+        guard let camera = contexts[fingerprint]?.camera, camera.hasOpenSession else { return nil }
+        return camera
+    }
+
     package func canTriggerRemoteShutter(for fingerprint: String) -> Bool {
         guard let camera = contexts[fingerprint]?.camera, camera.hasOpenSession else { return false }
         return camera.capabilities.contains(ICDeviceCapability.cameraDeviceCanTakePicture.rawValue)

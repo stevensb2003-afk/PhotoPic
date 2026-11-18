@@ -149,7 +149,10 @@ package struct SavedDeviceRowView: View {
                     .onSubmit(onCommitAlias)
 
                 HStack(spacing: AppSpacing.xs) {
-                    PulsingStatusDot(color: statusColor, isActive: liveState?.status.isLiveSessionOpen == true)
+                    PulsingStatusDot(
+                        color: statusColor,
+                        isActive: liveState?.status.isLiveSessionOpen == true || liveState?.status.isIndexingCatalog == true
+                    )
                     Text(effectiveStatus.label)
                         .font(AppTypography.caption)
                         .foregroundStyle(AppColors.textSecondary)
@@ -170,6 +173,7 @@ package struct SavedDeviceRowView: View {
     private var statusColor: Color {
         switch effectiveStatus {
         case .connectedReady: return AppColors.approveGreen
+        case .indexingCatalog: return AppColors.infoBlue
         case .capturing, .connecting, .androidPermissionRequired: return AppColors.warningAmber
         case .busyByMacOS, .accessRestrictedLocked, .error: return AppColors.archiveRed
         default: return AppColors.textTertiary

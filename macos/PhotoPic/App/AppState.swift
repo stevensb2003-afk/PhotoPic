@@ -24,6 +24,7 @@ package final class AppState {
     package let discoveryService: DeviceDiscoveryService
     package let folderWatchService: FolderWatchTetherService
     package let liveViewService: LiveViewCameraService
+    package let ptpLiveViewService = PTPLiveViewService()
     package let gphotoBridge: GPhoto2LiveBridge
     package let networkStreamService = NetworkMJPEGStreamService()
     package let cloudUpdater: CloudUpdateService
@@ -190,6 +191,7 @@ package final class AppState {
 
     package func stopAllLiveView() {
         liveViewService.stop()
+        ptpLiveViewService.stopStream()
         networkStreamService.stopStream()
         if gphotoBridge.isStreaming {
             gphotoBridge.stopPreviewStream()
@@ -241,6 +243,7 @@ package final class AppState {
                 deviceProfile: deviceProfile
             )
             homeViewModel.updateSessionCounts(workspace.session)
+            warnIfOrphanJpgFiltered(result: result, filename: originalFilename, profile: deviceProfile)
             return result
         }
 
@@ -269,6 +272,19 @@ package final class AppState {
         try? FileManager.default.removeItem(at: stagedURL)
         showTransientNotice("Captura recibida (\(originalFilename)). Completá el asistente inicial.")
         return nil
+    }
+
+    private func warnIfOrphanJpgFiltered(result: IngestResult?, filename: String, profile: KnownDevice) {
+        guard case .separatedCompanionJpg(_, let matchedBase) = result,
+              !profile.allowJpgWhenNoRaw else { return }
+        Task { @MainActor [weak self] in
+            try? await Task.sleep(for: .seconds(2.5))
+            guard let self, let workspace = self.activeSessionViewModel else { return }
+            let hasRawTwin = workspace.pendingItems.contains { $0.baseFilename == matchedBase }
+            if !hasRawTwin {
+                self.showTransientNotice("Se guardó \(filename) en JPG/, pero no llegó RAW. Activá 'Permitir filtrar JPG' en Dispositivos si disparás solo JPG.")
+            }
+        }
     }
 
     private func wireCapturePipeline() {

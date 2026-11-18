@@ -39,6 +39,14 @@ package struct SessionWorkspaceView: View {
                 }
             }
 
+            if let primary = appState.discoveryService.primaryLiveDevice {
+                DynamicDeviceStatusBanner(
+                    device: primary,
+                    onRetry: { appState.discoveryService.connectDevice(fingerprint: primary.fingerprint) },
+                    onReleaseMacOSLock: { appState.discoveryService.releaseMacOSPTPCameraLock(for: primary.fingerprint) }
+                )
+            }
+
             workspaceSubHeader
 
             if viewModel.activeTab == .cullPending && (viewModel.autoTagOnIngest || !viewModel.availablePendingTags.isEmpty) {
@@ -158,6 +166,7 @@ package struct SessionWorkspaceView: View {
                     count: nil,
                     badgeColor: AppColors.approveGreen,
                     liveActive: appState.liveViewService.isRunning
+                        || appState.ptpLiveViewService.isStreaming
                         || appState.networkStreamService.isStreaming
                         || appState.gphotoBridge.isStreaming
                 )

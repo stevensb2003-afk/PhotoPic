@@ -135,13 +135,14 @@ package struct TopDeviceStatusBar: View {
     }
 
     private var isDeviceLive: Bool {
-        primaryDevice?.status.isLiveSessionOpen == true
+        primaryDevice?.status.isLiveSessionOpen == true || primaryDevice?.status.isIndexingCatalog == true
     }
 
     private var pillStatusColor: Color {
         guard let status = primaryDevice?.status else { return AppColors.textTertiary }
         switch status {
         case .connectedReady: return AppColors.approveGreen
+        case .indexingCatalog: return AppColors.infoBlue
         case .capturing, .connecting, .androidPermissionRequired: return AppColors.warningAmber
         case .busyByMacOS, .accessRestrictedLocked, .error: return AppColors.archiveRed
         case .waiting, .detectedNotConnected, .disconnected: return AppColors.textTertiary
@@ -152,6 +153,7 @@ package struct TopDeviceStatusBar: View {
         guard let status = primaryDevice?.status else { return AppColors.borderSubtle }
         switch status {
         case .connectedReady: return AppColors.approveGreen.opacity(0.35)
+        case .indexingCatalog: return AppColors.infoBlue.opacity(0.45)
         case .capturing, .androidPermissionRequired: return AppColors.warningAmber.opacity(0.4)
         case .busyByMacOS, .accessRestrictedLocked, .error: return AppColors.archiveRed.opacity(0.4)
         default: return AppColors.borderSubtle
@@ -165,6 +167,8 @@ package struct TopDeviceStatusBar: View {
         switch device.status {
         case .connectedReady:
             return device.alias
+        case .indexingCatalog(let pct, let count):
+            return count > 0 ? "\(device.alias) · Indexando SD \(pct)% (\(count))" : "\(device.alias) · Indexando SD \(pct)%"
         case .capturing(let count):
             return count > 1 ? "\(device.alias) · \(count) capturas" : "\(device.alias) · Capturando"
         case .connecting:
