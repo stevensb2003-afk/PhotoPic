@@ -112,7 +112,7 @@ _HELP_TOPICS: list[dict] = [
             "El borrado definitivo de proyectos o archivos en Archivadas no va a la Papelera ni se deshace con Ctrl+Z.",
         ],
         "steps": [
-            "Usá ↑/↓ para navegar, → aprobar, ← archivar, Espacio para Zoom 1:1, Shift para rotar 90° y Ctrl+I para importar una carpeta.",
+            "Usá ↑/↓ para navegar, → aprobar, ← archivar, Espacio para Zoom 1:1, Ctrl + rueda (o pellizco trackpad) para zoom continuo con arrastre para moverte en Filtrar/Seleccionadas/Archivadas, Shift para rotar 90° y Ctrl+I para importar una carpeta.",
             "Usá 'Crear grupo' y 'Renombrar' en Inicio; el timer arranca solo con la 1ª foto o manualmente arriba.",
         ],
     },

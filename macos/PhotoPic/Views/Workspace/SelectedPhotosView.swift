@@ -91,22 +91,12 @@ package struct SelectedPhotosView: View {
     private var selectedInspectorPane: some View {
         if let selected = viewModel.selectedEditingItem {
             VStack(spacing: 0) {
-                ZStack {
-                    AppColors.stageBackground
-                    if let cgImage = viewModel.editingPreviewImage {
-                        Image(decorative: cgImage, scale: 1.0, orientation: .up)
-                            .resizable()
-                            .interpolation(.high)
-                            .aspectRatio(contentMode: .fit)
-                            .padding(AppSpacing.lg)
-                    } else if viewModel.isRenderingEditingPreview {
-                        ProgressView("Revelando RAW en GPU...")
-                    } else {
-                        Text("Seleccioná una foto para inspeccionar")
-                            .font(AppTypography.body)
-                            .foregroundStyle(AppColors.textTertiary)
-                    }
-                }
+                InteractiveZoomPhotoCanvas(
+                    image: viewModel.editingPreviewImage,
+                    itemID: selected.id,
+                    isLoading: viewModel.isRenderingEditingPreview,
+                    emptyLabel: "Seleccioná una foto para inspeccionar"
+                )
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
 
                 HStack(spacing: AppSpacing.md) {

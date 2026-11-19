@@ -75,9 +75,10 @@ package final class CullingSessionViewModel {
         }
     }
 
-    // Zoom 1:1 state
+    // Zoom 1:1 & continuous zoom state
     package var isLockedOneToOneZoom: Bool = false
     package var isSpringLoadedZoom: Bool = false
+    package var customZoomScale: CGFloat = 1.0
     package var zoomNormalizedAnchor: CGPoint = CGPoint(x: 0.5, y: 0.5)
     package var zoomPanOffset: CGSize = .zero
 
@@ -171,7 +172,7 @@ package final class CullingSessionViewModel {
     }
 
     package var isAnyZoomActive: Bool {
-        isLockedOneToOneZoom || isSpringLoadedZoom
+        isLockedOneToOneZoom || isSpringLoadedZoom || customZoomScale > 1.01
     }
 
     package var canUndo: Bool {

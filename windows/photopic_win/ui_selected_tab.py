@@ -5,17 +5,21 @@ from __future__ import annotations
 import os
 import subprocess
 import sys
+from PySide6.QtCore import Qt
+from PySide6.QtGui import QImage, QPixmap
 from PySide6.QtWidgets import (
     QHBoxLayout,
     QListWidget,
     QListWidgetItem,
     QPushButton,
+    QSplitter,
     QVBoxLayout,
     QWidget,
 )
 
 from .models import PhotoItem, PhotoSession
 from .session_manager import SessionFileManager
+from .ui_inspector_and_timer import SwipeablePhotoStage
 
 
 class SelectedTabWidget(QWidget):
@@ -24,17 +28,26 @@ class SelectedTabWidget(QWidget):
         session: PhotoSession,
         on_items_changed,
         on_rotate_item=None,
+        renderer=None,
         parent=None,
     ) -> None:
         super().__init__(parent)
         self.session = session
         self.on_items_changed = on_items_changed
         self.on_rotate_item = on_rotate_item
+        self._renderer = renderer
         self._items: list[PhotoItem] = []
 
         lay = QVBoxLayout(self)
+        splitter = QSplitter(Qt.Orientation.Horizontal)
         self._list = QListWidget()
-        lay.addWidget(self._list)
+        self._list.currentRowChanged.connect(self._render_selected_preview)
+        self._preview = SwipeablePhotoStage()
+        self._preview.setText("Seleccioná una foto para inspeccionar (Ctrl + rueda para zoom)")
+        splitter.addWidget(self._list)
+        splitter.addWidget(self._preview)
+        splitter.setSizes([320, 680])
+        lay.addWidget(splitter, stretch=1)
 
         row = QHBoxLayout()
         self._reveal_btn = QPushButton("Mostrar en Explorador")
@@ -76,6 +89,19 @@ class SelectedTabWidget(QWidget):
         self._rotate_btn.setEnabled(has_items)
         self._return_btn.setEnabled(has_items)
         self._archive_btn.setEnabled(has_items)
+        self._render_selected_preview(self._list.currentRow())
+
+    def _render_selected_preview(self, row: int) -> None:
+        self._preview.reset_zoom()
+        if not (0 <= row < len(self._items)) or self._renderer is None:
+            self._preview.setPixmap(QPixmap())
+            return
+        payload = self._renderer.render_image(self._items[row], max_dimension=1600, full_sensor=False)
+        if payload:
+            qimg = QImage(payload.rgb_bytes, payload.width, payload.height, payload.width * 3, QImage.Format.Format_RGB888)
+            self._preview.setPixmap(QPixmap.fromImage(qimg))
+        else:
+            self._preview.setPixmap(QPixmap())
 
     def current_item(self) -> PhotoItem | None:
         row = self._list.currentRow()

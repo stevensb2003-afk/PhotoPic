@@ -106,22 +106,12 @@ package struct ArchivedPhotosView: View {
     private var archivedInspectorPane: some View {
         if let selected = viewModel.selectedArchivedItem {
             VStack(spacing: 0) {
-                ZStack {
-                    AppColors.stageBackground
-                    if let cgImage = viewModel.archivedPreviewImage {
-                        Image(decorative: cgImage, scale: 1.0, orientation: .up)
-                            .resizable()
-                            .interpolation(.high)
-                            .aspectRatio(contentMode: .fit)
-                            .padding(AppSpacing.lg)
-                    } else if viewModel.isRenderingArchivedPreview {
-                        ProgressView("Revelando RAW en GPU...")
-                    } else {
-                        Text("Seleccioná una foto archivada")
-                            .font(AppTypography.body)
-                            .foregroundStyle(AppColors.textTertiary)
-                    }
-                }
+                InteractiveZoomPhotoCanvas(
+                    image: viewModel.archivedPreviewImage,
+                    itemID: selected.id,
+                    isLoading: viewModel.isRenderingArchivedPreview,
+                    emptyLabel: "Seleccioná una foto archivada"
+                )
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
 
                 HStack(spacing: AppSpacing.lg) {

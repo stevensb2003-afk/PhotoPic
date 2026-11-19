@@ -128,7 +128,7 @@ extension HelpGuideCatalog {
                 "1. ↑ y ↓: recorrer fotos pendientes sin mover archivos (también navega dentro de Seleccionadas y Archivadas).",
                 "2. → o Edición →: aprueba hacia el módulo Seleccionadas (Para_Edicion/{RAW,JPG}).",
                 "3. ← o ← Archivar: descarta hacia Archivadas/{RAW,JPG}.",
-                "4. Espacio o clic sostenido + arrastrar: Zoom 1:1 píxel real sobre el sensor revelado.",
+                "4. Espacio o clic sostenido + arrastrar: Zoom 1:1 píxel real. También podés hacer zoom continuo (100%–800%) con pellizco de 2 dedos en trackpad o Ctrl/⌘ + rueda del mouse, y arrastrar o deslizar 2 dedos para moverte dentro de la foto en Filtrar, Seleccionadas y Archivadas (Esc o doble clic restablece).",
                 "5. Shift (toque rápido) o botón ↻ Rotar: rota la foto 90° a la derecha y guarda la orientación EXIF (0x0112) directo en el archivo RAW, su JPG asociado y .xmp para que Finder y Lightroom la abran ya rotada.",
                 "6. En Seleccionadas podés inspeccionar tus elegidas, abrirlas en Finder, devolverlas a Filtrar o moverlas a Archivadas; ⌘Z deshace la última acción."
             ],

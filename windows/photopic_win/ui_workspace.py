@@ -114,6 +114,7 @@ class SessionWorkspaceWidget(QWidget):
             self.session,
             on_items_changed=self._on_bucket_items_changed,
             on_rotate_item=self.rotate_photo_clockwise,
+            renderer=self.renderer,
         )
         self._stack.addWidget(self._selected_tab)
 
@@ -121,6 +122,7 @@ class SessionWorkspaceWidget(QWidget):
             self.session,
             on_items_changed=self._on_bucket_items_changed,
             on_rotate_item=self.rotate_photo_clockwise,
+            renderer=self.renderer,
         )
         self._stack.addWidget(self._archived_tab)
         root.addWidget(self._stack, stretch=1)
@@ -186,16 +188,20 @@ class SessionWorkspaceWidget(QWidget):
         if self.current_index > 0:
             self.current_index -= 1
             self.zoom_one_to_one = False
+            self._stage_label.reset_zoom()
             self._refresh_counters_and_stage()
 
     def navigate_next(self) -> None:
         if self.current_index + 1 < len(self.pending_items):
             self.current_index += 1
             self.zoom_one_to_one = False
+            self._stage_label.reset_zoom()
             self._refresh_counters_and_stage()
 
     def toggle_zoom(self) -> None:
         self.zoom_one_to_one = not self.zoom_one_to_one
+        if not self.zoom_one_to_one:
+            self._stage_label.reset_zoom()
         self._refresh_counters_and_stage()
 
     def approve_current(self) -> None:
@@ -262,6 +268,25 @@ class SessionWorkspaceWidget(QWidget):
         if self._stack.currentIndex() != 0:
             super().keyPressEvent(event)
             return
+
+        if key == Qt.Key.Key_Escape:
+            self.zoom_one_to_one = False
+            self._stage_label.reset_zoom()
+            self._refresh_counters_and_stage()
+            return
+
+        if event.modifiers() & Qt.KeyboardModifier.ControlModifier:
+            if key in (Qt.Key.Key_Plus, Qt.Key.Key_Equal):
+                self._stage_label.zoom_in()
+                return
+            if key == Qt.Key.Key_Minus:
+                self._stage_label.zoom_out()
+                return
+            if key == Qt.Key.Key_0:
+                self.zoom_one_to_one = False
+                self._stage_label.reset_zoom()
+                self._refresh_counters_and_stage()
+                return
 
         actions = {
             Qt.Key.Key_Left: self.archive_current,
@@ -334,9 +359,9 @@ class SessionWorkspaceWidget(QWidget):
         if payload:
             qimg = QImage(payload.rgb_bytes, payload.width, payload.height, payload.width * 3, QImage.Format.Format_RGB888)
             pix = QPixmap.fromImage(qimg)
-            if not self.zoom_one_to_one:
-                pix = pix.scaled(self._stage_label.size(), Qt.AspectRatioMode.KeepAspectRatio, Qt.TransformationMode.SmoothTransformation)
             self._stage_label.setPixmap(pix)
+            if self.zoom_one_to_one and self._stage_label.zoom_scale <= 1.01:
+                self._stage_label.set_zoom_scale(2.5)
 
     def _analyze_unanalyzed_pending(self) -> None:
         if not self.perf_prefs.enable_vision_autotagging:

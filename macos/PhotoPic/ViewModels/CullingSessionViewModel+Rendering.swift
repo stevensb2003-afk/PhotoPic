@@ -7,6 +7,7 @@ extension CullingSessionViewModel {
     package func toggleLockedOneToOneZoom() {
         guard currentPendingItem != nil else { return }
         isSpringLoadedZoom = false
+        customZoomScale = 1.0
         isLockedOneToOneZoom.toggle()
         zoomPanOffset = .zero
         if isLockedOneToOneZoom {
@@ -14,8 +15,27 @@ extension CullingSessionViewModel {
         }
     }
 
+    package func applyInteractiveZoom(scaleMultiplier: CGFloat) {
+        guard currentPendingItem != nil else { return }
+        if isLockedOneToOneZoom || isSpringLoadedZoom {
+            isLockedOneToOneZoom = false
+            isSpringLoadedZoom = false
+            customZoomScale = 2.0
+        }
+        let proposed = customZoomScale * scaleMultiplier
+        if proposed <= 1.01 {
+            customZoomScale = 1.0
+            zoomPanOffset = .zero
+        } else {
+            customZoomScale = min(proposed, 8.0)
+            if customZoomScale > 1.5 {
+                ensureFullSensorImageLoaded()
+            }
+        }
+    }
+
     package func engageSpringLoadedZoom(normalizedAnchor: CGPoint) {
-        guard currentPendingItem != nil, !isLockedOneToOneZoom else { return }
+        guard currentPendingItem != nil, !isLockedOneToOneZoom, customZoomScale <= 1.01 else { return }
         zoomNormalizedAnchor = normalizedAnchor
         zoomPanOffset = .zero
         isSpringLoadedZoom = true
@@ -31,6 +51,7 @@ extension CullingSessionViewModel {
     package func resetZoomState() {
         isLockedOneToOneZoom = false
         isSpringLoadedZoom = false
+        customZoomScale = 1.0
         zoomPanOffset = .zero
         fullSensorTask?.cancel()
         activeFullSensorImage = nil

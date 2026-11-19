@@ -3,8 +3,8 @@
 from __future__ import annotations
 
 from datetime import datetime
-from PySide6.QtCore import QPoint, Qt, QTimer
-from PySide6.QtGui import QMouseEvent
+from PySide6.QtCore import QEvent, QPoint, QPointF, QRectF, Qt, QTimer
+from PySide6.QtGui import QColor, QMouseEvent, QNativeGestureEvent, QPainter, QPen, QPixmap, QWheelEvent
 from PySide6.QtWidgets import (
     QFrame,
     QGridLayout,
@@ -20,33 +20,183 @@ from .models import PhotoExifMetadata, PhotoItem, PhotoSession
 from .session_metadata import SessionMetadata, SessionMetadataStore
 
 
-class SwipeablePhotoStage(QLabel):
-    """Photo canvas preserving horizontal mouse drag gestures (Left=Archive, Right=Approve)."""
+class SwipeablePhotoStage(QWidget):
+    """Zoomable + pannable photo canvas supporting Ctrl+Wheel / trackpad pinch zoom (1.0x–8.0x),
+    click-and-drag pan when zoomed, double-click zoom toggle, and horizontal Tinder swipe at 1.0x."""
 
-    def __init__(self, on_swipe_left, on_swipe_right, parent=None) -> None:
+    def __init__(
+        self,
+        on_swipe_left=None,
+        on_swipe_right=None,
+        on_zoom_changed=None,
+        parent=None,
+    ) -> None:
         super().__init__(parent)
         self._on_swipe_left = on_swipe_left
         self._on_swipe_right = on_swipe_right
-        self._press_pos: QPoint | None = None
-        self.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        self._on_zoom_changed = on_zoom_changed
+        self._pixmap: QPixmap = QPixmap()
+        self._placeholder_text: str = ""
+        self._zoom_scale: float = 1.0
+        self._pan_offset: QPointF = QPointF(0.0, 0.0)
+        self._drag_start_pos: QPoint | None = None
+        self._pan_start_offset: QPointF = QPointF(0.0, 0.0)
+        self.setMinimumSize(280, 220)
+        self.setAttribute(Qt.WidgetAttribute.WA_StyledBackground, True)
         self.setStyleSheet(f"background: {AppColors.STAGE_BG}; border-radius: 12px;")
+
+    @property
+    def zoom_scale(self) -> float:
+        return self._zoom_scale
+
+    def setPixmap(self, pixmap: QPixmap) -> None:
+        self._pixmap = pixmap
+        self.update()
+
+    def setText(self, text: str) -> None:
+        self._placeholder_text = text
+        self.update()
+
+    def set_zoom_scale(self, scale: float) -> None:
+        clamped = min(max(1.0, scale), 8.0)
+        if clamped <= 1.01:
+            self._zoom_scale = 1.0
+            self._pan_offset = QPointF(0.0, 0.0)
+            self.unsetCursor()
+        else:
+            self._zoom_scale = clamped
+            self.setCursor(Qt.CursorShape.OpenHandCursor)
+            self._clamp_pan()
+        if self._on_zoom_changed is not None:
+            self._on_zoom_changed(self._zoom_scale)
+        self.update()
+
+    def reset_zoom(self) -> None:
+        self.set_zoom_scale(1.0)
+
+    def zoom_in(self) -> None:
+        self.set_zoom_scale(self._zoom_scale * 1.25)
+
+    def zoom_out(self) -> None:
+        self.set_zoom_scale(self._zoom_scale / 1.25)
+
+    def event(self, ev: QEvent) -> bool:
+        if ev.type() == QEvent.Type.NativeGesture and isinstance(ev, QNativeGestureEvent):
+            if ev.gestureType() == Qt.NativeGestureType.ZoomNativeGesture:
+                self.set_zoom_scale(self._zoom_scale * (1.0 + float(ev.value())))
+                ev.accept()
+                return True
+        return super().event(ev)
+
+    def wheelEvent(self, event: QWheelEvent) -> None:
+        mods = event.modifiers()
+        delta_y = event.angleDelta().y()
+        if mods & Qt.KeyboardModifier.ControlModifier:
+            if delta_y != 0:
+                factor = 1.15 if delta_y > 0 else (1.0 / 1.15)
+                self.set_zoom_scale(self._zoom_scale * factor)
+                event.accept()
+                return
+        elif self._zoom_scale > 1.01:
+            px = event.pixelDelta()
+            dx = float(px.x()) if not px.isNull() else float(event.angleDelta().x()) * 0.4
+            dy = float(px.y()) if not px.isNull() else float(delta_y) * 0.4
+            self._pan_offset = QPointF(self._pan_offset.x() + dx, self._pan_offset.y() + dy)
+            self._clamp_pan()
+            self.update()
+            event.accept()
+            return
+        super().wheelEvent(event)
+
+    def mouseDoubleClickEvent(self, event: QMouseEvent) -> None:
+        if event.button() == Qt.MouseButton.LeftButton and not self._pixmap.isNull():
+            self.set_zoom_scale(1.0 if self._zoom_scale > 1.01 else 2.5)
+            event.accept()
+            return
+        super().mouseDoubleClickEvent(event)
 
     def mousePressEvent(self, event: QMouseEvent) -> None:
         if event.button() == Qt.MouseButton.LeftButton:
-            self._press_pos = event.position().toPoint()
+            self._drag_start_pos = event.position().toPoint()
+            self._pan_start_offset = QPointF(self._pan_offset)
+            if self._zoom_scale > 1.01:
+                self.setCursor(Qt.CursorShape.ClosedHandCursor)
         super().mousePressEvent(event)
 
+    def mouseMoveEvent(self, event: QMouseEvent) -> None:
+        if self._drag_start_pos is not None and self._zoom_scale > 1.01:
+            delta = event.position().toPoint() - self._drag_start_pos
+            self._pan_offset = QPointF(
+                self._pan_start_offset.x() + delta.x(),
+                self._pan_start_offset.y() + delta.y(),
+            )
+            self._clamp_pan()
+            self.update()
+            return
+        super().mouseMoveEvent(event)
+
     def mouseReleaseEvent(self, event: QMouseEvent) -> None:
-        if event.button() == Qt.MouseButton.LeftButton and self._press_pos is not None:
-            dx = event.position().toPoint().x() - self._press_pos.x()
-            self._press_pos = None
-            if dx > 110:
+        if event.button() == Qt.MouseButton.LeftButton and self._drag_start_pos is not None:
+            dx = event.position().toPoint().x() - self._drag_start_pos.x()
+            self._drag_start_pos = None
+            if self._zoom_scale > 1.01:
+                self.setCursor(Qt.CursorShape.OpenHandCursor)
+                return
+            if dx > 110 and self._on_swipe_right is not None:
                 self._on_swipe_right()
                 return
-            if dx < -110:
+            if dx < -110 and self._on_swipe_left is not None:
                 self._on_swipe_left()
                 return
         super().mouseReleaseEvent(event)
+
+    def _scaled_image_size(self) -> tuple[float, float]:
+        if self._pixmap.isNull():
+            return 0.0, 0.0
+        pw, ph = float(self._pixmap.width()), float(self._pixmap.height())
+        cw, ch = max(1.0, float(self.width())), max(1.0, float(self.height()))
+        fit = min(cw / max(1.0, pw), ch / max(1.0, ph))
+        return pw * fit * self._zoom_scale, ph * fit * self._zoom_scale
+
+    def _clamp_pan(self) -> None:
+        sw, sh = self._scaled_image_size()
+        max_x = max(0.0, (sw - self.width()) / 2.0)
+        max_y = max(0.0, (sh - self.height()) / 2.0)
+        self._pan_offset = QPointF(
+            min(max(self._pan_offset.x(), -max_x), max_x),
+            min(max(self._pan_offset.y(), -max_y), max_y),
+        )
+
+    def paintEvent(self, event) -> None:
+        painter = QPainter(self)
+        painter.setRenderHint(QPainter.RenderHint.SmoothPixmapTransform, True)
+        painter.fillRect(self.rect(), QColor(AppColors.STAGE_BG))
+
+        if self._pixmap.isNull():
+            if self._placeholder_text:
+                painter.setPen(QColor(AppColors.TEXT_SECONDARY))
+                painter.drawText(self.rect(), Qt.AlignmentFlag.AlignCenter, self._placeholder_text)
+            painter.end()
+            return
+
+        self._clamp_pan()
+        sw, sh = self._scaled_image_size()
+        x = (self.width() - sw) / 2.0 + self._pan_offset.x()
+        y = (self.height() - sh) / 2.0 + self._pan_offset.y()
+        painter.drawPixmap(QRectF(x, y, sw, sh), self._pixmap, QRectF(self._pixmap.rect()))
+
+        if self._zoom_scale > 1.01:
+            badge_text = f"ZOOM {int(round(self._zoom_scale * 100))}% · Arrastrá para mover (Esc)"
+            fm = painter.fontMetrics()
+            bw = fm.horizontalAdvance(badge_text) + 22
+            bh = 24
+            rect = QRectF(self.width() - bw - 14, 14, bw, bh)
+            painter.setBrush(QColor(15, 16, 18, 220))
+            painter.setPen(QPen(QColor(AppColors.INFO_BLUE), 1))
+            painter.drawRoundedRect(rect, 12, 12)
+            painter.setPen(QColor(AppColors.TEXT_PRIMARY))
+            painter.drawText(rect, Qt.AlignmentFlag.AlignCenter, badge_text)
+        painter.end()
 
 
 class FloatingPhotoInspectorCard(QFrame):

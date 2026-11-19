@@ -89,6 +89,7 @@
 		F594C6B0E79A5262D18E8B79 = {isa = PBXBuildFile; fileRef = BD32DC6989B736F990D28327; };
 		198E29D3EAF996B2D0040E33 = {isa = PBXBuildFile; fileRef = A507C3EDDE985B32CF8391E7; };
 		AA9AE3720D4CCBDA0ADF653E = {isa = PBXBuildFile; fileRef = 72AF3CE2126C16A6CD61BB1C; };
+		85E161FC2506F3CDDC390F71 = {isa = PBXBuildFile; fileRef = 9CDBADB9CFB84655E100FF03; };
 		06C6AB1EBAB0B652DFDBCFB9 = {isa = PBXBuildFile; fileRef = DB0673973EDFACEB6B99D15D; };
 		AFCE1D91BA1F635C21D588A5 = {isa = PBXBuildFile; fileRef = 893F825D53A83F1FE895618F; };
 		E0AAB8651983C1741B054516 = {isa = PBXBuildFile; fileRef = 09DBC7B0FFF1C336215E285D; };
@@ -192,6 +193,7 @@
 		BD32DC6989B736F990D28327 = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = "LiveViewCompatibilityCard.swift"; path = "macos/PhotoPic/Views/Workspace/LiveViewCompatibilityCard.swift"; sourceTree = "<group>"; };
 		A507C3EDDE985B32CF8391E7 = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = "LiveViewWorkspacePane.swift"; path = "macos/PhotoPic/Views/Workspace/LiveViewWorkspacePane.swift"; sourceTree = "<group>"; };
 		72AF3CE2126C16A6CD61BB1C = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = "PhotoInspectorCardView.swift"; path = "macos/PhotoPic/Views/Workspace/PhotoInspectorCardView.swift"; sourceTree = "<group>"; };
+		9CDBADB9CFB84655E100FF03 = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = "PhotoZoomGestureOverlay.swift"; path = "macos/PhotoPic/Views/Workspace/PhotoZoomGestureOverlay.swift"; sourceTree = "<group>"; };
 		DB0673973EDFACEB6B99D15D = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = "RawZoomableImageView.swift"; path = "macos/PhotoPic/Views/Workspace/RawZoomableImageView.swift"; sourceTree = "<group>"; };
 		893F825D53A83F1FE895618F = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = "SelectedPhotosView.swift"; path = "macos/PhotoPic/Views/Workspace/SelectedPhotosView.swift"; sourceTree = "<group>"; };
 		09DBC7B0FFF1C336215E285D = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = "SessionTimerPillView.swift"; path = "macos/PhotoPic/Views/Workspace/SessionTimerPillView.swift"; sourceTree = "<group>"; };
@@ -327,6 +329,7 @@
 				BD32DC6989B736F990D28327,
 				A507C3EDDE985B32CF8391E7,
 				72AF3CE2126C16A6CD61BB1C,
+				9CDBADB9CFB84655E100FF03,
 				DB0673973EDFACEB6B99D15D,
 				893F825D53A83F1FE895618F,
 				09DBC7B0FFF1C336215E285D,
@@ -437,6 +440,7 @@
 				F594C6B0E79A5262D18E8B79,
 				198E29D3EAF996B2D0040E33,
 				AA9AE3720D4CCBDA0ADF653E,
+				85E161FC2506F3CDDC390F71,
 				06C6AB1EBAB0B652DFDBCFB9,
 				AFCE1D91BA1F635C21D588A5,
 				E0AAB8651983C1741B054516,

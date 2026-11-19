@@ -79,8 +79,8 @@ package struct TinderCardStackView: View {
                 commitImmediateWithoutAnimation(direction: dir)
             }
         }
-        .onChange(of: viewModel.isLockedOneToOneZoom) { _, isLocked in
-            if !isLocked {
+        .onChange(of: viewModel.isAnyZoomActive) { _, active in
+            if !active {
                 committedPanOffset = .zero
                 activePanDelta = .zero
             }
@@ -99,11 +99,30 @@ package struct TinderCardStackView: View {
                 viewportImage: viewModel.activeViewportImage,
                 fullSensorImage: viewModel.activeFullSensorImage,
                 nativeSize: viewModel.activeNativeSize,
-                isZoomedOneToOne: viewModel.isAnyZoomActive,
+                isZoomedOneToOne: viewModel.isLockedOneToOneZoom || viewModel.isSpringLoadedZoom,
+                zoomScale: viewModel.customZoomScale,
                 isLoadingViewport: viewModel.isRenderingViewport,
                 isLoadingFullSensor: viewModel.isRenderingFullSensor,
                 panOffset: totalPan,
-                normalizedAnchor: viewModel.zoomNormalizedAnchor
+                normalizedAnchor: viewModel.zoomNormalizedAnchor,
+                onResetZoom: { viewModel.resetZoomState() }
+            )
+
+            PhotoZoomGestureOverlay(
+                isZoomed: { viewModel.isAnyZoomActive },
+                onMagnify: { delta in
+                    viewModel.applyInteractiveZoom(scaleMultiplier: 1.0 + delta)
+                },
+                onScrollZoom: { dy, precise in
+                    let factor = precise ? (1.0 + dy * 0.012) : (1.0 + dy * 0.08)
+                    viewModel.applyInteractiveZoom(scaleMultiplier: max(0.5, min(2.0, factor)))
+                },
+                onScrollPan: { delta in
+                    committedPanOffset = CGSize(
+                        width: committedPanOffset.width + delta.width,
+                        height: committedPanOffset.height + delta.height
+                    )
+                }
             )
 
             swipeIntentStamp

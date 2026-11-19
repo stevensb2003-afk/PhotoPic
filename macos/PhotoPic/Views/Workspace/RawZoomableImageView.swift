@@ -2,35 +2,49 @@ import AppKit
 import CoreGraphics
 import SwiftUI
 
-/// Renders a GPU-decoded `CGImage` in either fit-to-stage or true 1:1 pixel-for-pixel inspection mode.
+/// Renders a GPU-decoded `CGImage` in fit-to-stage, continuous zoom+pan (`1.0x...8.0x`),
+/// or true 1:1 pixel-for-pixel sensor inspection mode.
 package struct RawZoomableImageView: View {
     let viewportImage: CGImage?
     let fullSensorImage: CGImage?
     let nativeSize: CGSize
     let isZoomedOneToOne: Bool
+    let zoomScale: CGFloat
     let isLoadingViewport: Bool
     let isLoadingFullSensor: Bool
     let panOffset: CGSize
     let normalizedAnchor: CGPoint
+    let emptyLabel: String
+    let onResetZoom: (() -> Void)?
 
     package init(
         viewportImage: CGImage?,
         fullSensorImage: CGImage?,
         nativeSize: CGSize,
         isZoomedOneToOne: Bool,
+        zoomScale: CGFloat = 1.0,
         isLoadingViewport: Bool,
         isLoadingFullSensor: Bool,
         panOffset: CGSize,
-        normalizedAnchor: CGPoint
+        normalizedAnchor: CGPoint,
+        emptyLabel: String = "Sin vista previa disponible",
+        onResetZoom: (() -> Void)? = nil
     ) {
         self.viewportImage = viewportImage
         self.fullSensorImage = fullSensorImage
         self.nativeSize = nativeSize
         self.isZoomedOneToOne = isZoomedOneToOne
+        self.zoomScale = zoomScale
         self.isLoadingViewport = isLoadingViewport
         self.isLoadingFullSensor = isLoadingFullSensor
         self.panOffset = panOffset
         self.normalizedAnchor = normalizedAnchor
+        self.emptyLabel = emptyLabel
+        self.onResetZoom = onResetZoom
+    }
+
+    private var isContinuouslyZoomed: Bool {
+        !isZoomedOneToOne && zoomScale > 1.01
     }
 
     package var body: some View {
@@ -40,6 +54,8 @@ package struct RawZoomableImageView: View {
 
                 if isZoomedOneToOne, let sensorImage = fullSensorImage ?? viewportImage {
                     oneToOneLayer(image: sensorImage, containerSize: proxy.size)
+                } else if isContinuouslyZoomed, let zoomImage = fullSensorImage ?? viewportImage {
+                    continuousZoomLayer(image: zoomImage, containerSize: proxy.size)
                 } else if let fitImage = viewportImage {
                     Image(decorative: fitImage, scale: 1.0, orientation: .up)
                         .resizable()
@@ -49,16 +65,36 @@ package struct RawZoomableImageView: View {
                 } else if isLoadingViewport {
                     loadingPlaceholder(label: "Revelando sensor RAW en GPU...")
                 } else {
-                    loadingPlaceholder(label: "Sin vista previa disponible")
+                    loadingPlaceholder(label: emptyLabel)
                 }
 
-                if isZoomedOneToOne {
-                    oneToOneOverlayBadge(containerSize: proxy.size)
+                if isZoomedOneToOne || isContinuouslyZoomed {
+                    zoomOverlayBadge(containerSize: proxy.size)
                 }
             }
             .frame(width: proxy.size.width, height: proxy.size.height)
             .clipped()
         }
+    }
+
+    @ViewBuilder
+    private func continuousZoomLayer(image: CGImage, containerSize: CGSize) -> some View {
+        let imgW = max(1, CGFloat(image.width))
+        let imgH = max(1, CGFloat(image.height))
+        let fitScale = min(containerSize.width / imgW, containerSize.height / imgH)
+        let scaledW = imgW * fitScale * zoomScale
+        let scaledH = imgH * fitScale * zoomScale
+
+        let maxPanX = max(0, (scaledW - containerSize.width) / 2.0)
+        let maxPanY = max(0, (scaledH - containerSize.height) / 2.0)
+        let clampedX = min(max(panOffset.width, -maxPanX), maxPanX)
+        let clampedY = min(max(panOffset.height, -maxPanY), maxPanY)
+
+        Image(decorative: image, scale: 1.0, orientation: .up)
+            .resizable()
+            .interpolation(.high)
+            .frame(width: scaledW, height: scaledH)
+            .offset(x: clampedX, y: clampedY)
     }
 
     @ViewBuilder
@@ -82,7 +118,7 @@ package struct RawZoomableImageView: View {
             .offset(x: clampedX, y: clampedY)
     }
 
-    private func oneToOneOverlayBadge(containerSize: CGSize) -> some View {
+    private func zoomOverlayBadge(containerSize: CGSize) -> some View {
         VStack {
             HStack {
                 Spacer()
@@ -95,13 +131,21 @@ package struct RawZoomableImageView: View {
                             .fill(AppColors.infoBlue)
                             .frame(width: 6, height: 6)
                     }
-                    Text("ZOOM 1:1 PÍXEL REAL")
+                    Text(isZoomedOneToOne
+                        ? "ZOOM 1:1 PÍXEL REAL"
+                        : "ZOOM \(Int(round(zoomScale * 100)))% · ARRASTRÁ PARA MOVER")
                         .font(AppTypography.monoMicro)
                         .foregroundStyle(AppColors.textPrimary)
-                    if nativeSize.width > 0 {
+                    if isZoomedOneToOne, nativeSize.width > 0 {
                         Text("\(Int(nativeSize.width))×\(Int(nativeSize.height))")
                             .font(AppTypography.monoMicro)
                             .foregroundStyle(AppColors.textSecondary)
+                    }
+                    if let onResetZoom {
+                        Button("Esc", action: onResetZoom)
+                            .buttonStyle(.plain)
+                            .font(AppTypography.monoMicro)
+                            .foregroundStyle(AppColors.infoBlue)
                     }
                 }
                 .padding(.horizontal, AppSpacing.md)
@@ -117,7 +161,6 @@ package struct RawZoomableImageView: View {
             Spacer()
         }
         .frame(width: containerSize.width, height: containerSize.height)
-        .allowsHitTesting(false)
     }
 
     private func loadingPlaceholder(label: String) -> some View {
