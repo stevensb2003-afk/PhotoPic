@@ -682,7 +682,7 @@ package final class DirectCanonUSBPTPService {
         let transport: CanonUSBTransport
         var pollTask: Task<Void, Never>?
         var isLiveViewActive: Bool = false
-        var isPausedForLiveFrame: Bool = false
+        var isTriggeringShutter: Bool = false
         var fileCounter: Int = 0
         var seenHandles: Set<UInt32> = []
         var activeDownloads: Int = 0
@@ -698,6 +698,7 @@ package final class DirectCanonUSBPTPService {
     package var inlineFeedbackNote: String?
 
     private var liveViewStreamTask: Task<Void, Never>?
+    private var liveViewGeneration: Int = 0
     private var activeLiveFingerprint: String?
 
     package var onStatusChanged: ((String, DeviceConnectionStatus, Int?) -> Void)?
@@ -986,7 +987,23 @@ package final class DirectCanonUSBPTPService {
     package func triggerRemoteShutter(for fingerprint: String) async -> Bool {
         guard let ctx = sessions[fingerprint] else { return false }
         let transport = ctx.transport
+        sessions[fingerprint]?.isTriggeringShutter = true
+        defer {
+            sessions[fingerprint]?.isTriggeringShutter = false
+        }
+
+        // In Manual Focus (MF), trigger immediate release without AF lock wait so dark-studio shots never stall.
+        let isManualFocus = controlSnapshots[fingerprint]?.controls[.focusMode]?.currentValue == 3
         do {
+            if isManualFocus {
+                let immediatePress = try await transport.execute(opCode: CanonPTPCode.eosRemoteReleaseOn, params: [3, 0], timeout: 10.0)
+                if immediatePress.responseCode == CanonPTPCode.responseOK {
+                    try? await Task.sleep(for: .milliseconds(80))
+                    _ = try? await transport.execute(opCode: CanonPTPCode.eosRemoteReleaseOff, params: [3], timeout: 5.0)
+                    return true
+                }
+            }
+
             // Modern Canon EOS (70D, 80D, R-series) uses RemoteReleaseOn(1/2) + RemoteReleaseOff(2/1)
             let halfPress = try await transport.execute(opCode: CanonPTPCode.eosRemoteReleaseOn, params: [1, 0], timeout: 8.0)
             if halfPress.responseCode == CanonPTPCode.responseOperationNotSupported {
@@ -1000,6 +1017,7 @@ package final class DirectCanonUSBPTPService {
             _ = try? await transport.execute(opCode: CanonPTPCode.eosRemoteReleaseOff, params: [1], timeout: 5.0)
             return fullPress.responseCode == CanonPTPCode.responseOK || fullRelease.responseCode == CanonPTPCode.responseOK
         } catch {
+            _ = try? await transport.execute(opCode: CanonPTPCode.eosRemoteReleaseOff, params: [3], timeout: 2.0)
             _ = try? await transport.execute(opCode: CanonPTPCode.eosRemoteReleaseOff, params: [2], timeout: 2.0)
             _ = try? await transport.execute(opCode: CanonPTPCode.eosRemoteReleaseOff, params: [1], timeout: 2.0)
             onCaptureError?(fingerprint, error.localizedDescription)
@@ -1014,8 +1032,22 @@ package final class DirectCanonUSBPTPService {
         onFrame: @escaping @MainActor (CGImage) -> Void,
         onError: @escaping @MainActor (String) -> Void
     ) {
-        stopLiveView()
+        // Cancel any previous stream cleanly WITHOUT launching a racing disableLiveViewOnCamera Task
+        // on the same camera (which previously turned EVF back OFF right after reopening).
+        liveViewGeneration &+= 1
+        let myGeneration = liveViewGeneration
+        liveViewStreamTask?.cancel()
+        liveViewStreamTask = nil
+
+        if let prevFP = activeLiveFingerprint, prevFP != fingerprint, let prevTransport = sessions[prevFP]?.transport {
+            Task { @MainActor [weak self] in
+                await self?.disableLiveViewOnCamera(transport: prevTransport)
+            }
+        }
+
         guard let ctx = sessions[fingerprint] else {
+            isDirectLiveViewStreaming = false
+            activeLiveFingerprint = nil
             onError("La cámara Canon aún no tiene sesión USB abierta.")
             return
         }
@@ -1023,39 +1055,48 @@ package final class DirectCanonUSBPTPService {
         let transport = ctx.transport
         activeLiveFingerprint = fingerprint
         isDirectLiveViewStreaming = true
+        sessions[fingerprint]?.isLiveViewActive = true
         controlSnapshots[fingerprint]?.isMirrorDownOpticalFlashMode = false
         directLiveViewStatusNote = "Activando espejo y visor USB directo en \(ctx.profile.alias)..."
 
         liveViewStreamTask = Task { @MainActor [weak self] in
             guard let self else { return }
             do {
-                // Disable Silent LV Shoot (0xD129 = 0) when possible so studio/hot-shoe flashes can sync during Live View
-                let silentOff = CanonUSBPTPCodec.buildSetPropUInt32Payload(propCode: CanonPTPCode.propSilentShutterSetting, value: 0)
-                _ = try? await transport.execute(opCode: CanonPTPCode.eosSetDevicePropValueEx, outPayload: silentOff)
-                let stroboEnable = CanonUSBPTPCodec.buildSetPropUInt32Payload(propCode: CanonPTPCode.propStroboFiring, value: 0)
-                _ = try? await transport.execute(opCode: CanonPTPCode.eosSetDevicePropValueEx, outPayload: stroboEnable)
+                // Brief settle window so any cancelled in-flight bulk transfer clears cleanly before re-enabling EVF.
+                try? await Task.sleep(for: .milliseconds(80))
+                guard !Task.isCancelled, self.liveViewGeneration == myGeneration else { return }
 
-                let evfPayload = CanonUSBPTPCodec.buildSetPropUInt32Payload(propCode: CanonPTPCode.propEVFMode, value: 1)
-                let evfModeRes = try await transport.execute(opCode: CanonPTPCode.eosSetDevicePropValueEx, outPayload: evfPayload)
-                try? await Task.sleep(for: .milliseconds(150))
-
-                let outPayload3 = CanonUSBPTPCodec.buildSetPropUInt32Payload(propCode: CanonPTPCode.propEVFOutputDevice, value: 3)
-                var outRes = try await transport.execute(opCode: CanonPTPCode.eosSetDevicePropValueEx, outPayload: outPayload3)
-                if outRes.responseCode != CanonPTPCode.responseOK {
-                    let outPayload2 = CanonUSBPTPCodec.buildSetPropUInt32Payload(propCode: CanonPTPCode.propEVFOutputDevice, value: 2)
-                    outRes = try await transport.execute(opCode: CanonPTPCode.eosSetDevicePropValueEx, outPayload: outPayload2)
+                // Respect the user's selected flash mode (never silently re-enable firing if user chose Sin Flash).
+                let currentAccessory = self.controlSnapshots[fingerprint]?.flashAccessory ?? .externalHotShoe
+                if currentAccessory != .disabled {
+                    let silentOff = CanonUSBPTPCodec.buildSetPropUInt32Payload(propCode: CanonPTPCode.propSilentShutterSetting, value: 0)
+                    _ = try? await transport.execute(opCode: CanonPTPCode.eosSetDevicePropValueEx, outPayload: silentOff)
+                    let stroboEnable = CanonUSBPTPCodec.buildSetPropUInt32Payload(propCode: CanonPTPCode.propStroboFiring, value: 0)
+                    _ = try? await transport.execute(opCode: CanonPTPCode.eosSetDevicePropValueEx, outPayload: stroboEnable)
                 }
-                _ = try? await transport.execute(opCode: CanonPTPCode.eosResetUILock)
-                guard evfModeRes.responseCode == CanonPTPCode.responseOK || outRes.responseCode == CanonPTPCode.responseOK else {
+
+                let activated = try await self.enableLiveViewOnCamera(transport: transport)
+                guard activated else {
                     throw CanonUSBTransportError.ioFailed("La cámara rechazó iniciar Live View (revisá que no tenga el menú abierto en pantalla).")
                 }
 
                 self.directLiveViewStatusNote = "Visor PTP USB directo · \(ctx.profile.alias)"
                 var consecutiveBusy = 0
+                var didAttemptAutoReattach = false
                 var frames = 0
                 var windowStart = Date()
 
-                while !Task.isCancelled && self.isDirectLiveViewStreaming {
+                while !Task.isCancelled && self.isDirectLiveViewStreaming && self.liveViewGeneration == myGeneration {
+                    // Pause EVF polling while a photo is being exposed or downloaded over the same USB Bulk pipe
+                    // so RAW+JPG transfers run at 100% speed and never trip the Live View busy timeout!
+                    if let liveCtx = self.sessions[fingerprint],
+                       liveCtx.activeDownloads > 0 || liveCtx.isTriggeringShutter {
+                        consecutiveBusy = 0
+                        didAttemptAutoReattach = false
+                        try? await Task.sleep(for: .milliseconds(120))
+                        continue
+                    }
+
                     let frameRes = try await transport.execute(
                         opCode: CanonPTPCode.eosGetViewFinderData,
                         params: [0x0020_0000],
@@ -1064,7 +1105,13 @@ package final class DirectCanonUSBPTPService {
 
                     if frameRes.responseCode == CanonPTPCode.responseDeviceBusy || frameRes.responseCode == CanonPTPCode.responseCanonNotReady || frameRes.dataPayload.isEmpty {
                         consecutiveBusy += 1
-                        if consecutiveBusy > 50 {
+                        // After a shot (especially in continuous/burst drive on 70D), Canon may pause EVF briefly;
+                        // silently re-assert EVFOutputDevice once before giving up.
+                        if consecutiveBusy == 15 && !didAttemptAutoReattach {
+                            didAttemptAutoReattach = true
+                            _ = try? await self.enableLiveViewOnCamera(transport: transport)
+                        }
+                        if consecutiveBusy > 90 {
                             onError("El visor Live View se detuvo (la cámara cerró el espejo o entró en reposo).")
                             break
                         }
@@ -1076,6 +1123,7 @@ package final class DirectCanonUSBPTPService {
                        let src = CGImageSourceCreateWithData(jpeg as CFData, nil),
                        let cg = CGImageSourceCreateImageAtIndex(src, 0, nil) {
                         consecutiveBusy = 0
+                        didAttemptAutoReattach = false
                         frames += 1
                         let dt = Date().timeIntervalSince(windowStart)
                         if dt >= 1.0 {
@@ -1088,32 +1136,60 @@ package final class DirectCanonUSBPTPService {
                     try? await Task.sleep(for: .milliseconds(45))
                 }
             } catch {
-                if !Task.isCancelled {
+                if !Task.isCancelled && self.liveViewGeneration == myGeneration {
                     self.directLiveViewStatusNote = error.localizedDescription
                     onError(error.localizedDescription)
                 }
             }
 
-            await self.disableLiveViewOnCamera(transport: transport)
-            self.isDirectLiveViewStreaming = false
-            self.directLiveViewFPS = 0
+            // Only tear down Live View on camera if no newer startLiveView generation has taken over!
+            if self.liveViewGeneration == myGeneration {
+                await self.disableLiveViewOnCamera(transport: transport)
+                self.sessions[fingerprint]?.isLiveViewActive = false
+                self.isDirectLiveViewStreaming = false
+                self.directLiveViewFPS = 0
+                if self.activeLiveFingerprint == fingerprint {
+                    self.activeLiveFingerprint = nil
+                }
+            }
         }
     }
 
     package func stopLiveView() {
         let fp = activeLiveFingerprint
+        liveViewGeneration &+= 1
+        let stopGeneration = liveViewGeneration
         liveViewStreamTask?.cancel()
         liveViewStreamTask = nil
         isDirectLiveViewStreaming = false
         directLiveViewFPS = 0
         directLiveViewStatusNote = nil
         activeLiveFingerprint = nil
+        if let fp {
+            sessions[fp]?.isLiveViewActive = false
+        }
 
         if let fp, let transport = sessions[fp]?.transport {
             Task { @MainActor [weak self] in
-                await self?.disableLiveViewOnCamera(transport: transport)
+                guard let self, self.liveViewGeneration == stopGeneration else { return }
+                await self.disableLiveViewOnCamera(transport: transport)
             }
         }
+    }
+
+    private func enableLiveViewOnCamera(transport: CanonUSBTransport) async throws -> Bool {
+        let evfPayload = CanonUSBPTPCodec.buildSetPropUInt32Payload(propCode: CanonPTPCode.propEVFMode, value: 1)
+        let evfModeRes = try await transport.execute(opCode: CanonPTPCode.eosSetDevicePropValueEx, outPayload: evfPayload)
+        try? await Task.sleep(for: .milliseconds(150))
+
+        let outPayload3 = CanonUSBPTPCodec.buildSetPropUInt32Payload(propCode: CanonPTPCode.propEVFOutputDevice, value: 3)
+        var outRes = try await transport.execute(opCode: CanonPTPCode.eosSetDevicePropValueEx, outPayload: outPayload3)
+        if outRes.responseCode != CanonPTPCode.responseOK {
+            let outPayload2 = CanonUSBPTPCodec.buildSetPropUInt32Payload(propCode: CanonPTPCode.propEVFOutputDevice, value: 2)
+            outRes = try await transport.execute(opCode: CanonPTPCode.eosSetDevicePropValueEx, outPayload: outPayload2)
+        }
+        _ = try? await transport.execute(opCode: CanonPTPCode.eosResetUILock)
+        return evfModeRes.responseCode == CanonPTPCode.responseOK || outRes.responseCode == CanonPTPCode.responseOK
     }
 
     // MARK: - Private Event Poll & Download Pipeline

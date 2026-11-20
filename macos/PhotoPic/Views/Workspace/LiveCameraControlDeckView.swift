@@ -480,7 +480,7 @@ package struct LiveCameraControlDeckView: View {
                         .foregroundStyle(AppColors.textPrimary)
                 }
 
-                Text("Si usás un flash externo manual (1 pin) en Canon 70D, bajá el espejo para que dispare directo por zapata sin desconectar el Mac.")
+                Text("En Canon 70D / DSLRs, los flashes externos manuales (Godox, Yongnuo, 1 pin) NO disparan durante Vista en Vivo si 'Disparo LV silenc.' está en Modo 1/2 en la cámara.\n• Opción 1 (con Vista en Vivo): en la cámara ir a Menú Rojo → Disparo LV silenc. → Desactivar.\n• Opción 2 (1 clic): pulsá 'Modo Flash Zapata (Bajar Espejo)' abajo.")
                     .font(AppTypography.micro)
                     .foregroundStyle(AppColors.textSecondary)
                     .fixedSize(horizontal: false, vertical: true)
