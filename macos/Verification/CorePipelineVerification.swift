@@ -502,6 +502,33 @@ package enum CorePipelineVerification {
         let o4 = try PhotoOrientationService.rotateClockwise90(item: rotItem) // 1
         try assertTrue(o4 == 1 && PhotoOrientationService.readOrientation(at: rotDng) == 1, "Full 360° cycle must return orientation to 1")
 
-        print("[PASS] 7. Folder session import, group/session rename on disk, and persistent Shift 90° RAW+JPG rotation")
+        // Verify Canon EOS PTP property payloads (ISO 0xD103, Shutter 0xD102, Aperture 0xD101, Flash 0xD1DC) & Live View overlays
+        let isoPayload = CanonEOSPropertyParser.buildSetPropertyPayload(property: .iso, rawValue: 0x58) // ISO 400
+        try assertTrue(
+            isoPayload.count == 12
+                && CanonUSBPTPCodec.readUInt32LE(isoPayload, at: 0) == 12
+                && CanonUSBPTPCodec.readUInt32LE(isoPayload, at: 4) == CameraPropertyID.iso.rawValue
+                && isoPayload[8] == 0x58,
+            "Canon ISO 0xD103 PTP payload encoding mismatch"
+        )
+        let tvPayload = CanonEOSPropertyParser.buildSetPropertyPayload(property: .shutterSpeed, rawValue: 0x70)
+        let avPayload = CanonEOSPropertyParser.buildSetPropertyPayload(property: .aperture, rawValue: 0x20)
+        try assertTrue(
+            CanonUSBPTPCodec.readUInt32LE(tvPayload, at: 4) == CameraPropertyID.shutterSpeed.rawValue
+                && CanonUSBPTPCodec.readUInt32LE(avPayload, at: 4) == CameraPropertyID.aperture.rawValue,
+            "Canon Tv/Av PTP payload encoding mismatch"
+        )
+        let liveSvc = LiveViewCameraService()
+        liveSvc.showThirdsGrid = true
+        liveSvc.mirrorHorizontally = true
+        if let altGuide = LiveAspectGuide.allCases.dropFirst().first {
+            liveSvc.aspectGuide = altGuide
+        }
+        try assertTrue(
+            liveSvc.showThirdsGrid && liveSvc.mirrorHorizontally && LiveAspectGuide.allCases.count >= 4,
+            "LiveView overlays (3x3, mirror, aspect guide) state mismatch"
+        )
+
+        print("[PASS] 7. Folder session import, group/session rename, persistent Shift rotation, Canon ISO/Tv/Av PTP payloads & LiveView overlays")
     }
 }

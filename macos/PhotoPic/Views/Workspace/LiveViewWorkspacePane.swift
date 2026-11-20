@@ -229,9 +229,33 @@ package struct LiveViewWorkspacePane: View {
                 demoSnapshot = nil
             }
             live.refreshDevices()
-            autoPickBestBridgeModeIfNeeded()
+            syncBridgeModeToActiveStreamOrAutoPick()
         }
-        .onDisappear { appState.stopAllLiveView() }
+    }
+
+    private func syncBridgeModeToActiveStreamOrAutoPick() {
+        // Keep Live View seamlessly visible when switching back from Filtrar / Seleccionadas / Archivadas.
+        if directCanon.isDirectLiveViewStreaming || ptpLive.isStreaming {
+            bridgeMode = .usbPTPDirect
+            didAutoSelectMode = true
+            return
+        }
+        if live.isRunning {
+            bridgeMode = .nativeUVC
+            didAutoSelectMode = true
+            return
+        }
+        if network.isStreaming {
+            bridgeMode = .networkMJPEG
+            didAutoSelectMode = true
+            return
+        }
+        if gphoto.isStreaming {
+            bridgeMode = .classicGPhoto2
+            didAutoSelectMode = true
+            return
+        }
+        autoPickBestBridgeModeIfNeeded()
     }
 
     private func autoPickBestBridgeModeIfNeeded() {

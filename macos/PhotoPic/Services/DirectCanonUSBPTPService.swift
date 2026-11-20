@@ -861,8 +861,8 @@ package final class DirectCanonUSBPTPService {
 
         do {
             var res = try await transport.execute(opCode: CanonPTPCode.eosSetDevicePropValueEx, outPayload: payload, timeout: 3.0)
-            if res.responseCode == CanonPTPCode.responseDeviceBusy {
-                try? await Task.sleep(for: .milliseconds(100))
+            for backoffMs in [100, 200] where res.responseCode == CanonPTPCode.responseDeviceBusy || res.responseCode == CanonPTPCode.responseCanonNotReady {
+                try? await Task.sleep(for: .milliseconds(backoffMs))
                 res = try await transport.execute(opCode: CanonPTPCode.eosSetDevicePropValueEx, outPayload: payload, timeout: 3.0)
             }
             guard res.responseCode == CanonPTPCode.responseOK else {
@@ -1087,15 +1087,18 @@ package final class DirectCanonUSBPTPService {
                 var windowStart = Date()
 
                 while !Task.isCancelled && self.isDirectLiveViewStreaming && self.liveViewGeneration == myGeneration {
-                    // Pause EVF polling while a photo is being exposed or downloaded over the same USB Bulk pipe
-                    // so RAW+JPG transfers run at 100% speed and never trip the Live View busy timeout!
-                    if let liveCtx = self.sessions[fingerprint],
-                       liveCtx.activeDownloads > 0 || liveCtx.isTriggeringShutter {
+                    // Only pause completely during the brief physical shutter exposure (~300ms) when the mirror/curtain blocks the sensor.
+                    let liveCtx = self.sessions[fingerprint]
+                    if liveCtx?.isTriggeringShutter == true {
                         consecutiveBusy = 0
                         didAttemptAutoReattach = false
-                        try? await Task.sleep(for: .milliseconds(120))
+                        try? await Task.sleep(for: .milliseconds(100))
                         continue
                     }
+
+                    // During RAW+JPG chunk downloads, time-slice EVF frames (~5 FPS) between 1 MB USB chunks
+                    // so live preview keeps updating while moving the camera without ever tripping busy timeout!
+                    let isDownloading = (liveCtx?.activeDownloads ?? 0) > 0
 
                     let frameRes = try await transport.execute(
                         opCode: CanonPTPCode.eosGetViewFinderData,
@@ -1104,6 +1107,11 @@ package final class DirectCanonUSBPTPService {
                     )
 
                     if frameRes.responseCode == CanonPTPCode.responseDeviceBusy || frameRes.responseCode == CanonPTPCode.responseCanonNotReady || frameRes.dataPayload.isEmpty {
+                        if isDownloading {
+                            consecutiveBusy = 0
+                            try? await Task.sleep(for: .milliseconds(180))
+                            continue
+                        }
                         consecutiveBusy += 1
                         // After a shot (especially in continuous/burst drive on 70D), Canon may pause EVF briefly;
                         // silently re-assert EVFOutputDevice once before giving up.
@@ -1133,7 +1141,7 @@ package final class DirectCanonUSBPTPService {
                         }
                         onFrame(cg)
                     }
-                    try? await Task.sleep(for: .milliseconds(45))
+                    try? await Task.sleep(for: .milliseconds(isDownloading ? 180 : 45))
                 }
             } catch {
                 if !Task.isCancelled && self.liveViewGeneration == myGeneration {

@@ -73,8 +73,15 @@ class LiveViewTabWidget(QWidget):
         self._chk_grid = QCheckBox("Cuadrícula 3×3")
         self._chk_grid.setChecked(True)
         self._chk_mirror = QCheckBox("Espejo")
+        self._aspect_combo = QComboBox()
+        self._aspect_combo.addItem("3:2 Full Frame", None)
+        self._aspect_combo.addItem("4:5 Retrato", 4.0 / 5.0)
+        self._aspect_combo.addItem("1:1 Cuadrado", 1.0)
+        self._aspect_combo.addItem("16:9 Cine", 16.0 / 9.0)
+        self._aspect_combo.addItem("9:16 Vertical", 9.0 / 16.0)
         bl.addWidget(self._chk_grid)
         bl.addWidget(self._chk_mirror)
+        bl.addWidget(self._aspect_combo)
         bl.addStretch()
 
         self._save_btn = QPushButton("Guardar Cuadro de Referencia")
@@ -166,6 +173,9 @@ class LiveViewTabWidget(QWidget):
         )
         if self._chk_grid.isChecked():
             self._draw_thirds_grid(pix)
+        target_ratio = self._aspect_combo.currentData()
+        if target_ratio is not None:
+            self._draw_aspect_mask(pix, float(target_ratio))
         self._stage.setPixmap(pix)
 
     @staticmethod
@@ -178,6 +188,34 @@ class LiveViewTabWidget(QWidget):
         for i in (1, 2):
             painter.drawLine((w * i) // 3, 0, (w * i) // 3, h)
             painter.drawLine(0, (h * i) // 3, w, (h * i) // 3)
+        painter.end()
+
+    @staticmethod
+    def _draw_aspect_mask(pix: QPixmap, target_ratio: float) -> None:
+        w, h = pix.width(), pix.height()
+        if w <= 0 or h <= 0 or target_ratio <= 0:
+            return
+        current_ratio = w / float(h)
+        if abs(current_ratio - target_ratio) < 0.01:
+            return
+        painter = QPainter(pix)
+        mask_color = QColor(0, 0, 0, 145)
+        border_pen = QPen(QColor(255, 255, 255, 170))
+        border_pen.setWidth(1)
+        if current_ratio > target_ratio:
+            crop_w = int(round(h * target_ratio))
+            pad = max(0, (w - crop_w) // 2)
+            painter.fillRect(0, 0, pad, h, mask_color)
+            painter.fillRect(w - pad, 0, pad, h, mask_color)
+            painter.setPen(border_pen)
+            painter.drawRect(pad, 0, crop_w, h - 1)
+        else:
+            crop_h = int(round(w / target_ratio))
+            pad = max(0, (h - crop_h) // 2)
+            painter.fillRect(0, 0, w, pad, mask_color)
+            painter.fillRect(0, h - pad, w, pad, mask_color)
+            painter.setPen(border_pen)
+            painter.drawRect(0, pad, w - 1, crop_h)
         painter.end()
 
     def _save_reference(self) -> None:

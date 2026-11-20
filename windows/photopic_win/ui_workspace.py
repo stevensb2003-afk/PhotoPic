@@ -140,6 +140,7 @@ class SessionWorkspaceWidget(QWidget):
         root.addWidget(ctrl)
 
     def _handle_back(self) -> None:
+        self._live_tab.stop_stream()
         self._timer_bar.stop_ticker()
         self.on_back()
 
@@ -429,7 +430,6 @@ class SessionWorkspaceWidget(QWidget):
         HelpCenterDialog(parent=self).exec()
 
     def _switch_tab(self, idx: int) -> None:
-        if idx != 1:
-            self._live_tab.stop_stream()
+        # Keep Live View running continuously while switching between Filtrar, Seleccionadas & Archivadas.
         self._stack.setCurrentIndex(idx)
         self._refresh_counters_and_stage()
