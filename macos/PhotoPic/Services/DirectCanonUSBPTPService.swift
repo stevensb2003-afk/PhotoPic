@@ -785,7 +785,7 @@ package final class DirectCanonUSBPTPService {
                 // Apply CaptureDestination based on keepOriginalsOnDevice using detected SD value
                 await self.applyCaptureDestination(transport: transport, keepOriginalsOnDevice: profile.keepOriginalsOnDevice, fingerprint: fp)
 
-                self.onStatusChanged?(fp, .connectedReady, nil)
+                self.onStatusChanged?(fp, .connectedReady, snapshot.batteryPercent)
                 self.startEventPollLoop(for: fp)
             } catch {
                 self.logger.error("Direct Canon openSession failed: \(error.localizedDescription, privacy: .public)")
@@ -1300,9 +1300,16 @@ package final class DirectCanonUSBPTPService {
                             isDemoMode: false,
                             keepOriginalsOnSD: latestCtx.profile.keepOriginalsOnDevice
                         )
+                        let previousBattery = snap.batteryPercent
                         if CanonEOSPropertyParser.applyEvents(from: eventRes.dataPayload, into: &snap) {
                             snap.keepOriginalsOnSD = latestCtx.profile.keepOriginalsOnDevice
                             self.controlSnapshots[fingerprint] = snap
+                            if let updatedBattery = snap.batteryPercent, updatedBattery != previousBattery {
+                                let status: DeviceConnectionStatus = latestCtx.activeDownloads > 0
+                                    ? .capturing(activeDownloads: latestCtx.activeDownloads)
+                                    : .connectedReady
+                                self.onStatusChanged?(fingerprint, status, updatedBattery)
+                            }
                         }
                         for item in events {
                             if self.sessions[fingerprint]?.seenHandles.contains(item.handle) == true {

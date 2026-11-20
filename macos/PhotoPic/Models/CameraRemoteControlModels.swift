@@ -365,7 +365,7 @@ package enum CanonEOSLookupTables {
             case 3: return "75%"
             case 2: return "50%"
             case 1: return "25% (Baja)"
-            case 0: return "Crítica"
+            case 0: return "Crítica (≤10%)"
             default:
                 if rawValue <= 100 { return "\(rawValue)%" }
                 return "CA / Externa"
@@ -390,6 +390,18 @@ package enum CanonEOSLookupTables {
         }
     }
 
+    package static func batteryPercent(for rawValue: UInt32) -> Int? {
+        switch rawValue {
+        case 4: return 100
+        case 3: return 75
+        case 2: return 50
+        case 1: return 25
+        case 0: return 5
+        case 5...100: return Int(rawValue)
+        default: return nil // AC / external power supply
+        }
+    }
+
     package static func buildOptions(for property: CameraPropertyID, rawValues: [UInt32]) -> [CameraPropertyOption] {
         var seen = Set<UInt32>()
         var options: [CameraPropertyOption] = []
@@ -408,6 +420,7 @@ package struct CameraControlSnapshot: Sendable, Hashable {
     package var lensName: String?
     package var aeModeValue: UInt32?
     package var aeModeLabel: String?
+    package var batteryPercent: Int?
     package var batteryPercentLabel: String?
     package var availableShots: UInt32?
     package var silentShutterValue: UInt32?
@@ -430,6 +443,7 @@ package struct CameraControlSnapshot: Sendable, Hashable {
         lensName: String? = nil,
         aeModeValue: UInt32? = nil,
         aeModeLabel: String? = nil,
+        batteryPercent: Int? = nil,
         batteryPercentLabel: String? = nil,
         availableShots: UInt32? = nil,
         silentShutterValue: UInt32? = nil,
@@ -451,6 +465,7 @@ package struct CameraControlSnapshot: Sendable, Hashable {
         self.lensName = lensName
         self.aeModeValue = aeModeValue
         self.aeModeLabel = aeModeLabel
+        self.batteryPercent = batteryPercent
         self.batteryPercentLabel = batteryPercentLabel
         self.availableShots = availableShots
         self.silentShutterValue = silentShutterValue

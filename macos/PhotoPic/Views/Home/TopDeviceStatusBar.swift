@@ -163,10 +163,21 @@ package struct TopDeviceStatusBar: View {
                     .lineLimit(1)
 
                 if let battery = primaryDevice?.batteryLevel {
-                    Text("\(battery)%")
-                        .font(AppTypography.monoMicro)
-                        .foregroundStyle(AppColors.textTertiary)
-                        .padding(.leading, AppSpacing.xxs)
+                    HStack(spacing: 3) {
+                        if battery <= LowBatteryAlertTracker.alertThresholdPercent {
+                            Image(systemName: "battery.0percent")
+                                .font(.system(size: 10, weight: .bold))
+                                .foregroundStyle(AppColors.archiveRed)
+                        }
+                        Text("\(battery)%")
+                            .font(AppTypography.monoMicro)
+                            .foregroundStyle(
+                                battery <= LowBatteryAlertTracker.alertThresholdPercent
+                                    ? AppColors.archiveRed
+                                    : (battery <= 25 ? AppColors.warningAmber : AppColors.textTertiary)
+                            )
+                    }
+                    .padding(.leading, AppSpacing.xxs)
                 }
             }
             .padding(.horizontal, AppSpacing.md)

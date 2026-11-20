@@ -89,6 +89,32 @@ package struct RootShellView: View {
         ZStack(alignment: .top) {
             VStack(spacing: 0) {
                 CloudUpdateTopBanner(appState: appState)
+                if let batteryAlert = appState.discoveryService.lowBatteryAlert {
+                    HStack(spacing: AppSpacing.md) {
+                        Image(systemName: "battery.0percent")
+                            .font(.system(size: 14, weight: .bold))
+                            .foregroundStyle(AppColors.archiveRed)
+                        Text(batteryAlert.message)
+                            .font(AppTypography.captionMedium)
+                            .foregroundStyle(AppColors.textPrimary)
+                            .lineLimit(2)
+                        Spacer()
+                        Button("Entendido") {
+                            appState.discoveryService.dismissLowBatteryAlert()
+                        }
+                        .buttonStyle(StudioButtonStyle(.secondaryDark, compact: true))
+                    }
+                    .padding(.horizontal, AppSpacing.lg)
+                    .padding(.vertical, AppSpacing.sm)
+                    .background(AppColors.archiveRed.opacity(0.18))
+                    .overlay(
+                        Rectangle()
+                            .frame(height: AppSpacing.hairline)
+                            .foregroundStyle(AppColors.archiveRed.opacity(0.55)),
+                        alignment: .bottom
+                    )
+                    .transition(.move(edge: .top).combined(with: .opacity))
+                }
                 Group {
                     if appState.needsOnboarding {
                         GuidedSetupWizardView(appState: appState)

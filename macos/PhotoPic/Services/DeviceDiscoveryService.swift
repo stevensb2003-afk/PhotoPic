@@ -1,7 +1,47 @@
+import AppKit
 import Foundation
 @preconcurrency import ImageCaptureCore
 import Observation
 import os
+
+package struct LowBatteryWarningState: Equatable, Sendable {
+    package let fingerprint: String
+    package let deviceName: String
+    package let batteryPercent: Int
+
+    package var message: String {
+        "Batería crítica en \(deviceName) (\(batteryPercent)%) — Guardá tu sesión o cambiá la batería antes de que la cámara se desconecte."
+    }
+}
+
+package struct LowBatteryAlertTracker: Sendable {
+    package static let alertThresholdPercent = 10
+    package static let recoveryThresholdPercent = 15
+
+    private var alertedFingerprints: Set<String> = []
+
+    package init() {}
+
+    /// Returns `true` exactly once when a device drops to `<= 10%`, and resets once recovered `> 15%`.
+    package mutating func evaluate(fingerprint: String, batteryPercent: Int?) -> Bool {
+        guard let pct = batteryPercent else { return false }
+        if pct >= 0 && pct <= Self.alertThresholdPercent {
+            return alertedFingerprints.insert(fingerprint).inserted
+        }
+        if pct > Self.recoveryThresholdPercent {
+            alertedFingerprints.remove(fingerprint)
+        }
+        return false
+    }
+
+    package mutating func reset(fingerprint: String) {
+        alertedFingerprints.remove(fingerprint)
+    }
+
+    package func hasAlerted(fingerprint: String) -> Bool {
+        alertedFingerprints.contains(fingerprint)
+    }
+}
 
 /// Coordinates `ICDeviceBrowser` USB hot-plug detection, automatic pairing for
 /// known devices (<1s), unknown-device banners, and macOS PTPCamera lock recovery.
@@ -22,6 +62,8 @@ package final class DeviceDiscoveryService: NSObject {
     package let usbMonitor = USBHardwareMonitor()
     package var unknownDeviceBanner: ConnectedDeviceState?
     package var statusToastMessage: String?
+    package var lowBatteryAlert: LowBatteryWarningState?
+    private var lowBatteryTracker = LowBatteryAlertTracker()
 
     package var onCapturedFileReady: ((URL, String, KnownDevice) -> Void)?
 
@@ -134,6 +176,7 @@ package final class DeviceDiscoveryService: NSObject {
             directCanonService.closeSession(for: fingerprint)
         }
         captureService.closeSession(for: fingerprint)
+        clearLowBatteryState(for: fingerprint)
         if let idx = connectedDevices.firstIndex(where: { $0.fingerprint == fingerprint }) {
             connectedDevices[idx].status = .detectedNotConnected
         }
@@ -212,6 +255,40 @@ package final class DeviceDiscoveryService: NSObject {
 
     package func dismissToast() { statusToastMessage = nil }
     package func dismissUnknownBanner() { unknownDeviceBanner = nil }
+    package func dismissLowBatteryAlert() { lowBatteryAlert = nil }
+
+    private func evaluateLowBattery(fingerprint: String, deviceName: String, batteryPercent: Int?) {
+        guard let batteryPercent else { return }
+        if lowBatteryTracker.evaluate(fingerprint: fingerprint, batteryPercent: batteryPercent) {
+            lowBatteryAlert = LowBatteryWarningState(
+                fingerprint: fingerprint,
+                deviceName: deviceName,
+                batteryPercent: batteryPercent
+            )
+            logger.warning("Low battery alert triggered for \(deviceName, privacy: .public) at \(batteryPercent)%")
+            if let sound = NSSound(named: NSSound.Name("Glass")) {
+                sound.play()
+            } else {
+                NSSound.beep()
+            }
+        } else if batteryPercent > LowBatteryAlertTracker.recoveryThresholdPercent,
+                  lowBatteryAlert?.fingerprint == fingerprint {
+            lowBatteryAlert = nil
+        } else if let current = lowBatteryAlert, current.fingerprint == fingerprint, current.batteryPercent != batteryPercent {
+            lowBatteryAlert = LowBatteryWarningState(
+                fingerprint: fingerprint,
+                deviceName: deviceName,
+                batteryPercent: batteryPercent
+            )
+        }
+    }
+
+    private func clearLowBatteryState(for fingerprint: String) {
+        lowBatteryTracker.reset(fingerprint: fingerprint)
+        if lowBatteryAlert?.fingerprint == fingerprint {
+            lowBatteryAlert = nil
+        }
+    }
 
     func handleAddedCamera(_ camera: ICCameraDevice) {
         let vendorID = Int(camera.usbVendorID)
@@ -311,6 +388,7 @@ package final class DeviceDiscoveryService: NSObject {
             return
         }
         captureService.closeSession(for: fp)
+        clearLowBatteryState(for: fp)
         liveCameraByFingerprint.removeValue(forKey: fp)
         connectedDevices.removeAll { $0.fingerprint == fp }
         if unknownDeviceBanner?.fingerprint == fp {
@@ -368,6 +446,7 @@ package final class DeviceDiscoveryService: NSObject {
             .map(\.fingerprint)
         for fp in disconnectedCanonFPs {
             directCanonService.closeSession(for: fp, emitStatus: false)
+            clearLowBatteryState(for: fp)
             liveCameraByFingerprint.removeValue(forKey: fp)
             connectedDevices.removeAll { $0.fingerprint == fp }
             if unknownDeviceBanner?.fingerprint == fp {
@@ -381,7 +460,14 @@ package final class DeviceDiscoveryService: NSObject {
             guard let self, let idx = self.connectedDevices.firstIndex(where: { $0.fingerprint == fingerprint }) else { return }
             let previousStatus = self.connectedDevices[idx].status
             self.connectedDevices[idx].status = status
-            if let battery { self.connectedDevices[idx].batteryLevel = battery }
+            if let battery {
+                self.connectedDevices[idx].batteryLevel = battery
+                self.evaluateLowBattery(
+                    fingerprint: fingerprint,
+                    deviceName: self.connectedDevices[idx].alias,
+                    batteryPercent: battery
+                )
+            }
             if self.unknownDeviceBanner?.fingerprint == fingerprint {
                 self.unknownDeviceBanner = self.connectedDevices[idx]
             }

@@ -104,6 +104,7 @@ package enum CanonEOSPropertyParser {
             snapshot.aeModeValue = rawVal
             snapshot.aeModeLabel = label
         case .batteryPower:
+            snapshot.batteryPercent = CanonEOSLookupTables.batteryPercent(for: rawVal)
             snapshot.batteryPercentLabel = label
         case .availableShots:
             snapshot.availableShots = rawVal

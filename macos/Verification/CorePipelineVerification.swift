@@ -529,6 +529,21 @@ package enum CorePipelineVerification {
             "LiveView overlays (3x3, mirror, aspect guide) state mismatch"
         )
 
-        print("[PASS] 7. Folder session import, group/session rename, persistent Shift rotation, Canon ISO/Tv/Av PTP payloads & LiveView overlays")
+        // Verify Canon 0xD111 battery percent mapping & <= 10% LowBatteryAlertTracker hysteresis
+        try assertTrue(CanonEOSLookupTables.batteryPercent(for: 4) == 100, "Canon battery 4 must map to 100%")
+        try assertTrue(CanonEOSLookupTables.batteryPercent(for: 1) == 25, "Canon battery 1 must map to 25%")
+        try assertTrue(CanonEOSLookupTables.batteryPercent(for: 0) == 5, "Canon critical battery 0 must map to 5% (<=10%)")
+        try assertTrue(CanonEOSLookupTables.batteryPercent(for: 10) == 10, "Direct 10% battery must map to 10%")
+        try assertTrue(CanonEOSLookupTables.batteryPercent(for: 255) == nil, "External AC power must map to nil")
+
+        var batTracker = LowBatteryAlertTracker()
+        try assertTrue(!batTracker.evaluate(fingerprint: "cam-70d", batteryPercent: 25), "25% must not trigger <=10% alert")
+        try assertTrue(batTracker.evaluate(fingerprint: "cam-70d", batteryPercent: 10), "10% must trigger low-battery alert once")
+        try assertTrue(!batTracker.evaluate(fingerprint: "cam-70d", batteryPercent: 8), "Repeated <=10% must not spam alert")
+        try assertTrue(!batTracker.evaluate(fingerprint: "cam-70d", batteryPercent: 12), "12% inside hysteresis band must stay latched")
+        try assertTrue(!batTracker.evaluate(fingerprint: "cam-70d", batteryPercent: 25), "25% must reset latch without alerting")
+        try assertTrue(batTracker.evaluate(fingerprint: "cam-70d", batteryPercent: 5), "Dropping <=10% after recovery must alert again")
+
+        print("[PASS] 7. Folder session import, group/session rename, persistent Shift rotation, Canon ISO/Tv/Av PTP payloads, LiveView overlays & <=10% battery alerts")
     }
 }

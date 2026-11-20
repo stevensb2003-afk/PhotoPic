@@ -23,6 +23,35 @@ class WinConnectedDevice:
     category: DeviceCategory
     status_label: str
     is_live: bool = False
+    battery_level: int | None = None
+
+
+class LowBatteryAlertTrackerWin:
+    """Fires once when a tethered camera drops to <= 10% battery and resets above 15%."""
+
+    ALERT_THRESHOLD = 10
+    RECOVERY_THRESHOLD = 15
+
+    def __init__(self) -> None:
+        self._alerted: set[str] = set()
+
+    def evaluate(self, fingerprint: str, battery_percent: int | None) -> bool:
+        if battery_percent is None:
+            return False
+        if 0 <= battery_percent <= self.ALERT_THRESHOLD:
+            if fingerprint not in self._alerted:
+                self._alerted.add(fingerprint)
+                return True
+            return False
+        if battery_percent > self.RECOVERY_THRESHOLD:
+            self._alerted.discard(fingerprint)
+        return False
+
+    def reset(self, fingerprint: str) -> None:
+        self._alerted.discard(fingerprint)
+
+    def sync_connected(self, active_fingerprints: set[str]) -> None:
+        self._alerted.intersection_update(active_fingerprints)
 
 
 class WindowsTetherService:

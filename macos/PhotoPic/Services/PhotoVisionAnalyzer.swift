@@ -12,6 +12,9 @@ package actor PhotoVisionAnalyzer {
 
     package func analyze(cgImage: CGImage, includeBodyPose: Bool = true) -> PhotoVisionTags {
         let faceLandmarksReq = VNDetectFaceLandmarksRequest()
+        if VNDetectFaceLandmarksRequest.supportedRevisions.contains(VNDetectFaceLandmarksRequestRevision3) {
+            faceLandmarksReq.revision = VNDetectFaceLandmarksRequestRevision3
+        }
         let faceQualityReq = VNDetectFaceCaptureQualityRequest()
         let bodyPoseReq = VNDetectHumanBodyPoseRequest()
         let humanRectReq = VNDetectHumanRectanglesRequest()
@@ -28,13 +31,23 @@ package actor PhotoVisionAnalyzer {
             logger.warning("Vision analysis warning: \(error.localizedDescription, privacy: .public)")
         }
 
-        let faces = (faceLandmarksReq.results ?? []).filter { $0.confidence >= 0.45 }
-        let qualityFaces = faceQualityReq.results ?? []
+        let rawFaces = (faceLandmarksReq.results ?? []).filter { face in
+            let bb = face.boundingBox
+            return face.confidence >= 0.62
+                && bb.width >= 0.025
+                && bb.height >= 0.025
+                && (bb.width * bb.height) >= 0.0008
+        }
+        let faces = deduplicateOverlappingFaces(rawFaces)
+        let qualityFaces = (faceQualityReq.results ?? []).filter { $0.confidence >= 0.60 }
         let poses = includeBodyPose
-            ? (bodyPoseReq.results ?? []).filter { confidentJointCount(in: $0) >= 4 }
+            ? (bodyPoseReq.results ?? []).filter { confidentJointCount(in: $0) >= 6 }
             : []
         let humanRects = includeBodyPose
-            ? (humanRectReq.results ?? []).filter { $0.confidence >= 0.50 }
+            ? (humanRectReq.results ?? []).filter { rect in
+                let bb = rect.boundingBox
+                return rect.confidence >= 0.68 && bb.width >= 0.05 && bb.height >= 0.10
+            }
             : []
 
         let personCount = estimateUniquePersonCount(faces: faces, poses: poses, humanRects: humanRects)
@@ -139,14 +152,20 @@ package actor PhotoVisionAnalyzer {
         var anyOpenVerified = false
 
         for face in faces {
+            // Skip distant faces and steep side profiles where eye landmarks compress artificially.
+            guard face.boundingBox.height >= 0.055 else { continue }
+            if let yaw = face.yaw?.doubleValue, abs(yaw) > 0.55 { continue }
+            if let pitch = face.pitch?.doubleValue, abs(pitch) > 0.45 { continue }
+
             guard let landmarks = face.landmarks else { continue }
             let leftEAR = eyeAspectRatio(landmarks.leftEye)
             let rightEAR = eyeAspectRatio(landmarks.rightEye)
 
             if let l = leftEAR, let r = rightEAR {
-                if l < 0.135 && r < 0.135 {
+                let avgEAR = (l + r) * 0.5
+                if l < 0.125 && r < 0.125 && avgEAR < 0.120 {
                     anyClosed = true
-                } else {
+                } else if l >= 0.145 || r >= 0.145 {
                     anyOpenVerified = true
                 }
             }
@@ -158,7 +177,7 @@ package actor PhotoVisionAnalyzer {
             tags.append("Ojos abiertos")
         }
 
-        if let bestQuality = qualityFaces.compactMap(\.faceCaptureQuality).max(), bestQuality >= 0.60 {
+        if let bestQuality = qualityFaces.compactMap(\.faceCaptureQuality).max(), bestQuality >= 0.65 {
             tags.append("Rostro nítido")
         }
 
@@ -173,8 +192,32 @@ package actor PhotoVisionAnalyzer {
         guard let minX = xs.min(), let maxX = xs.max(), let minY = ys.min(), let maxY = ys.max() else {
             return nil
         }
-        let width = max(0.0001, maxX - minX)
+        let width = maxX - minX
+        guard width >= 0.04 else { return nil }
         return (maxY - minY) / width
+    }
+
+    private func deduplicateOverlappingFaces(_ faces: [VNFaceObservation]) -> [VNFaceObservation] {
+        let sorted = faces.sorted { $0.confidence > $1.confidence }
+        var kept: [VNFaceObservation] = []
+        for candidate in sorted {
+            let overlaps = kept.contains { existing in
+                rectIoU(existing.boundingBox, candidate.boundingBox) > 0.45
+            }
+            if !overlaps {
+                kept.append(candidate)
+            }
+        }
+        return kept
+    }
+
+    private func rectIoU(_ a: CGRect, _ b: CGRect) -> CGFloat {
+        let intersection = a.intersection(b)
+        guard !intersection.isNull && !intersection.isEmpty else { return 0 }
+        let interArea = intersection.width * intersection.height
+        let unionArea = (a.width * a.height) + (b.width * b.height) - interArea
+        guard unionArea > 0 else { return 0 }
+        return interArea / unionArea
     }
 
     // MARK: - 19-Joint Body Pose Classification
@@ -182,10 +225,12 @@ package actor PhotoVisionAnalyzer {
     private func appendPoseTags(poses: [VNHumanBodyPoseObservation], into tags: inout [String]) {
         for pose in poses {
             guard let pts = try? pose.recognizedPoints(.all) else { continue }
-            let minConf: Float = 0.25
+            let minConf: Float = 0.45
 
             let lShoulder = validPoint(pts[.leftShoulder], minConfidence: minConf)
             let rShoulder = validPoint(pts[.rightShoulder], minConfidence: minConf)
+            let lElbow = validPoint(pts[.leftElbow], minConfidence: minConf)
+            let rElbow = validPoint(pts[.rightElbow], minConfidence: minConf)
             let lWrist = validPoint(pts[.leftWrist], minConfidence: minConf)
             let rWrist = validPoint(pts[.rightWrist], minConfidence: minConf)
             let lHip = validPoint(pts[.leftHip], minConfidence: minConf)
@@ -194,15 +239,18 @@ package actor PhotoVisionAnalyzer {
             let rKnee = validPoint(pts[.rightKnee], minConfidence: minConf)
 
             // Vision coordinates have origin at bottom-left (Y increases upward).
-            if let lw = lWrist, let ls = lShoulder, lw.y > ls.y + 0.04 {
+            if let lw = lWrist, let ls = lShoulder, lElbow != nil, lw.y > ls.y + 0.06 {
                 tags.append("Brazos arriba")
-            } else if let rw = rWrist, let rs = rShoulder, rw.y > rs.y + 0.04 {
+            } else if let rw = rWrist, let rs = rShoulder, rElbow != nil, rw.y > rs.y + 0.06 {
                 tags.append("Brazos arriba")
             }
 
-            if let lw = lWrist, let rw = rWrist, let lh = lHip, let rh = rHip {
-                let leftNearHip = hypot(lw.x - lh.x, lw.y - lh.y) < 0.11
-                let rightNearHip = hypot(rw.x - rh.x, rw.y - rh.y) < 0.11
+            if let lw = lWrist, let rw = rWrist, let lh = lHip, let rh = rHip,
+               lElbow != nil, rElbow != nil {
+                let hipSpan = max(0.08, hypot(rh.x - lh.x, rh.y - lh.y))
+                let hipRadius = min(0.14, max(0.06, hipSpan * 0.65))
+                let leftNearHip = hypot(lw.x - lh.x, lw.y - lh.y) < hipRadius
+                let rightNearHip = hypot(rw.x - rh.x, rw.y - rh.y) < hipRadius
                 if leftNearHip && rightNearHip {
                     tags.append("Manos en cintura")
                 }
@@ -211,17 +259,20 @@ package actor PhotoVisionAnalyzer {
             if let shoulderMidY = midpointY(lShoulder, rShoulder),
                let hipMidY = midpointY(lHip, rHip),
                let kneeMidY = midpointY(lKnee, rKnee) {
-                let torso = max(0.05, shoulderMidY - hipMidY)
+                let torso = max(0.06, shoulderMidY - hipMidY)
                 let thighDrop = hipMidY - kneeMidY
-                tags.append(thighDrop < torso * 0.52 ? "Sentado" : "De pie")
+                tags.append(thighDrop < torso * 0.50 ? "Sentado" : "De pie")
             } else if poseHasAnkles(pose) {
                 tags.append("De pie")
             }
 
             if let ls = lShoulder, let rs = rShoulder {
-                let tilt = abs(atan2(rs.y - ls.y, max(0.001, abs(rs.x - ls.x)))) * (180.0 / .pi)
-                if tilt > 16.0 {
-                    tags.append("Pose dinámica")
+                let shoulderSpan = hypot(rs.x - ls.x, rs.y - ls.y)
+                if shoulderSpan >= 0.06 {
+                    let tilt = abs(atan2(rs.y - ls.y, max(0.001, abs(rs.x - ls.x)))) * (180.0 / .pi)
+                    if tilt > 18.0 {
+                        tags.append("Pose dinámica")
+                    }
                 }
             }
         }
@@ -229,19 +280,19 @@ package actor PhotoVisionAnalyzer {
 
     private func confidentJointCount(in pose: VNHumanBodyPoseObservation) -> Int {
         guard let pts = try? pose.recognizedPoints(.all) else { return 0 }
-        return pts.values.filter { $0.confidence >= 0.30 }.count
+        return pts.values.filter { $0.confidence >= 0.40 }.count
     }
 
     private func poseHorizontalCenter(_ pose: VNHumanBodyPoseObservation) -> CGFloat? {
         guard let pts = try? pose.recognizedPoints(.all) else { return nil }
-        let validX = pts.values.filter { $0.confidence >= 0.30 }.map { $0.location.x }
+        let validX = pts.values.filter { $0.confidence >= 0.40 }.map { $0.location.x }
         guard !validX.isEmpty else { return nil }
         return validX.reduce(0, +) / CGFloat(validX.count)
     }
 
     private func poseHasAnkles(_ pose: VNHumanBodyPoseObservation) -> Bool {
         guard let pts = try? pose.recognizedPoints(.all) else { return false }
-        return (pts[.leftAnkle]?.confidence ?? 0) >= 0.25 || (pts[.rightAnkle]?.confidence ?? 0) >= 0.25
+        return (pts[.leftAnkle]?.confidence ?? 0) >= 0.45 || (pts[.rightAnkle]?.confidence ?? 0) >= 0.45
     }
 
     private func validPoint(_ pt: VNRecognizedPoint?, minConfidence: Float) -> CGPoint? {

@@ -8,7 +8,18 @@ import sys
 
 from PySide6.QtCore import QObject, QTimer, Signal
 from PySide6.QtGui import QIcon
-from PySide6.QtWidgets import QApplication, QMainWindow, QMessageBox, QStackedWidget, QVBoxLayout, QWidget
+from PySide6.QtWidgets import (
+    QApplication,
+    QFrame,
+    QHBoxLayout,
+    QLabel,
+    QMainWindow,
+    QMessageBox,
+    QPushButton,
+    QStackedWidget,
+    QVBoxLayout,
+    QWidget,
+)
 
 from .cloud_updater import CloudAutoUpdaterWin
 from .design_system import build_darkroom_stylesheet, resolve_asset_path
@@ -18,7 +29,7 @@ from .ui_cloud_update import CloudUpdateBannerWidget
 from .ui_home import HomeDashboardWidget
 from .ui_setup_wizard import GuidedSetupWizardWidget, HardwareSettingsDialog
 from .ui_workspace import SessionWorkspaceWidget
-from .wpd_tether_service import WindowsTetherService
+from .wpd_tether_service import LowBatteryAlertTrackerWin, WindowsTetherService
 
 
 class _BridgeSignals(QObject):
@@ -56,6 +67,21 @@ class PhotoPicMainWindow(QMainWindow):
             auto_check=self._perf_prefs.auto_check_updates,
         )
 
+        self._battery_tracker = LowBatteryAlertTrackerWin()
+        self._battery_banner = QFrame()
+        self._battery_banner.setVisible(False)
+        self._battery_banner.setStyleSheet(
+            "QFrame { background-color: rgba(239, 68, 68, 0.18); border-bottom: 1px solid rgba(239, 68, 68, 0.55); }"
+        )
+        bat_lay = QHBoxLayout(self._battery_banner)
+        bat_lay.setContentsMargins(16, 8, 16, 8)
+        self._battery_label = QLabel("")
+        self._battery_label.setStyleSheet("color: #F4F4F5; font-weight: 600;")
+        self._battery_dismiss_btn = QPushButton("Entendido")
+        self._battery_dismiss_btn.clicked.connect(lambda: self._battery_banner.setVisible(False))
+        bat_lay.addWidget(self._battery_label, stretch=1)
+        bat_lay.addWidget(self._battery_dismiss_btn)
+
         self._update_banner = CloudUpdateBannerWidget(on_install_now=self._install_ready_cloud_update)
         self._stack = QStackedWidget()
         self._home = HomeDashboardWidget(
@@ -77,6 +103,7 @@ class PhotoPicMainWindow(QMainWindow):
         shell_lay.setContentsMargins(0, 0, 0, 0)
         shell_lay.setSpacing(0)
         shell_lay.addWidget(self._update_banner)
+        shell_lay.addWidget(self._battery_banner)
         shell_lay.addWidget(self._stack, stretch=1)
         self.setCentralWidget(shell)
 
@@ -175,10 +202,22 @@ class PhotoPicMainWindow(QMainWindow):
             self._workspace.handle_staged_file(path, filename, profile)
 
     def _on_devices_updated(self, devices: list) -> None:
+        active_fps = {d.fingerprint for d in devices}
+        self._battery_tracker.sync_connected(active_fps)
         if devices:
-            self._home.update_live_device_text(f"{devices[0].name} · {devices[0].status_label}", True)
+            primary = devices[0]
+            bat_suffix = f" · {primary.battery_level}%" if primary.battery_level is not None else ""
+            self._home.update_live_device_text(f"{primary.name} · {primary.status_label}{bat_suffix}", True)
+            for dev in devices:
+                if self._battery_tracker.evaluate(dev.fingerprint, dev.battery_level):
+                    self._battery_label.setText(
+                        f"Batería crítica en {dev.name} ({dev.battery_level}%) — Guardá tu sesión o cambiá la batería antes de que la cámara se desconecte."
+                    )
+                    self._battery_banner.setVisible(True)
+                    QApplication.beep()
         else:
             self._home.update_live_device_text("Esperando cámara USB / WPD...", False)
+            self._battery_banner.setVisible(False)
 
     def closeEvent(self, event) -> None:
         self.tether_service.stop()
