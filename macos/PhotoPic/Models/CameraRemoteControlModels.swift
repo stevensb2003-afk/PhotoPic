@@ -373,6 +373,9 @@ package enum CanonEOSLookupTables {
         case .availableShots:
             return "\(rawValue)"
         case .captureDestination:
+            if (rawValue & 0x04) != 0 && (rawValue & 0x03) != 0 {
+                return "Mac + Tarjeta SD"
+            }
             return (rawValue & 0x04) != 0 ? "Directo al Mac" : "Tarjeta SD"
         case .silentShutter:
             switch rawValue {

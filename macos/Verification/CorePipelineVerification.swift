@@ -544,6 +544,19 @@ package enum CorePipelineVerification {
         try assertTrue(!batTracker.evaluate(fingerprint: "cam-70d", batteryPercent: 25), "25% must reset latch without alerting")
         try assertTrue(batTracker.evaluate(fingerprint: "cam-70d", batteryPercent: 5), "Dropping <=10% after recovery must alert again")
 
+        // Verify Canon 70D CaptureDestination [2, 6, 4] AvailList prefers 6 (SD + Host PC) over 2 (SD-only)
+        var capDestEvent = Data()
+        for word: UInt32 in [32, 0xC18A, 0xD11C, 3, 3, 2, 6, 4] {
+            var le = word.littleEndian
+            withUnsafeBytes(of: &le) { capDestEvent.append(contentsOf: $0) }
+        }
+        var capSnap = CameraControlSnapshot(deviceName: "Canon EOS 70D")
+        CanonEOSPropertyParser.applyEvents(from: capDestEvent, into: &capSnap)
+        try assertTrue(
+            capSnap.detectedCardCaptureDest == 6,
+            "Canon 70D AvailList [2, 6, 4] must select 6 (SD + Host PC), got \(String(describing: capSnap.detectedCardCaptureDest))"
+        )
+
         print("[PASS] 7. Folder session import, group/session rename, persistent Shift rotation, Canon ISO/Tv/Av PTP payloads, LiveView overlays & <=10% battery alerts")
     }
 }

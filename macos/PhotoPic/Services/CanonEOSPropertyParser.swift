@@ -110,9 +110,11 @@ package enum CanonEOSPropertyParser {
             snapshot.availableShots = rawVal
         case .captureDestination:
             snapshot.currentCaptureDestRaw = rawVal
-            snapshot.keepOriginalsOnSD = (rawVal & 0x04) == 0
-            if rawVal != 0 && rawVal != 4 {
+            snapshot.keepOriginalsOnSD = (rawVal & 0x03) != 0
+            if (rawVal & 0x03) != 0 && (rawVal & 0x04) != 0 {
                 snapshot.detectedCardCaptureDest = rawVal
+            } else if snapshot.detectedCardCaptureDest == nil, (rawVal & 0x03) != 0 {
+                snapshot.detectedCardCaptureDest = rawVal | 0x04
             }
         case .silentShutter:
             snapshot.silentShutterValue = rawVal
@@ -150,12 +152,19 @@ package enum CanonEOSPropertyParser {
             let maxCount = min(Int(count), 64)
             let listStart = offset + 20
             guard listStart + maxCount * 4 <= entryEnd else { return false }
+            var candidates: [UInt32] = []
+            candidates.reserveCapacity(maxCount)
             for index in 0..<maxCount {
-                let candidate = readUInt32LE(data, at: listStart + index * 4)
-                if candidate != 0 && candidate != 4 {
-                    snapshot.detectedCardCaptureDest = candidate
-                    return true
-                }
+                candidates.append(readUInt32LE(data, at: listStart + index * 4))
+            }
+            // Prefer simultaneous Card + Host PC (e.g. 6 = SD+Mac on Canon 70D, 5 = CF+Mac) so photos transfer to Mac AND save to SD!
+            if let bothDest = candidates.first(where: { ($0 & 0x04) != 0 && ($0 & 0x03) != 0 }) {
+                snapshot.detectedCardCaptureDest = bothDest
+                return true
+            }
+            if let cardOnly = candidates.first(where: { ($0 & 0x03) != 0 }) {
+                snapshot.detectedCardCaptureDest = cardOnly
+                return true
             }
             return false
         }
