@@ -157,13 +157,13 @@ package enum CanonEOSPropertyParser {
             for index in 0..<maxCount {
                 candidates.append(readUInt32LE(data, at: listStart + index * 4))
             }
-            // Prefer simultaneous Card + Host PC (e.g. 6 = SD+Mac on Canon 70D, 5 = CF+Mac) so photos transfer to Mac AND save to SD!
+            // Connected to PhotoPic: ALWAYS include Host PC bit (0x04) so shots never stay on SD-only!
             if let bothDest = candidates.first(where: { ($0 & 0x04) != 0 && ($0 & 0x03) != 0 }) {
                 snapshot.detectedCardCaptureDest = bothDest
                 return true
             }
             if let cardOnly = candidates.first(where: { ($0 & 0x03) != 0 }) {
-                snapshot.detectedCardCaptureDest = cardOnly
+                snapshot.detectedCardCaptureDest = cardOnly | 0x04
                 return true
             }
             return false

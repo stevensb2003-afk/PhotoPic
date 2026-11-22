@@ -29,9 +29,10 @@ from .models import DeviceCategory, KnownDevice
 class LiveViewTabWidget(QWidget):
     """Streams OpenCV UVC / HDMI-USB capture frames without altering WPD photo drivers."""
 
-    def __init__(self, on_reference_saved, parent=None) -> None:
+    def __init__(self, on_reference_saved, on_capture_dest_changed=None, parent=None) -> None:
         super().__init__(parent)
         self._on_reference_saved = on_reference_saved
+        self._on_capture_dest_changed = on_capture_dest_changed
         self._cap: Any = None
         self._cv2: Any = None
         self._last_bgr: Any = None
@@ -79,9 +80,18 @@ class LiveViewTabWidget(QWidget):
         self._aspect_combo.addItem("1:1 Cuadrado", 1.0)
         self._aspect_combo.addItem("16:9 Cine", 16.0 / 9.0)
         self._aspect_combo.addItem("9:16 Vertical", 9.0 / 16.0)
+        self._dest_combo = QComboBox()
+        self._dest_combo.addItem("Destino: Compu + SD", True)
+        self._dest_combo.addItem("Destino: Solo Compu", False)
+        self._dest_combo.setToolTip(
+            "Conectado a PhotoPic siempre guarda en la Compu: elegí 'Compu + SD' para conservar respaldo en cámara o 'Solo Compu' para descargar sin dejar copia."
+        )
+        self._dest_combo.currentIndexChanged.connect(self._emit_dest_changed)
+
         bl.addWidget(self._chk_grid)
         bl.addWidget(self._chk_mirror)
         bl.addWidget(self._aspect_combo)
+        bl.addWidget(self._dest_combo)
         bl.addStretch()
 
         self._save_btn = QPushButton("Guardar Cuadro de Referencia")
@@ -109,6 +119,10 @@ class LiveViewTabWidget(QWidget):
 
     def _on_source_changed(self) -> None:
         self._url_input.setVisible(self._cam_combo.currentData() == "ip_url")
+
+    def _emit_dest_changed(self) -> None:
+        if self._on_capture_dest_changed is not None:
+            self._on_capture_dest_changed(bool(self._dest_combo.currentData()))
 
     def toggle_stream(self) -> None:
         if self._timer.isActive():

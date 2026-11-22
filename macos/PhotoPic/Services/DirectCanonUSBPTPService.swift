@@ -1223,22 +1223,16 @@ package final class DirectCanonUSBPTPService {
             controlSnapshots[fingerprint]?.keepOriginalsOnSD = false
             sessions[fingerprint]?.lastCaptureDestIsHostRAM = true
         } else {
-            // When keeping originals on SD, Canon EOS requires Card + Host bitmask (e.g. 0x06 = SD+Mac on 70D, 0x05 = CF+Mac)
-            // PLUS eosPCHDDCapacity (0x911A) so the camera writes to SD AND immediately streams each shot to the Mac!
+            // Connected to PhotoPic: ONLY allow Card + Host bitmasks (0x06 = Compu+SD, 0x05 = Compu+CF),
+            // NEVER card-only (0x01/0x02), and fall back to Host-only (0x04 = Solo Compu) if no card is inserted!
             var orderedCandidates: [UInt32] = []
             if let detected = controlSnapshots[fingerprint]?.detectedCardCaptureDest {
-                if (detected & 0x04) != 0 {
-                    orderedCandidates.append(detected)
-                } else {
-                    orderedCandidates.append(detected | CanonPTPCode.captureDestHostRAM)
-                    orderedCandidates.append(detected)
-                }
+                let withHost = (detected & 0x03) != 0 ? (detected | CanonPTPCode.captureDestHostRAM) : CanonPTPCode.captureDestSecondaryAndHost
+                orderedCandidates.append(withHost)
             }
             for fallback in [
                 CanonPTPCode.captureDestSecondaryAndHost,
-                CanonPTPCode.captureDestPrimaryAndHost,
-                CanonPTPCode.captureDestCardSecondary,
-                CanonPTPCode.captureDestCardPrimary
+                CanonPTPCode.captureDestPrimaryAndHost
             ] where !orderedCandidates.contains(fallback) {
                 orderedCandidates.append(fallback)
             }

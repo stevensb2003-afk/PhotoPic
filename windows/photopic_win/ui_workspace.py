@@ -107,7 +107,10 @@ class SessionWorkspaceWidget(QWidget):
         cull_lay.addWidget(self._inspector_card)
         self._stack.addWidget(cull_page)
 
-        self._live_tab = LiveViewTabWidget(on_reference_saved=self.handle_staged_file)
+        self._live_tab = LiveViewTabWidget(
+            on_reference_saved=self.handle_staged_file,
+            on_capture_dest_changed=self._set_capture_destination,
+        )
         self._stack.addWidget(self._live_tab)
 
         self._selected_tab = SelectedTabWidget(
@@ -428,6 +431,11 @@ class SessionWorkspaceWidget(QWidget):
     def _open_help(self) -> None:
         from .ui_help_dialog import HelpCenterDialog
         HelpCenterDialog(parent=self).exec()
+
+    def _set_capture_destination(self, keep_on_sd: bool) -> None:
+        self.tether_service.keep_originals_on_device = keep_on_sd
+        for prof in self.tether_service.known_devices.values():
+            prof.keep_originals_on_device = keep_on_sd
 
     def _switch_tab(self, idx: int) -> None:
         # Keep Live View running continuously while switching between Filtrar, Seleccionadas & Archivadas.

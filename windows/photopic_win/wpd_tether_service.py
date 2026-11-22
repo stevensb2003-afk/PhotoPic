@@ -63,6 +63,7 @@ class WindowsTetherService:
         self.known_devices: dict[str, KnownDevice] = {}
         self.gates: dict[str, TetherBaselineGate] = {}
         self.active_watch_folders: dict[str, Path] = {}
+        self.keep_originals_on_device: bool = True
         self._pending_sizes: dict[str, int] = {}
         self._stop_event = threading.Event()
         self._thread: threading.Thread | None = None
@@ -133,6 +134,11 @@ class WindowsTetherService:
                     staging.mkdir(parents=True, exist_ok=True)
                     staged_file = staging / path.name
                     staged_file.write_bytes(path.read_bytes())
+                    if not (profile.keep_originals_on_device and self.keep_originals_on_device):
+                        try:
+                            path.unlink()
+                        except OSError:
+                            pass
                     if self.on_file_staged:
                         self.on_file_staged(staged_file, path.name, profile)
 

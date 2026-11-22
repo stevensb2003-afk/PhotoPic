@@ -764,23 +764,35 @@ package struct LiveCameraControlDeckView: View {
 
     private var storageSection: some View {
         VStack(alignment: .leading, spacing: AppSpacing.xs) {
-            sectionHeading("Almacenamiento en Captura", badge: nil)
+            sectionHeading(
+                "Destino al Disparar",
+                badge: snapshot.keepOriginalsOnSD ? "Compu + SD" : "Solo Compu"
+            )
 
-            VStack(alignment: .leading, spacing: 6) {
-                Toggle(isOn: Binding(
-                    get: { snapshot.keepOriginalsOnSD },
-                    set: { onToggleKeepOriginals($0) }
-                )) {
-                    Text("Guardar copia en tarjeta SD de cámara")
-                        .font(AppTypography.captionMedium)
-                        .foregroundStyle(AppColors.textPrimary)
+            VStack(alignment: .leading, spacing: 8) {
+                HStack(spacing: 6) {
+                    Button {
+                        onToggleKeepOriginals(true)
+                    } label: {
+                        Text("Compu + SD")
+                            .frame(maxWidth: .infinity)
+                    }
+                    .buttonStyle(StudioButtonStyle(snapshot.keepOriginalsOnSD ? .primaryLight : .secondaryDark, compact: true))
+                    .help("Descarga cada foto a PhotoPic y además guarda copia en la tarjeta SD de la cámara")
+
+                    Button {
+                        onToggleKeepOriginals(false)
+                    } label: {
+                        Text("Solo Compu")
+                            .frame(maxWidth: .infinity)
+                    }
+                    .buttonStyle(StudioButtonStyle(!snapshot.keepOriginalsOnSD ? .primaryLight : .secondaryDark, compact: true))
+                    .help("Envía cada foto directo a PhotoPic sin llenar la tarjeta SD (máxima velocidad en ráfaga)")
                 }
-                .toggleStyle(.switch)
-                .help("Configura si cada foto queda guardada en la tarjeta SD de la cámara además de descargarse al Mac")
 
                 Text(snapshot.keepOriginalsOnSD
-                    ? "Destino activo: Mac + Tarjeta SD de la cámara."
-                    : "Destino activo: Directo al Mac (máxima velocidad en ráfaga).")
+                    ? "Guarda en PhotoPic y conserva copia de respaldo en la SD de la cámara."
+                    : "Descarga directo a PhotoPic sin guardar en la SD (máxima velocidad en ráfaga).")
                     .font(AppTypography.micro)
                     .foregroundStyle(AppColors.textSecondary)
                     .fixedSize(horizontal: false, vertical: true)

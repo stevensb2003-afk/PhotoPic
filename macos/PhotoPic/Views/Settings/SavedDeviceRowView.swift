@@ -53,22 +53,29 @@ package struct SavedDeviceRowView: View {
                 .controlSize(.small)
                 .help("Abrir conexión automáticamente al conectar el cable USB")
 
-                VStack(alignment: .leading, spacing: 3) {
-                    Toggle(
-                        "Mantener originales en la memoria/SD del dispositivo",
-                        isOn: Binding(get: { device.keepOriginalsOnDevice }, set: { onToggleKeepOriginals($0) })
-                    )
-                    .toggleStyle(.switch)
-                    .controlSize(.small)
-                    .help("En cámaras compatibles (Canon 0xD11C / PTP), conserva o borra el original en la tarjeta tras descargar al Mac")
+                VStack(alignment: .leading, spacing: 4) {
+                    HStack(spacing: AppSpacing.sm) {
+                        Text("Destino al disparar:")
+                            .font(AppTypography.body)
+                            .foregroundStyle(AppColors.textPrimary)
+                        Picker(
+                            "",
+                            selection: Binding(get: { device.keepOriginalsOnDevice }, set: { onToggleKeepOriginals($0) })
+                        ) {
+                            Text("Compu + SD / Memoria").tag(true)
+                            Text("Solo Compu").tag(false)
+                        }
+                        .pickerStyle(.segmented)
+                        .labelsHidden()
+                        .frame(maxWidth: 260)
+                    }
 
                     Text(device.keepOriginalsOnDevice
-                        ? "Activo: cada foto queda respaldada en la memoria/SD de tu dispositivo y además se descarga al Mac."
-                        : "Desactivado: descarga directo al Mac sin conservar copia en la cámara (en equipos compatibles).")
+                        ? "Compu + SD: cada foto entra a PhotoPic y además queda respaldada en la SD/memoria de la cámara."
+                        : "Solo Compu: envía cada foto directo a PhotoPic sin guardar copia en la cámara (máxima velocidad en ráfaga).")
                         .font(AppTypography.caption)
                         .foregroundStyle(AppColors.textTertiary)
                         .fixedSize(horizontal: false, vertical: true)
-                        .padding(.leading, 28)
                 }
 
                 Toggle(
