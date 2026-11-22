@@ -53,10 +53,26 @@ package struct TopDeviceStatusBar: View {
             }
 
             VStack(alignment: .leading, spacing: 1) {
-                Text(leadingTitle)
-                    .font(AppTypography.sectionTitle)
-                    .foregroundStyle(AppColors.textPrimary)
-                    .lineLimit(1)
+                HStack(spacing: AppSpacing.xs) {
+                    Text(leadingTitle)
+                        .font(AppTypography.sectionTitle)
+                        .foregroundStyle(AppColors.textPrimary)
+                        .lineLimit(1)
+                    if onBackAction == nil {
+                        Text("v\(Self.appVersionLabel)")
+                            .font(AppTypography.monoMicro)
+                            .foregroundStyle(AppColors.textTertiary)
+                            .padding(.horizontal, 6)
+                            .padding(.vertical, 2)
+                            .background(AppColors.elevatedSurface)
+                            .clipShape(Capsule())
+                            .overlay(
+                                Capsule()
+                                    .stroke(AppColors.borderSubtle, lineWidth: AppSpacing.hairline)
+                            )
+                            .help("Versión instalada de PhotoPic")
+                    }
+                }
                 if let leadingSubtitle {
                     Text(leadingSubtitle)
                         .font(AppTypography.caption)
@@ -192,6 +208,13 @@ package struct TopDeviceStatusBar: View {
         .buttonStyle(.plain)
         .onHover { isDevicePillHovered = $0 }
         .help("Ver estado USB y configurar dispositivos conectados")
+    }
+
+    private static var appVersionLabel: String {
+        if let short = Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String, !short.isEmpty {
+            return short
+        }
+        return "dev"
     }
 
     private var isDeviceLive: Bool {

@@ -21,6 +21,7 @@ from PySide6.QtWidgets import (
     QWidget,
 )
 
+from .cloud_updater import load_local_build_identity
 from .design_system import AppColors, AppSpacing
 from .folder_importer import SessionFolderImporter
 from .models import PhotoSession
@@ -58,12 +59,27 @@ class HomeDashboardWidget(QWidget):
 
         title = QLabel("PhotoPic")
         title.setStyleSheet("font-size: 15px; font-weight: 600;")
+        build_id = load_local_build_identity()
+        version_pill = QLabel(f"v{build_id.version}")
+        version_pill.setToolTip("Versión instalada de PhotoPic")
+        version_pill.setStyleSheet(
+            f"background: {AppColors.ELEVATED_SURFACE}; border: 1px solid {AppColors.BORDER_SUBTLE}; "
+            f"color: {AppColors.TEXT_TERTIARY}; border-radius: 8px; padding: 1px 6px; "
+            "font-family: Consolas, monospace; font-size: 10px;"
+        )
+        title_row = QHBoxLayout()
+        title_row.setSpacing(6)
+        title_row.setContentsMargins(0, 0, 0, 0)
+        title_row.addWidget(title)
+        title_row.addWidget(version_pill)
+        title_row.addStretch()
+
         self._root_label = QLabel("Sin carpeta raíz")
         self._root_label.setStyleSheet(f"color: {AppColors.TEXT_TERTIARY}; font-size: 11px;")
 
         title_col = QVBoxLayout()
         title_col.setSpacing(1)
-        title_col.addWidget(title)
+        title_col.addLayout(title_row)
         title_col.addWidget(self._root_label)
         bar_layout.addLayout(title_col)
         bar_layout.addStretch()
