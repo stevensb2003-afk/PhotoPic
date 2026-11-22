@@ -788,6 +788,14 @@ package final class DirectCanonUSBPTPService {
                 // Apply CaptureDestination based on keepOriginalsOnDevice using detected SD value
                 await self.applyCaptureDestination(transport: transport, keepOriginalsOnDevice: profile.keepOriginalsOnDevice, fingerprint: fp)
 
+                // Route EVF to the camera's own TFT LCD (0xD1B0 = 1) when PhotoPic Live View is OFF so the photographer
+                // can frame directly on the camera screen while tethered shots still stream immediately to the Mac.
+                let evfModeOn = CanonUSBPTPCodec.buildSetPropUInt32Payload(propCode: CanonPTPCode.propEVFMode, value: 1)
+                _ = try? await transport.execute(opCode: CanonPTPCode.eosSetDevicePropValueEx, outPayload: evfModeOn)
+                let evfTFT = CanonUSBPTPCodec.buildSetPropUInt32Payload(propCode: CanonPTPCode.propEVFOutputDevice, value: 1)
+                _ = try? await transport.execute(opCode: CanonPTPCode.eosSetDevicePropValueEx, outPayload: evfTFT)
+                _ = try? await transport.execute(opCode: CanonPTPCode.eosResetUILock)
+
                 self.onStatusChanged?(fp, .connectedReady, snapshot.batteryPercent)
                 self.startEventPollLoop(for: fp)
             } catch {
@@ -909,10 +917,13 @@ package final class DirectCanonUSBPTPService {
         stopLiveView()
         if let ctx = sessions[fingerprint] {
             let transport = ctx.transport
+            let outMirrorDown = CanonUSBPTPCodec.buildSetPropUInt32Payload(propCode: CanonPTPCode.propEVFOutputDevice, value: 0)
+            _ = try? await transport.execute(opCode: CanonPTPCode.eosSetDevicePropValueEx, outPayload: outMirrorDown, timeout: 1.5)
             let silentOff = CanonEOSPropertyParser.buildSetPropertyPayload(property: .silentShutter, rawValue: 0)
             _ = try? await transport.execute(opCode: CanonPTPCode.eosSetDevicePropValueEx, outPayload: silentOff, timeout: 2.0)
             let stroboOn = CanonEOSPropertyParser.buildSetPropertyPayload(property: .stroboFiring, rawValue: 0)
             _ = try? await transport.execute(opCode: CanonPTPCode.eosSetDevicePropValueEx, outPayload: stroboOn, timeout: 2.0)
+            _ = try? await transport.execute(opCode: CanonPTPCode.eosResetUILock, timeout: 1.5)
         }
         controlSnapshots[fingerprint]?.applyDemoChange(property: .silentShutter, rawValue: 0)
         controlSnapshots[fingerprint]?.applyDemoChange(property: .stroboFiring, rawValue: 0)
@@ -1192,11 +1203,13 @@ package final class DirectCanonUSBPTPService {
         let evfModeRes = try await transport.execute(opCode: CanonPTPCode.eosSetDevicePropValueEx, outPayload: evfPayload)
         try? await Task.sleep(for: .milliseconds(150))
 
-        let outPayload3 = CanonUSBPTPCodec.buildSetPropUInt32Payload(propCode: CanonPTPCode.propEVFOutputDevice, value: 3)
-        var outRes = try await transport.execute(opCode: CanonPTPCode.eosSetDevicePropValueEx, outPayload: outPayload3)
+        // In PhotoPic Live View, route EVF to PC-only (0xD1B0 = 2) so the camera's physical LCD turns off
+        // and only the Mac displays the live stream (falls back to 3 if a body requires TFT+PC).
+        let outPayload2 = CanonUSBPTPCodec.buildSetPropUInt32Payload(propCode: CanonPTPCode.propEVFOutputDevice, value: 2)
+        var outRes = try await transport.execute(opCode: CanonPTPCode.eosSetDevicePropValueEx, outPayload: outPayload2)
         if outRes.responseCode != CanonPTPCode.responseOK {
-            let outPayload2 = CanonUSBPTPCodec.buildSetPropUInt32Payload(propCode: CanonPTPCode.propEVFOutputDevice, value: 2)
-            outRes = try await transport.execute(opCode: CanonPTPCode.eosSetDevicePropValueEx, outPayload: outPayload2)
+            let outPayload3 = CanonUSBPTPCodec.buildSetPropUInt32Payload(propCode: CanonPTPCode.propEVFOutputDevice, value: 3)
+            outRes = try await transport.execute(opCode: CanonPTPCode.eosSetDevicePropValueEx, outPayload: outPayload3)
         }
         _ = try? await transport.execute(opCode: CanonPTPCode.eosResetUILock)
         return evfModeRes.responseCode == CanonPTPCode.responseOK || outRes.responseCode == CanonPTPCode.responseOK
@@ -1316,15 +1329,6 @@ package final class DirectCanonUSBPTPService {
                         if CanonEOSPropertyParser.applyEvents(from: eventRes.dataPayload, into: &snap) {
                             snap.keepOriginalsOnSD = latestCtx.profile.keepOriginalsOnDevice
                             self.controlSnapshots[fingerprint] = snap
-                            // If turning the physical mode dial on the camera reset CaptureDestination to SD-only (missing 0x04 Host bit),
-                            // re-apply CaptureDestination + PCHDDCapacity immediately so shots keep arriving in PhotoPic!
-                            if let curDest = snap.currentCaptureDestRaw, (curDest & 0x04) == 0 {
-                                await self.applyCaptureDestination(
-                                    transport: ctx.transport,
-                                    keepOriginalsOnDevice: latestCtx.profile.keepOriginalsOnDevice,
-                                    fingerprint: fingerprint
-                                )
-                            }
                             if let updatedBattery = snap.batteryPercent, updatedBattery != previousBattery {
                                 let status: DeviceConnectionStatus = latestCtx.activeDownloads > 0
                                     ? .capturing(activeDownloads: latestCtx.activeDownloads)

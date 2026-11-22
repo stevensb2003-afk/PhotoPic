@@ -370,7 +370,7 @@ package enum HardwareAndArchiveDeleteVerification {
         var parsedSnapshot = CameraControlSnapshot(deviceName: "Canon EOS 70D")
         let didApplyProps = CanonEOSPropertyParser.applyEvents(from: propPacket, into: &parsedSnapshot)
         try assertTrue(didApplyProps, "Canon EOS property events parsed cleanly")
-        try assertTrue(parsedSnapshot.detectedCardCaptureDest == 2, "CaptureDestination SD option (2) detected from 0xD11C AvailListChanged")
+        try assertTrue(parsedSnapshot.detectedCardCaptureDest == 6, "CaptureDestination Compu+SD option (6 = 2|4) detected from 0xD11C AvailListChanged")
         try assertTrue(parsedSnapshot.aeModeLabel == "M (Manual)", "AE Mode label parsed accurately")
         try assertTrue(parsedSnapshot.lensName == "EF-S 18-55mm f/3.5-5.6 IS STM", "Lens name parsed as null-terminated ASCII")
         try assertTrue(parsedSnapshot.controls[.aperture]?.currentLabel == "f/4.0" && parsedSnapshot.controls[.aperture]?.availableOptions.count == 3 && parsedSnapshot.controls[.aperture]?.isWritable == true, "Aperture value and 4-byte stride AvailList parsed cleanly")
