@@ -752,13 +752,9 @@ package final class DirectCanonUSBPTPService {
                     throw CanonUSBTransportError.ioFailed("Este modelo Canon no soporta RemoteMode PTP directo.")
                 }
                 _ = try await transport.execute(opCode: CanonPTPCode.eosSetEventMode, params: [1])
-                // Ensure camera physical dials, menus, Live View capability (0xD1B1=1), and flash controls stay unlocked while tethered.
-                // NEVER write propEVFMode (0xD1B1) = 0, as Canon persists 0xD1B1 in NVRAM and disables Live View / Video on the camera body!
+                // Ensure camera physical dials, menus, and flash controls stay unlocked while tethered.
+                // Do NOT touch EVFMode (0xD1B1) or EVFOutputDevice (0xD1B0) on connect so the camera's LCD and Video mode remain 100% untouched until Live View is explicitly started.
                 _ = try? await transport.execute(opCode: CanonPTPCode.eosResetUILock)
-                let evfEnableMenu = CanonUSBPTPCodec.buildSetPropUInt32Payload(propCode: CanonPTPCode.propEVFMode, value: 1)
-                _ = try? await transport.execute(opCode: CanonPTPCode.eosSetDevicePropValueEx, outPayload: evfEnableMenu)
-                let evfOutOff = CanonUSBPTPCodec.buildSetPropUInt32Payload(propCode: CanonPTPCode.propEVFOutputDevice, value: 0)
-                _ = try? await transport.execute(opCode: CanonPTPCode.eosSetDevicePropValueEx, outPayload: evfOutOff)
                 let stroboEnable = CanonUSBPTPCodec.buildSetPropUInt32Payload(propCode: CanonPTPCode.propStroboFiring, value: 0)
                 _ = try? await transport.execute(opCode: CanonPTPCode.eosSetDevicePropValueEx, outPayload: stroboEnable)
 
@@ -810,9 +806,13 @@ package final class DirectCanonUSBPTPService {
         guard let ctx = sessions.removeValue(forKey: fingerprint) else { return }
         ctx.pollTask?.cancel()
         let transport = ctx.transport
+        let wasLiveView = ctx.isLiveViewActive
         Task.detached(priority: .userInitiated) {
-            let out0 = CanonUSBPTPCodec.buildSetPropUInt32Payload(propCode: CanonPTPCode.propEVFOutputDevice, value: 0)
-            _ = try? await transport.execute(opCode: CanonPTPCode.eosSetDevicePropValueEx, outPayload: out0, timeout: 1.5)
+            if wasLiveView {
+                // Restore output routing back to camera internal TFT LCD (1) before releasing session
+                let outTFT = CanonUSBPTPCodec.buildSetPropUInt32Payload(propCode: CanonPTPCode.propEVFOutputDevice, value: 1)
+                _ = try? await transport.execute(opCode: CanonPTPCode.eosSetDevicePropValueEx, outPayload: outTFT, timeout: 1.5)
+            }
             _ = try? await transport.execute(opCode: CanonPTPCode.eosResetUILock, timeout: 1.5)
             _ = try? await transport.execute(opCode: CanonPTPCode.eosSetEventMode, params: [0], timeout: 1.5)
             _ = try? await transport.execute(opCode: CanonPTPCode.eosSetRemoteMode, params: [0], timeout: 1.5)
@@ -1273,10 +1273,10 @@ package final class DirectCanonUSBPTPService {
     }
 
     private func disableLiveViewOnCamera(transport: CanonUSBTransport) async {
-        // CRITICAL: Only turn off EVFOutputDevice (0xD1B0 = 0). NEVER write propEVFMode (0xD1B1 = 0),
-        // because Canon persists 0xD1B1 in NVRAM and permanently disables Live View & Video on the camera!
-        let out0 = CanonUSBPTPCodec.buildSetPropUInt32Payload(propCode: CanonPTPCode.propEVFOutputDevice, value: 0)
-        _ = try? await transport.execute(opCode: CanonPTPCode.eosSetDevicePropValueEx, outPayload: out0, timeout: 1.5)
+        // Restore EVFOutputDevice back to camera's internal TFT LCD (1) so the rear screen never stays black,
+        // and never disable EVFMode (0xD1B1 = 0).
+        let outTFT = CanonUSBPTPCodec.buildSetPropUInt32Payload(propCode: CanonPTPCode.propEVFOutputDevice, value: 1)
+        _ = try? await transport.execute(opCode: CanonPTPCode.eosSetDevicePropValueEx, outPayload: outTFT, timeout: 1.5)
         _ = try? await transport.execute(opCode: CanonPTPCode.eosResetUILock, timeout: 1.5)
     }
 
