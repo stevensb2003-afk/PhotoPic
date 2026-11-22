@@ -752,8 +752,13 @@ package final class DirectCanonUSBPTPService {
                     throw CanonUSBTransportError.ioFailed("Este modelo Canon no soporta RemoteMode PTP directo.")
                 }
                 _ = try await transport.execute(opCode: CanonPTPCode.eosSetEventMode, params: [1])
-                // Ensure camera physical dials, menus, and flash controls stay unlocked while tethered
+                // Ensure camera physical dials, menus, Live View capability (0xD1B1=1), and flash controls stay unlocked while tethered.
+                // NEVER write propEVFMode (0xD1B1) = 0, as Canon persists 0xD1B1 in NVRAM and disables Live View / Video on the camera body!
                 _ = try? await transport.execute(opCode: CanonPTPCode.eosResetUILock)
+                let evfEnableMenu = CanonUSBPTPCodec.buildSetPropUInt32Payload(propCode: CanonPTPCode.propEVFMode, value: 1)
+                _ = try? await transport.execute(opCode: CanonPTPCode.eosSetDevicePropValueEx, outPayload: evfEnableMenu)
+                let evfOutOff = CanonUSBPTPCodec.buildSetPropUInt32Payload(propCode: CanonPTPCode.propEVFOutputDevice, value: 0)
+                _ = try? await transport.execute(opCode: CanonPTPCode.eosSetDevicePropValueEx, outPayload: evfOutOff)
                 let stroboEnable = CanonUSBPTPCodec.buildSetPropUInt32Payload(propCode: CanonPTPCode.propStroboFiring, value: 0)
                 _ = try? await transport.execute(opCode: CanonPTPCode.eosSetDevicePropValueEx, outPayload: stroboEnable)
 
@@ -806,6 +811,9 @@ package final class DirectCanonUSBPTPService {
         ctx.pollTask?.cancel()
         let transport = ctx.transport
         Task.detached(priority: .userInitiated) {
+            let out0 = CanonUSBPTPCodec.buildSetPropUInt32Payload(propCode: CanonPTPCode.propEVFOutputDevice, value: 0)
+            _ = try? await transport.execute(opCode: CanonPTPCode.eosSetDevicePropValueEx, outPayload: out0, timeout: 1.5)
+            _ = try? await transport.execute(opCode: CanonPTPCode.eosResetUILock, timeout: 1.5)
             _ = try? await transport.execute(opCode: CanonPTPCode.eosSetEventMode, params: [0], timeout: 1.5)
             _ = try? await transport.execute(opCode: CanonPTPCode.eosSetRemoteMode, params: [0], timeout: 1.5)
             _ = try? await transport.execute(opCode: CanonPTPCode.closeSession, timeout: 1.5)
@@ -1087,18 +1095,15 @@ package final class DirectCanonUSBPTPService {
                 var windowStart = Date()
 
                 while !Task.isCancelled && self.isDirectLiveViewStreaming && self.liveViewGeneration == myGeneration {
-                    // Only pause completely during the brief physical shutter exposure (~300ms) when the mirror/curtain blocks the sensor.
+                    // Pause EVF polling while triggering shutter OR downloading a captured RAW/JPG so
+                    // 0x9153 never collides with GetPartialObject chunks on Canon DIGIC USB bulk pipes.
                     let liveCtx = self.sessions[fingerprint]
-                    if liveCtx?.isTriggeringShutter == true {
+                    if liveCtx?.isTriggeringShutter == true || (liveCtx?.activeDownloads ?? 0) > 0 {
                         consecutiveBusy = 0
                         didAttemptAutoReattach = false
-                        try? await Task.sleep(for: .milliseconds(100))
+                        try? await Task.sleep(for: .milliseconds(80))
                         continue
                     }
-
-                    // During RAW+JPG chunk downloads, time-slice EVF frames (~5 FPS) between 1 MB USB chunks
-                    // so live preview keeps updating while moving the camera without ever tripping busy timeout!
-                    let isDownloading = (liveCtx?.activeDownloads ?? 0) > 0
 
                     let frameRes = try await transport.execute(
                         opCode: CanonPTPCode.eosGetViewFinderData,
@@ -1107,11 +1112,6 @@ package final class DirectCanonUSBPTPService {
                     )
 
                     if frameRes.responseCode == CanonPTPCode.responseDeviceBusy || frameRes.responseCode == CanonPTPCode.responseCanonNotReady || frameRes.dataPayload.isEmpty {
-                        if isDownloading {
-                            consecutiveBusy = 0
-                            try? await Task.sleep(for: .milliseconds(180))
-                            continue
-                        }
                         consecutiveBusy += 1
                         // After a shot (especially in continuous/burst drive on 70D), Canon may pause EVF briefly;
                         // silently re-assert EVFOutputDevice once before giving up.
@@ -1141,7 +1141,7 @@ package final class DirectCanonUSBPTPService {
                         }
                         onFrame(cg)
                     }
-                    try? await Task.sleep(for: .milliseconds(isDownloading ? 180 : 45))
+                    try? await Task.sleep(for: .milliseconds(45))
                 }
             } catch {
                 if !Task.isCancelled && self.liveViewGeneration == myGeneration {
@@ -1273,10 +1273,10 @@ package final class DirectCanonUSBPTPService {
     }
 
     private func disableLiveViewOnCamera(transport: CanonUSBTransport) async {
+        // CRITICAL: Only turn off EVFOutputDevice (0xD1B0 = 0). NEVER write propEVFMode (0xD1B1 = 0),
+        // because Canon persists 0xD1B1 in NVRAM and permanently disables Live View & Video on the camera!
         let out0 = CanonUSBPTPCodec.buildSetPropUInt32Payload(propCode: CanonPTPCode.propEVFOutputDevice, value: 0)
         _ = try? await transport.execute(opCode: CanonPTPCode.eosSetDevicePropValueEx, outPayload: out0, timeout: 1.5)
-        let evf0 = CanonUSBPTPCodec.buildSetPropUInt32Payload(propCode: CanonPTPCode.propEVFMode, value: 0)
-        _ = try? await transport.execute(opCode: CanonPTPCode.eosSetDevicePropValueEx, outPayload: evf0, timeout: 1.5)
         _ = try? await transport.execute(opCode: CanonPTPCode.eosResetUILock, timeout: 1.5)
     }
 
@@ -1364,6 +1364,14 @@ package final class DirectCanonUSBPTPService {
                         params: [item.handle, offset, remaining],
                         timeout: 15.0
                     )
+                    for retryDelay in [120, 200, 300] where res.responseCode == CanonPTPCode.responseDeviceBusy || res.responseCode == CanonPTPCode.responseCanonNotReady {
+                        try? await Task.sleep(for: .milliseconds(retryDelay))
+                        res = try await transport.execute(
+                            opCode: primaryPartialOp,
+                            params: [item.handle, offset, remaining],
+                            timeout: 15.0
+                        )
+                    }
                     if res.responseCode != CanonPTPCode.responseOK && offset == 0 {
                         let secondaryPartialOp = item.isRAMTransfer ? CanonPTPCode.getPartialObject : CanonPTPCode.eosGetPartialObject
                         let altRes = try await transport.execute(
