@@ -206,17 +206,22 @@ class WindowsTetherService:
     def _copy_wpd_item(self, device_name: str, sub_path: str, filename: str, profile: KnownDevice) -> None:
         staging = Path(tempfile.gettempdir()) / "PhotoPicStaging" / str(uuid.uuid4())
         staging.mkdir(parents=True, exist_ok=True)
-        subprocess.run(
-            [
-                "powershell", "-NoProfile", "-ExecutionPolicy", "Bypass",
-                "-File", str(self._script_path),
-                "-Action", "copy", "-DeviceName", device_name,
-                "-ItemPath", sub_path, "-DestDir", str(staging),
-            ],
-            capture_output=True,
-            timeout=20,
-        )
         candidate = staging / filename
+        for attempt in range(3):
+            if attempt > 0:
+                time.sleep(0.2 * attempt)
+            subprocess.run(
+                [
+                    "powershell", "-NoProfile", "-ExecutionPolicy", "Bypass",
+                    "-File", str(self._script_path),
+                    "-Action", "copy", "-DeviceName", device_name,
+                    "-ItemPath", sub_path, "-DestDir", str(staging),
+                ],
+                capture_output=True,
+                timeout=20,
+            )
+            if candidate.exists() and candidate.stat().st_size > 0:
+                break
         if candidate.exists() and self.on_file_staged:
             self.on_file_staged(candidate, filename, profile)
 

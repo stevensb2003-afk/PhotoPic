@@ -1458,7 +1458,6 @@ package final class DirectCanonUSBPTPService {
                 let chunkSize: UInt32 = 1_048_576
                 var offset: UInt32 = 0
                 let total = item.fileSize
-                var usedFullGetObjectFallback = false
 
                 while total == 0 || offset < total {
                     let remaining = total > 0 ? min(chunkSize, total - offset) : chunkSize
@@ -1505,7 +1504,6 @@ package final class DirectCanonUSBPTPService {
                             throw CanonUSBTransportError.ioFailed(String(format: "GetObject error 0x%04X", fullRes.responseCode))
                         }
                         fileData = fullRes.dataPayload
-                        usedFullGetObjectFallback = true
                         break
                     }
                     if res.dataPayload.isEmpty { break }

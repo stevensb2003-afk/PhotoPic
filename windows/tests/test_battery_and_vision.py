@@ -3,10 +3,14 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
+from pathlib import Path
+import sys
 import unittest
 
-from photopic_win.vision_autotagger import VisionAutoTaggerWin
-from photopic_win.wpd_tether_service import LowBatteryAlertTrackerWin
+sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
+
+from windows.photopic_win.vision_autotagger import VisionAutoTaggerWin
+from windows.photopic_win.wpd_tether_service import LowBatteryAlertTrackerWin
 
 
 @dataclass

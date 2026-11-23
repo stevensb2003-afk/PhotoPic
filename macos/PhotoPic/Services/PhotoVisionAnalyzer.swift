@@ -200,18 +200,25 @@ package actor PhotoVisionAnalyzer {
     private func deduplicateOverlappingFaces(_ faces: [VNFaceObservation]) -> [VNFaceObservation] {
         let sorted = faces.sorted { $0.confidence > $1.confidence }
         var kept: [VNFaceObservation] = []
+        var keptBoxes: [CGRect] = []
         for candidate in sorted {
-            let overlaps = kept.contains { existing in
-                rectIoU(existing.boundingBox, candidate.boundingBox) > 0.45
+            let candidateBox = candidate.boundingBox
+            var overlaps = false
+            for existingBox in keptBoxes {
+                if Self.rectIoU(existingBox, candidateBox) > 0.45 {
+                    overlaps = true
+                    break
+                }
             }
             if !overlaps {
                 kept.append(candidate)
+                keptBoxes.append(candidateBox)
             }
         }
         return kept
     }
 
-    private func rectIoU(_ a: CGRect, _ b: CGRect) -> CGFloat {
+    nonisolated private static func rectIoU(_ a: CGRect, _ b: CGRect) -> CGFloat {
         let intersection = a.intersection(b)
         guard !intersection.isNull && !intersection.isEmpty else { return 0 }
         let interArea = intersection.width * intersection.height
