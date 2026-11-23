@@ -431,8 +431,9 @@ package final class DeviceDiscoveryService: NSObject {
                     unknownDeviceBanner = state
                 }
             } else if let matchedSaved, matchedSaved.autoConnectOnPlug,
-                      connectedDevices[existingIdx!].status == .detectedNotConnected,
-                      !directCanonService.hasSession(for: fp) {
+                      !directCanonService.hasSession(for: fp),
+                      !connectedDevices[existingIdx!].status.isLiveSessionOpen,
+                      !connectedDevices[existingIdx!].status.isConnectingOrIndexing {
                 directCanonService.openSession(profile: matchedSaved)
             }
         }

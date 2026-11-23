@@ -557,6 +557,22 @@ package enum CorePipelineVerification {
             "Canon 70D AvailList [2, 6, 4] must select 6 (SD + Host PC), got \(String(describing: capSnap.detectedCardCaptureDest))"
         )
 
+        // Verify compact 24-byte (0x18) 0xC186 RequestObjectTransfer event parses cleanly without being dropped
+        var shortTransferEvent = Data()
+        for word: UInt32 in [0x18, CanonPTPCode.eventRequestObjectTransfer, 0x9100_0042, UInt32(CanonPTPCode.formatCanonCRW3), 0, 24_500_000] {
+            var le = word.littleEndian
+            withUnsafeBytes(of: &le) { shortTransferEvent.append(contentsOf: $0) }
+        }
+        var dummyCounter = 0
+        let parsedShortEvents = CanonUSBPTPCodec.parseEOSCaptureEvents(from: shortTransferEvent, fallbackCounter: &dummyCounter)
+        try assertTrue(
+            parsedShortEvents.count == 1
+                && parsedShortEvents[0].handle == 0x9100_0042
+                && parsedShortEvents[0].isRAMTransfer
+                && parsedShortEvents[0].filename.hasSuffix(".CR2"),
+            "Compact 24-byte 0xC186 RequestObjectTransfer must parse cleanly as CR2 RAM transfer"
+        )
+
         print("[PASS] 7. Folder session import, group/session rename, persistent Shift rotation, Canon ISO/Tv/Av PTP payloads, LiveView overlays & <=10% battery alerts")
     }
 }

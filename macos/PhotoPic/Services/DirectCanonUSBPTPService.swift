@@ -156,11 +156,11 @@ package enum CanonUSBPTPCodec {
             switch eventCode {
             case CanonPTPCode.eventRequestObjectTransfer,
                  CanonPTPCode.eventRequestObjectTransfer64:
-                if entrySize >= 0x1D {
+                if entrySize >= 0x14 {
                     let handle = readUInt32LE(data, at: offset + 0x08)
-                    let ofc = readUInt16LE(data, at: offset + 0x0C)
-                    let fileSize = readUInt32LE(data, at: offset + 0x14)
-                    let rawName = readCString(data, at: offset + 0x1C, limit: offset + entrySize)
+                    let ofc = entrySize >= 0x0E ? readUInt16LE(data, at: offset + 0x0C) : 0
+                    let fileSize = entrySize >= 0x18 ? readUInt32LE(data, at: offset + 0x14) : 0
+                    let rawName = entrySize >= 0x1D ? readCString(data, at: offset + 0x1C, limit: offset + entrySize) : nil
                     if ofc != CanonPTPCode.formatFolderAssociation {
                         fallbackCounter += 1
                         let filename = normalizeFilename(rawName, ofc: ofc, counter: fallbackCounter)
@@ -175,10 +175,10 @@ package enum CanonUSBPTPCodec {
                 }
 
             case CanonPTPCode.eventRequestObjectTransfer64LFN:
-                if entrySize >= 0x18 {
+                if entrySize >= 0x14 {
                     let handle = readUInt32LE(data, at: offset + 0x08)
-                    let ofc = readUInt16LE(data, at: offset + 0x0C)
-                    let fileSize = readUInt32LE(data, at: offset + 0x14)
+                    let ofc = entrySize >= 0x0E ? readUInt16LE(data, at: offset + 0x0C) : 0
+                    let fileSize = entrySize >= 0x18 ? readUInt32LE(data, at: offset + 0x14) : 0
                     if ofc != CanonPTPCode.formatFolderAssociation {
                         fallbackCounter += 1
                         let filename = normalizeFilename(nil, ofc: ofc, counter: fallbackCounter)
@@ -193,11 +193,11 @@ package enum CanonUSBPTPCodec {
                 }
 
             case CanonPTPCode.eventObjectAddedEx:
-                if entrySize >= 0x29 {
+                if entrySize >= 0x24 {
                     let handle = readUInt32LE(data, at: offset + 0x08)
                     let ofc = readUInt16LE(data, at: offset + 0x10)
                     let fileSize = readUInt32LE(data, at: offset + 0x1C)
-                    let rawName = readCString(data, at: offset + 0x28, limit: offset + entrySize)
+                    let rawName = entrySize >= 0x29 ? readCString(data, at: offset + 0x28, limit: offset + entrySize) : nil
                     if ofc != CanonPTPCode.formatFolderAssociation {
                         fallbackCounter += 1
                         let filename = normalizeFilename(rawName, ofc: ofc, counter: fallbackCounter)
@@ -211,12 +211,13 @@ package enum CanonUSBPTPCodec {
                     }
                 }
 
-            case CanonPTPCode.eventObjectAddedEx64:
-                if entrySize >= 0x2D {
+            case CanonPTPCode.eventObjectAddedEx64,
+                 CanonPTPCode.eventObjectAddedEx64LFN:
+                if entrySize >= 0x28 {
                     let handle = readUInt32LE(data, at: offset + 0x08)
                     let ofc = readUInt16LE(data, at: offset + 0x10)
                     let fileSize = readUInt32LE(data, at: offset + 0x1C)
-                    let rawName = readCString(data, at: offset + 0x2C, limit: offset + entrySize)
+                    let rawName = entrySize >= 0x2D ? readCString(data, at: offset + 0x2C, limit: offset + entrySize) : nil
                     if ofc != CanonPTPCode.formatFolderAssociation {
                         fallbackCounter += 1
                         let filename = normalizeFilename(rawName, ofc: ofc, counter: fallbackCounter)
@@ -490,9 +491,27 @@ private final class CanonUSBTransport: @unchecked Sendable {
             try writeBulk(pipe: outPipe, data: dataPacket, timeout: timeout)
         }
 
-        // Read first Bulk-In transfer (64 KB aligned to USB packet size)
-        let firstChunk = try readBulkChunk(pipe: inPipe, maxBytes: 65_536, timeout: timeout)
-        guard let header = CanonUSBPTPCodec.parseContainerHeader(firstChunk) else {
+        // Read first Bulk-In transfer (64 KB aligned to USB packet size), skipping any 0-byte USB ZLP
+        // or stale 12-byte Response container left over from a prior transaction.
+        var firstChunk = Data()
+        var parsedFirstHeader: (length: UInt32, type: UInt16, code: UInt16, transactionID: UInt32)?
+        for _ in 0..<5 {
+            let candidate = try readBulkChunk(pipe: inPipe, maxBytes: 65_536, timeout: timeout)
+            if candidate.isEmpty {
+                continue // Skip USB 2.0 Zero-Length Packet (ZLP)
+            }
+            if let hdr = CanonUSBPTPCodec.parseContainerHeader(candidate) {
+                if hdr.type == 3 && hdr.transactionID != txID && candidate.count == 12 {
+                    // Discard stale 12-byte Response packet from an earlier transaction
+                    continue
+                }
+                firstChunk = candidate
+                parsedFirstHeader = hdr
+                break
+            }
+        }
+        guard let header = parsedFirstHeader else {
+            drainStaleBulkIn(pipe: inPipe)
             throw CanonUSBTransportError.invalidHeader
         }
 
@@ -502,6 +521,7 @@ private final class CanonUSBTransport: @unchecked Sendable {
         }
 
         guard header.type == 2 else {
+            drainStaleBulkIn(pipe: inPipe)
             throw CanonUSBTransportError.invalidHeader
         }
 
@@ -509,30 +529,46 @@ private final class CanonUSBTransport: @unchecked Sendable {
         var assembled = Data(capacity: max(totalExpected, firstChunk.count))
         assembled.append(firstChunk)
 
+        var emptyReads = 0
         while assembled.count < totalExpected {
             let remaining = totalExpected - assembled.count
             // Round up read request to multiple of 512 bytes (USB 2.0/3.0 maxPacketSize) to prevent overrun errors.
             let chunkRequest = min(262_144, ((remaining + 511) / 512) * 512)
             let chunk = try readBulkChunk(pipe: inPipe, maxBytes: max(512, chunkRequest), timeout: max(timeout, 10.0))
-            if chunk.isEmpty { break }
+            if chunk.isEmpty {
+                emptyReads += 1
+                if emptyReads >= 2 { break }
+                continue
+            }
+            emptyReads = 0
             assembled.append(chunk)
         }
 
         guard assembled.count >= totalExpected, totalExpected >= 12 else {
+            drainStaleBulkIn(pipe: inPipe)
             throw CanonUSBTransportError.invalidHeader
         }
 
         let payload = assembled.subdata(in: 12..<totalExpected)
 
-        // If Response block was concatenated right after Data block in rare firmware, parse it directly; otherwise read Bulk-In.
-        let respData: Data
+        // If Response block was concatenated right after Data block in rare firmware, parse it directly;
+        // otherwise read Bulk-In (skipping any 0-byte ZLP emitted when totalExpected % 512 == 0).
+        var respData = Data()
         if assembled.count >= totalExpected + 12 {
             respData = assembled.subdata(in: totalExpected..<assembled.count)
         } else {
-            respData = try readBulkChunk(pipe: inPipe, maxBytes: 65_536, timeout: timeout)
+            if assembled.count > totalExpected {
+                respData.append(assembled.subdata(in: totalExpected..<assembled.count))
+            }
+            for _ in 0..<4 where respData.count < 12 {
+                let piece = try readBulkChunk(pipe: inPipe, maxBytes: 65_536, timeout: timeout)
+                if piece.isEmpty { continue } // Ignore 0-byte USB ZLP after 512-byte-aligned Data phase
+                respData.append(piece)
+            }
         }
 
         guard let respHeader = CanonUSBPTPCodec.parseContainerHeader(respData), respHeader.type == 3 else {
+            drainStaleBulkIn(pipe: inPipe)
             throw CanonUSBTransportError.invalidHeader
         }
 
@@ -541,6 +577,21 @@ private final class CanonUSBTransport: @unchecked Sendable {
             responseCode: respHeader.code,
             responseParams: extractResponseParams(from: respData)
         )
+    }
+
+    private func drainStaleBulkIn(pipe: IOUSBHostPipe) {
+        try? pipe.clearStall()
+        guard let scratch = NSMutableData(length: 65_536) else { return }
+        for _ in 0..<4 {
+            var got = 0
+            do {
+                try pipe.__sendIORequest(with: scratch, bytesTransferred: &got, completionTimeout: 0.05)
+                if got == 0 { break }
+            } catch {
+                break
+            }
+        }
+        try? pipe.clearStall()
     }
 
     private func writeBulk(pipe: IOUSBHostPipe, data: Data, timeout: TimeInterval) throws {
@@ -788,13 +839,9 @@ package final class DirectCanonUSBPTPService {
                 // Apply CaptureDestination based on keepOriginalsOnDevice using detected SD value
                 await self.applyCaptureDestination(transport: transport, keepOriginalsOnDevice: profile.keepOriginalsOnDevice, fingerprint: fp)
 
-                // Route EVF to the camera's own TFT LCD (0xD1B0 = 1) when PhotoPic Live View is OFF so the photographer
-                // can frame directly on the camera screen while tethered shots still stream immediately to the Mac.
-                let evfModeOn = CanonUSBPTPCodec.buildSetPropUInt32Payload(propCode: CanonPTPCode.propEVFMode, value: 1)
-                _ = try? await transport.execute(opCode: CanonPTPCode.eosSetDevicePropValueEx, outPayload: evfModeOn)
-                let evfTFT = CanonUSBPTPCodec.buildSetPropUInt32Payload(propCode: CanonPTPCode.propEVFOutputDevice, value: 1)
-                _ = try? await transport.execute(opCode: CanonPTPCode.eosSetDevicePropValueEx, outPayload: evfTFT)
-                _ = try? await transport.execute(opCode: CanonPTPCode.eosResetUILock)
+                // Route EVF to the camera's own TFT LCD (0xD1B0 = 1) with settle delay & busy retry when PhotoPic Live View is OFF
+                // so the photographer can frame directly on the camera screen while tethered shots stream immediately to the Mac.
+                await self.activateCameraTFTScreen(transport: transport)
 
                 self.onStatusChanged?(fp, .connectedReady, snapshot.batteryPercent)
                 self.startEventPollLoop(for: fp)
@@ -1297,12 +1344,34 @@ package final class DirectCanonUSBPTPService {
         }
     }
 
-    private func disableLiveViewOnCamera(transport: CanonUSBTransport) async {
-        // Restore EVFOutputDevice back to camera's internal TFT LCD (1) so the rear screen never stays black,
-        // and never disable EVFMode (0xD1B1 = 0).
+    private func activateCameraTFTScreen(transport: CanonUSBTransport) async {
+        try? await Task.sleep(for: .milliseconds(120))
+        let evfPayload = CanonUSBPTPCodec.buildSetPropUInt32Payload(propCode: CanonPTPCode.propEVFMode, value: 1)
+        if var modeRes = try? await transport.execute(opCode: CanonPTPCode.eosSetDevicePropValueEx, outPayload: evfPayload, timeout: 2.0) {
+            for backoff in [120, 200] where modeRes.responseCode == CanonPTPCode.responseDeviceBusy || modeRes.responseCode == CanonPTPCode.responseCanonNotReady {
+                try? await Task.sleep(for: .milliseconds(backoff))
+                if let retry = try? await transport.execute(opCode: CanonPTPCode.eosSetDevicePropValueEx, outPayload: evfPayload, timeout: 2.0) {
+                    modeRes = retry
+                }
+            }
+        }
+        try? await Task.sleep(for: .milliseconds(150))
         let outTFT = CanonUSBPTPCodec.buildSetPropUInt32Payload(propCode: CanonPTPCode.propEVFOutputDevice, value: 1)
-        _ = try? await transport.execute(opCode: CanonPTPCode.eosSetDevicePropValueEx, outPayload: outTFT, timeout: 1.5)
+        if var outRes = try? await transport.execute(opCode: CanonPTPCode.eosSetDevicePropValueEx, outPayload: outTFT, timeout: 2.0) {
+            for backoff in [120, 200] where outRes.responseCode == CanonPTPCode.responseDeviceBusy || outRes.responseCode == CanonPTPCode.responseCanonNotReady {
+                try? await Task.sleep(for: .milliseconds(backoff))
+                if let retry = try? await transport.execute(opCode: CanonPTPCode.eosSetDevicePropValueEx, outPayload: outTFT, timeout: 2.0) {
+                    outRes = retry
+                }
+            }
+        }
         _ = try? await transport.execute(opCode: CanonPTPCode.eosResetUILock, timeout: 1.5)
+    }
+
+    private func disableLiveViewOnCamera(transport: CanonUSBTransport) async {
+        // Restore EVFOutputDevice back to camera's internal TFT LCD (1) with settle delay & busy retry
+        // so the rear screen comes back on for framing on the camera body, and never disable EVFMode (0xD1B1 = 0).
+        await activateCameraTFTScreen(transport: transport)
     }
 
     private func startEventPollLoop(for fingerprint: String) {
@@ -1347,10 +1416,20 @@ package final class DirectCanonUSBPTPService {
                 } catch {
                     if Task.isCancelled { break }
                     consecutiveErrors += 1
-                    if consecutiveErrors >= 6 {
+                    if consecutiveErrors >= 10 {
+                        let profile = ctx.profile
                         self.handlePhysicalDisconnect(for: fingerprint)
+                        // If the camera is still physically plugged into USB, self-heal by reopening the session cleanly.
+                        let stillPlugged = USBHardwareMonitor.scanIOKitImagingDevices().contains {
+                            $0.vendorID == profile.usbVendorID && ($0.productID == profile.usbProductID || profile.usbProductID == 0)
+                        }
+                        if stillPlugged {
+                            try? await Task.sleep(for: .milliseconds(300))
+                            self.openSession(profile: profile)
+                        }
                         break
                     }
+                    try? await Task.sleep(for: .milliseconds(200))
                 }
                 try? await Task.sleep(for: .milliseconds(150))
             }
@@ -1384,40 +1463,50 @@ package final class DirectCanonUSBPTPService {
                 while total == 0 || offset < total {
                     let remaining = total > 0 ? min(chunkSize, total - offset) : chunkSize
                     let primaryPartialOp = item.isRAMTransfer ? CanonPTPCode.eosGetPartialObject : CanonPTPCode.getPartialObject
-                    var res = try await transport.execute(
-                        opCode: primaryPartialOp,
-                        params: [item.handle, offset, remaining],
-                        timeout: 15.0
-                    )
-                    for retryDelay in [120, 200, 300] where res.responseCode == CanonPTPCode.responseDeviceBusy || res.responseCode == CanonPTPCode.responseCanonNotReady {
-                        try? await Task.sleep(for: .milliseconds(retryDelay))
-                        res = try await transport.execute(
+                    var chunkRes: PTPBulkResult?
+                    for attempt in 0..<4 {
+                        if attempt > 0 {
+                            try? await Task.sleep(for: .milliseconds(attempt * 120))
+                        }
+                        if let res = try? await transport.execute(
                             opCode: primaryPartialOp,
                             params: [item.handle, offset, remaining],
                             timeout: 15.0
-                        )
+                        ) {
+                            chunkRes = res
+                            if res.responseCode == CanonPTPCode.responseOK {
+                                break
+                            }
+                            if res.responseCode != CanonPTPCode.responseDeviceBusy && res.responseCode != CanonPTPCode.responseCanonNotReady {
+                                break
+                            }
+                        }
                     }
-                    if res.responseCode != CanonPTPCode.responseOK && offset == 0 {
+
+                    if (chunkRes == nil || chunkRes?.responseCode != CanonPTPCode.responseOK) && offset == 0 {
                         let secondaryPartialOp = item.isRAMTransfer ? CanonPTPCode.getPartialObject : CanonPTPCode.eosGetPartialObject
-                        let altRes = try await transport.execute(
+                        if let altRes = try? await transport.execute(
                             opCode: secondaryPartialOp,
                             params: [item.handle, offset, remaining],
                             timeout: 15.0
-                        )
-                        if altRes.responseCode == CanonPTPCode.responseOK {
-                            res = altRes
-                        } else {
-                            let fullRes = try await transport.execute(opCode: CanonPTPCode.getObject, params: [item.handle], timeout: 25.0)
-                            guard fullRes.responseCode == CanonPTPCode.responseOK else {
-                                throw CanonUSBTransportError.ioFailed(String(format: "GetObject error 0x%04X", fullRes.responseCode))
-                            }
-                            fileData = fullRes.dataPayload
-                            usedFullGetObjectFallback = true
-                            break
+                        ), altRes.responseCode == CanonPTPCode.responseOK {
+                            chunkRes = altRes
                         }
                     }
-                    guard res.responseCode == CanonPTPCode.responseOK else {
-                        throw CanonUSBTransportError.ioFailed(String(format: "Descarga falló (0x%04X)", res.responseCode))
+
+                    // If any chunk failed or returned non-OK, seamlessly rescue the entire photo with atomic GetObject (0x1009)
+                    guard let res = chunkRes, res.responseCode == CanonPTPCode.responseOK else {
+                        var fullRes = try await transport.execute(opCode: CanonPTPCode.getObject, params: [item.handle], timeout: 25.0)
+                        for retryDelay in [150, 250] where fullRes.responseCode == CanonPTPCode.responseDeviceBusy || fullRes.responseCode == CanonPTPCode.responseCanonNotReady {
+                            try? await Task.sleep(for: .milliseconds(retryDelay))
+                            fullRes = try await transport.execute(opCode: CanonPTPCode.getObject, params: [item.handle], timeout: 25.0)
+                        }
+                        guard fullRes.responseCode == CanonPTPCode.responseOK else {
+                            throw CanonUSBTransportError.ioFailed(String(format: "GetObject error 0x%04X", fullRes.responseCode))
+                        }
+                        fileData = fullRes.dataPayload
+                        usedFullGetObjectFallback = true
+                        break
                     }
                     if res.dataPayload.isEmpty { break }
                     fileData.append(res.dataPayload)
@@ -1425,9 +1514,7 @@ package final class DirectCanonUSBPTPService {
                     if total == 0 && UInt32(res.dataPayload.count) < remaining { break }
                 }
 
-                if item.isRAMTransfer && !usedFullGetObjectFallback {
-                    _ = try? await transport.execute(opCode: CanonPTPCode.eosTransferComplete, params: [item.handle])
-                } else if item.isRAMTransfer {
+                if item.isRAMTransfer {
                     _ = try? await transport.execute(opCode: CanonPTPCode.eosTransferComplete, params: [item.handle])
                 }
             } else {
@@ -1460,6 +1547,13 @@ package final class DirectCanonUSBPTPService {
             let remaining = updatedCtx.activeDownloads
             sessions[fingerprint] = updatedCtx
             onStatusChanged?(fingerprint, remaining > 0 ? .capturing(activeDownloads: remaining) : .connectedReady, nil)
+            // After a physical shutter shot finishes downloading while PhotoPic Live View is OFF,
+            // Canon DSLRs drop EVFOutputDevice to 0 (turning off the rear screen); restore TFT LCD (1) automatically.
+            if remaining == 0,
+               !isDirectLiveViewStreaming,
+               controlSnapshots[fingerprint]?.isMirrorDownOpticalFlashMode != true {
+                await activateCameraTFTScreen(transport: transport)
+            }
         }
     }
 
